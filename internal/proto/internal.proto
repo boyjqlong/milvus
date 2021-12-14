@@ -140,7 +140,8 @@ message InsertRequest {
   int64 segmentID = 9;
   repeated uint64 timestamps = 10;
   repeated int64 rowIDs = 11;
-  repeated common.Blob row_data = 12;
+  repeated schema.FieldData fields_data = 12;
+  uint32 num_rows = 13;
 }
 
 message SearchRequest {

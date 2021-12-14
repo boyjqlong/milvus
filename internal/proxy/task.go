@@ -17,9 +17,7 @@
 package proxy
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
@@ -337,247 +335,246 @@ func (it *insertTask) checkRowNums() error {
 	return nil
 }
 
-// TODO(dragondriver): ignore the order of fields in request, use the order of CollectionSchema to reorganize data
-func (it *insertTask) transferColumnBasedRequestToRowBasedData() error {
-	dTypes := make([]schemapb.DataType, 0, len(it.req.FieldsData))
-	datas := make([][]interface{}, 0, len(it.req.FieldsData))
-	rowNum := 0
-
-	appendScalarField := func(getDataFunc func() interface{}) error {
-		fieldDatas := reflect.ValueOf(getDataFunc())
-		if rowNum != 0 && rowNum != fieldDatas.Len() {
-			return errors.New("the row num of different column is not equal")
-		}
-		rowNum = fieldDatas.Len()
-		datas = append(datas, make([]interface{}, 0, rowNum))
-		idx := len(datas) - 1
-		for i := 0; i < rowNum; i++ {
-			datas[idx] = append(datas[idx], fieldDatas.Index(i).Interface())
-		}
-
-		return nil
-	}
-
-	appendFloatVectorField := func(fDatas []float32, dim int64) error {
-		l := len(fDatas)
-		if int64(l)%dim != 0 {
-			return errors.New("invalid vectors")
-		}
-		r := int64(l) / dim
-		if rowNum != 0 && rowNum != int(r) {
-			return errors.New("the row num of different column is not equal")
-		}
-		rowNum = int(r)
-		datas = append(datas, make([]interface{}, 0, rowNum))
-		idx := len(datas) - 1
-		vector := make([]float32, 0, dim)
-		for i := 0; i < l; i++ {
-			vector = append(vector, fDatas[i])
-			if int64(i+1)%dim == 0 {
-				datas[idx] = append(datas[idx], vector)
-				vector = make([]float32, 0, dim)
-			}
-		}
-
-		return nil
-	}
-
-	appendBinaryVectorField := func(bDatas []byte, dim int64) error {
-		l := len(bDatas)
-		if dim%8 != 0 {
-			return errors.New("invalid dim")
-		}
-		if (8*int64(l))%dim != 0 {
-			return errors.New("invalid vectors")
-		}
-		r := (8 * int64(l)) / dim
-		if rowNum != 0 && rowNum != int(r) {
-			return errors.New("the row num of different column is not equal")
-		}
-		rowNum = int(r)
-		datas = append(datas, make([]interface{}, 0, rowNum))
-		idx := len(datas) - 1
-		vector := make([]byte, 0, dim)
-		for i := 0; i < l; i++ {
-			vector = append(vector, bDatas[i])
-			if (8*int64(i+1))%dim == 0 {
-				datas[idx] = append(datas[idx], vector)
-				vector = make([]byte, 0, dim)
-			}
-		}
-
-		return nil
-	}
-
-	for _, field := range it.req.FieldsData {
-		switch field.Field.(type) {
-		case *schemapb.FieldData_Scalars:
-			scalarField := field.GetScalars()
-			switch scalarField.Data.(type) {
-			case *schemapb.ScalarField_BoolData:
-				err := appendScalarField(func() interface{} {
-					return scalarField.GetBoolData().Data
-				})
-				if err != nil {
-					return err
-				}
-			case *schemapb.ScalarField_IntData:
-				err := appendScalarField(func() interface{} {
-					return scalarField.GetIntData().Data
-				})
-				if err != nil {
-					return err
-				}
-			case *schemapb.ScalarField_LongData:
-				err := appendScalarField(func() interface{} {
-					return scalarField.GetLongData().Data
-				})
-				if err != nil {
-					return err
-				}
-			case *schemapb.ScalarField_FloatData:
-				err := appendScalarField(func() interface{} {
-					return scalarField.GetFloatData().Data
-				})
-				if err != nil {
-					return err
-				}
-			case *schemapb.ScalarField_DoubleData:
-				err := appendScalarField(func() interface{} {
-					return scalarField.GetDoubleData().Data
-				})
-				if err != nil {
-					return err
-				}
-			case *schemapb.ScalarField_BytesData:
-				return errors.New("bytes field is not supported now")
-			case *schemapb.ScalarField_StringData:
-				return errors.New("string field is not supported now")
-			case nil:
-				continue
-			default:
-				continue
-			}
-		case *schemapb.FieldData_Vectors:
-			vectorField := field.GetVectors()
-			switch vectorField.Data.(type) {
-			case *schemapb.VectorField_FloatVector:
-				floatVectorFieldData := vectorField.GetFloatVector().Data
-				dim := vectorField.GetDim()
-				err := appendFloatVectorField(floatVectorFieldData, dim)
-				if err != nil {
-					return err
-				}
-			case *schemapb.VectorField_BinaryVector:
-				binaryVectorFieldData := vectorField.GetBinaryVector()
-				dim := vectorField.GetDim()
-				err := appendBinaryVectorField(binaryVectorFieldData, dim)
-				if err != nil {
-					return err
-				}
-			case nil:
-				continue
-			default:
-				continue
-			}
-		case nil:
-			continue
-		default:
-			continue
-		}
-
-		dTypes = append(dTypes, field.Type)
-	}
-
-	it.RowData = make([]*commonpb.Blob, 0, rowNum)
-	l := len(dTypes)
-	// TODO(dragondriver): big endian or little endian?
-	endian := common.Endian
-	printed := false
-	for i := 0; i < rowNum; i++ {
-		blob := &commonpb.Blob{
-			Value: make([]byte, 0),
-		}
-
-		for j := 0; j < l; j++ {
-			var buffer bytes.Buffer
-			switch dTypes[j] {
-			case schemapb.DataType_Bool:
-				d := datas[j][i].(bool)
-				err := binary.Write(&buffer, endian, d)
-				if err != nil {
-					log.Warn("ConvertData", zap.Error(err))
-				}
-				blob.Value = append(blob.Value, buffer.Bytes()...)
-			case schemapb.DataType_Int8:
-				d := int8(datas[j][i].(int32))
-				err := binary.Write(&buffer, endian, d)
-				if err != nil {
-					log.Warn("ConvertData", zap.Error(err))
-				}
-				blob.Value = append(blob.Value, buffer.Bytes()...)
-			case schemapb.DataType_Int16:
-				d := int16(datas[j][i].(int32))
-				err := binary.Write(&buffer, endian, d)
-				if err != nil {
-					log.Warn("ConvertData", zap.Error(err))
-				}
-				blob.Value = append(blob.Value, buffer.Bytes()...)
-			case schemapb.DataType_Int32:
-				d := datas[j][i].(int32)
-				err := binary.Write(&buffer, endian, d)
-				if err != nil {
-					log.Warn("ConvertData", zap.Error(err))
-				}
-				blob.Value = append(blob.Value, buffer.Bytes()...)
-			case schemapb.DataType_Int64:
-				d := datas[j][i].(int64)
-				err := binary.Write(&buffer, endian, d)
-				if err != nil {
-					log.Warn("ConvertData", zap.Error(err))
-				}
-				blob.Value = append(blob.Value, buffer.Bytes()...)
-			case schemapb.DataType_Float:
-				d := datas[j][i].(float32)
-				err := binary.Write(&buffer, endian, d)
-				if err != nil {
-					log.Warn("ConvertData", zap.Error(err))
-				}
-				blob.Value = append(blob.Value, buffer.Bytes()...)
-			case schemapb.DataType_Double:
-				d := datas[j][i].(float64)
-				err := binary.Write(&buffer, endian, d)
-				if err != nil {
-					log.Warn("ConvertData", zap.Error(err))
-				}
-				blob.Value = append(blob.Value, buffer.Bytes()...)
-			case schemapb.DataType_FloatVector:
-				d := datas[j][i].([]float32)
-				err := binary.Write(&buffer, endian, d)
-				if err != nil {
-					log.Warn("ConvertData", zap.Error(err))
-				}
-				blob.Value = append(blob.Value, buffer.Bytes()...)
-			case schemapb.DataType_BinaryVector:
-				d := datas[j][i].([]byte)
-				err := binary.Write(&buffer, endian, d)
-				if err != nil {
-					log.Warn("ConvertData", zap.Error(err))
-				}
-				blob.Value = append(blob.Value, buffer.Bytes()...)
-			default:
-				log.Warn("unsupported data type")
-			}
-		}
-		if !printed {
-			log.Debug("Proxy, transform", zap.Any("ID", it.ID()), zap.Any("BlobLen", len(blob.Value)), zap.Any("dTypes", dTypes))
-			printed = true
-		}
-		it.RowData = append(it.RowData, blob)
-	}
-
-	return nil
-}
+// @czs
+//func (it *insertTask) transferColumnBasedRequestToRowBasedData() error {
+//	dTypes := make([]schemapb.DataType, 0, len(it.req.FieldsData))
+//	datas := make([][]interface{}, 0, len(it.req.FieldsData))
+//	rowNum := 0
+//
+//	appendScalarField := func(getDataFunc func() interface{}) error {
+//		fieldDatas := reflect.ValueOf(getDataFunc())
+//		if rowNum != 0 && rowNum != fieldDatas.Len() {
+//			return errors.New("the row num of different column is not equal")
+//		}
+//		rowNum = fieldDatas.Len()
+//		datas = append(datas, make([]interface{}, 0, rowNum))
+//		idx := len(datas) - 1
+//		for i := 0; i < rowNum; i++ {
+//			datas[idx] = append(datas[idx], fieldDatas.Index(i).Interface())
+//		}
+//
+//		return nil
+//	}
+//
+//	appendFloatVectorField := func(fDatas []float32, dim int64) error {
+//		l := len(fDatas)
+//		if int64(l)%dim != 0 {
+//			return errors.New("invalid vectors")
+//		}
+//		r := int64(l) / dim
+//		if rowNum != 0 && rowNum != int(r) {
+//			return errors.New("the row num of different column is not equal")
+//		}
+//		rowNum = int(r)
+//		datas = append(datas, make([]interface{}, 0, rowNum))
+//		idx := len(datas) - 1
+//		vector := make([]float32, 0, dim)
+//		for i := 0; i < l; i++ {
+//			vector = append(vector, fDatas[i])
+//			if int64(i+1)%dim == 0 {
+//				datas[idx] = append(datas[idx], vector)
+//				vector = make([]float32, 0, dim)
+//			}
+//		}
+//
+//		return nil
+//	}
+//
+//	appendBinaryVectorField := func(bDatas []byte, dim int64) error {
+//		l := len(bDatas)
+//		if dim%8 != 0 {
+//			return errors.New("invalid dim")
+//		}
+//		if (8*int64(l))%dim != 0 {
+//			return errors.New("invalid vectors")
+//		}
+//		r := (8 * int64(l)) / dim
+//		if rowNum != 0 && rowNum != int(r) {
+//			return errors.New("the row num of different column is not equal")
+//		}
+//		rowNum = int(r)
+//		datas = append(datas, make([]interface{}, 0, rowNum))
+//		idx := len(datas) - 1
+//		vector := make([]byte, 0, dim)
+//		for i := 0; i < l; i++ {
+//			vector = append(vector, bDatas[i])
+//			if (8*int64(i+1))%dim == 0 {
+//				datas[idx] = append(datas[idx], vector)
+//				vector = make([]byte, 0, dim)
+//			}
+//		}
+//
+//		return nil
+//	}
+//
+//	for _, field := range it.req.FieldsData {
+//		switch field.Field.(type) {
+//		case *schemapb.FieldData_Scalars:
+//			scalarField := field.GetScalars()
+//			switch scalarField.Data.(type) {
+//			case *schemapb.ScalarField_BoolData:
+//				err := appendScalarField(func() interface{} {
+//					return scalarField.GetBoolData().Data
+//				})
+//				if err != nil {
+//					return err
+//				}
+//			case *schemapb.ScalarField_IntData:
+//				err := appendScalarField(func() interface{} {
+//					return scalarField.GetIntData().Data
+//				})
+//				if err != nil {
+//					return err
+//				}
+//			case *schemapb.ScalarField_LongData:
+//				err := appendScalarField(func() interface{} {
+//					return scalarField.GetLongData().Data
+//				})
+//				if err != nil {
+//					return err
+//				}
+//			case *schemapb.ScalarField_FloatData:
+//				err := appendScalarField(func() interface{} {
+//					return scalarField.GetFloatData().Data
+//				})
+//				if err != nil {
+//					return err
+//				}
+//			case *schemapb.ScalarField_DoubleData:
+//				err := appendScalarField(func() interface{} {
+//					return scalarField.GetDoubleData().Data
+//				})
+//				if err != nil {
+//					return err
+//				}
+//			case *schemapb.ScalarField_BytesData:
+//				return errors.New("bytes field is not supported now")
+//			case *schemapb.ScalarField_StringData:
+//				return errors.New("string field is not supported now")
+//			case nil:
+//				continue
+//			default:
+//				continue
+//			}
+//		case *schemapb.FieldData_Vectors:
+//			vectorField := field.GetVectors()
+//			switch vectorField.Data.(type) {
+//			case *schemapb.VectorField_FloatVector:
+//				floatVectorFieldData := vectorField.GetFloatVector().Data
+//				dim := vectorField.GetDim()
+//				err := appendFloatVectorField(floatVectorFieldData, dim)
+//				if err != nil {
+//					return err
+//				}
+//			case *schemapb.VectorField_BinaryVector:
+//				binaryVectorFieldData := vectorField.GetBinaryVector()
+//				dim := vectorField.GetDim()
+//				err := appendBinaryVectorField(binaryVectorFieldData, dim)
+//				if err != nil {
+//					return err
+//				}
+//			case nil:
+//				continue
+//			default:
+//				continue
+//			}
+//		case nil:
+//			continue
+//		default:
+//			continue
+//		}
+//
+//		dTypes = append(dTypes, field.Type)
+//	}
+//
+//	it.RowData = make([]*commonpb.Blob, 0, rowNum)
+//	l := len(dTypes)
+//	endian := common.Endian
+//	printed := false
+//	for i := 0; i < rowNum; i++ {
+//		blob := &commonpb.Blob{
+//			Value: make([]byte, 0),
+//		}
+//
+//		for j := 0; j < l; j++ {
+//			var buffer bytes.Buffer
+//			switch dTypes[j] {
+//			case schemapb.DataType_Bool:
+//				d := datas[j][i].(bool)
+//				err := binary.Write(&buffer, endian, d)
+//				if err != nil {
+//					log.Warn("ConvertData", zap.Error(err))
+//				}
+//				blob.Value = append(blob.Value, buffer.Bytes()...)
+//			case schemapb.DataType_Int8:
+//				d := int8(datas[j][i].(int32))
+//				err := binary.Write(&buffer, endian, d)
+//				if err != nil {
+//					log.Warn("ConvertData", zap.Error(err))
+//				}
+//				blob.Value = append(blob.Value, buffer.Bytes()...)
+//			case schemapb.DataType_Int16:
+//				d := int16(datas[j][i].(int32))
+//				err := binary.Write(&buffer, endian, d)
+//				if err != nil {
+//					log.Warn("ConvertData", zap.Error(err))
+//				}
+//				blob.Value = append(blob.Value, buffer.Bytes()...)
+//			case schemapb.DataType_Int32:
+//				d := datas[j][i].(int32)
+//				err := binary.Write(&buffer, endian, d)
+//				if err != nil {
+//					log.Warn("ConvertData", zap.Error(err))
+//				}
+//				blob.Value = append(blob.Value, buffer.Bytes()...)
+//			case schemapb.DataType_Int64:
+//				d := datas[j][i].(int64)
+//				err := binary.Write(&buffer, endian, d)
+//				if err != nil {
+//					log.Warn("ConvertData", zap.Error(err))
+//				}
+//				blob.Value = append(blob.Value, buffer.Bytes()...)
+//			case schemapb.DataType_Float:
+//				d := datas[j][i].(float32)
+//				err := binary.Write(&buffer, endian, d)
+//				if err != nil {
+//					log.Warn("ConvertData", zap.Error(err))
+//				}
+//				blob.Value = append(blob.Value, buffer.Bytes()...)
+//			case schemapb.DataType_Double:
+//				d := datas[j][i].(float64)
+//				err := binary.Write(&buffer, endian, d)
+//				if err != nil {
+//					log.Warn("ConvertData", zap.Error(err))
+//				}
+//				blob.Value = append(blob.Value, buffer.Bytes()...)
+//			case schemapb.DataType_FloatVector:
+//				d := datas[j][i].([]float32)
+//				err := binary.Write(&buffer, endian, d)
+//				if err != nil {
+//					log.Warn("ConvertData", zap.Error(err))
+//				}
+//				blob.Value = append(blob.Value, buffer.Bytes()...)
+//			case schemapb.DataType_BinaryVector:
+//				d := datas[j][i].([]byte)
+//				err := binary.Write(&buffer, endian, d)
+//				if err != nil {
+//					log.Warn("ConvertData", zap.Error(err))
+//				}
+//				blob.Value = append(blob.Value, buffer.Bytes()...)
+//			default:
+//				log.Warn("unsupported data type")
+//			}
+//		}
+//		if !printed {
+//			log.Debug("Proxy, transform", zap.Any("ID", it.ID()), zap.Any("BlobLen", len(blob.Value)), zap.Any("dTypes", dTypes))
+//			printed = true
+//		}
+//		it.RowData = append(it.RowData, blob)
+//	}
+//
+//	return nil
+//}
 
 func (it *insertTask) checkFieldAutoIDAndHashPK() error {
 	// TODO(dragondriver): in fact, NumRows is not trustable, we should check all input fields
@@ -756,13 +753,13 @@ func (it *insertTask) PreExecute(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	err = it.transferColumnBasedRequestToRowBasedData()
-	if err != nil {
-		return err
-	}
-
-	rowNum := len(it.RowData)
+	//
+	//err = it.transferColumnBasedRequestToRowBasedData()
+	//if err != nil {
+	//	return err
+	//}
+	rowNum := it.req.NumRows
+	//rowNum := len(it.RowData)
 	it.Timestamps = make([]uint64, rowNum)
 	for index := range it.Timestamps {
 		it.Timestamps[index] = it.BeginTimestamp
@@ -802,10 +799,10 @@ func (it *insertTask) _assignSegmentID(stream msgstream.MsgStream, pack *msgstre
 		keys := hashKeys[i]
 		timestampLen := len(insertRequest.Timestamps)
 		rowIDLen := len(insertRequest.RowIDs)
-		rowDataLen := len(insertRequest.RowData)
+		rowDataLen := insertRequest.NumRows
 		keysLen := len(keys)
 
-		if keysLen != timestampLen || keysLen != rowIDLen || keysLen != rowDataLen {
+		if keysLen != timestampLen || keysLen != rowIDLen || uint32(keysLen) != rowDataLen {
 			return nil, fmt.Errorf("the length of hashValue, timestamps, rowIDs, RowData are not equal")
 		}
 		for idx, channelID := range keys {
@@ -910,6 +907,8 @@ func (it *insertTask) _assignSegmentID(stream msgstream.MsgStream, pack *msgstre
 		return size
 	}
 
+	perRowSize, _ := typeutil.EstimateSizePerRecord(it.schema)
+
 	result := make(map[int32]msgstream.TsMsg)
 	curMsgSizeMap := make(map[int32]int)
 
@@ -924,7 +923,7 @@ func (it *insertTask) _assignSegmentID(stream msgstream.MsgStream, pack *msgstre
 		for index, key := range keys {
 			ts := insertRequest.Timestamps[index]
 			rowID := insertRequest.RowIDs[index]
-			row := insertRequest.RowData[index]
+			//row := insertRequest.RowData[index]
 			segmentID := getSegmentID(key)
 			if segmentID == 0 {
 				return nil, fmt.Errorf("get SegmentID failed, segmentID is zero")
@@ -944,6 +943,8 @@ func (it *insertTask) _assignSegmentID(stream msgstream.MsgStream, pack *msgstre
 					PartitionName:  partitionName,
 					SegmentID:      segmentID,
 					ShardName:      channelNames[key],
+					NumRows:        0,
+					FieldsData:     make([]*schemapb.FieldData, len(it.req.FieldsData)),
 				}
 				insertMsg := &msgstream.InsertMsg{
 					BaseMsg: msgstream.BaseMsg{
@@ -959,15 +960,19 @@ func (it *insertTask) _assignSegmentID(stream msgstream.MsgStream, pack *msgstre
 			curMsg.HashValues = append(curMsg.HashValues, insertRequest.HashValues[index])
 			curMsg.Timestamps = append(curMsg.Timestamps, ts)
 			curMsg.RowIDs = append(curMsg.RowIDs, rowID)
-			curMsg.RowData = append(curMsg.RowData, row)
+			typeutil.AppendFieldData(curMsg.FieldsData, it.req.FieldsData, int64(index))
+			curMsg.NumRows += 1
+			curMsgSize += perRowSize
+			//curMsg.RowData = append(curMsg.RowData, row)
 			/* #nosec G103 */
-			curMsgSize += 4 + 8 + int(unsafe.Sizeof(row.Value))
-			curMsgSize += len(row.Value)
+			//curMsgSize += 4 + 8 + int(unsafe.Sizeof(row.Value))
+			//curMsgSize += len(row.Value)
 
 			if curMsgSize >= threshold {
 				newPack.Msgs = append(newPack.Msgs, curMsg)
 				delete(result, key)
 				curMsgSize = 0
+				delete(curMsgSizeMap, key)
 			}
 
 			curMsgSizeMap[key] = curMsgSize
