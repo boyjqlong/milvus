@@ -19,6 +19,8 @@ package msgstream
 import (
 	"errors"
 	"fmt"
+	"github.com/milvus-io/milvus/internal/proto/schemapb"
+	"github.com/milvus-io/milvus/internal/util/typeutil"
 	"strconv"
 
 	"github.com/milvus-io/milvus/internal/proto/commonpb"
@@ -37,10 +39,10 @@ func InsertRepackFunc(tsMsgs []TsMsg, hashKeys [][]int32) (map[int32]*MsgPack, e
 
 		timestampLen := len(insertRequest.Timestamps)
 		rowIDLen := len(insertRequest.RowIDs)
-		rowDataLen := len(insertRequest.RowData)
+		rowDataLen := insertRequest.NumRows
 		keysLen := len(keys)
 
-		if keysLen != timestampLen || keysLen != rowIDLen || keysLen != rowDataLen {
+		if keysLen != timestampLen || keysLen != rowIDLen || uint32(keysLen) != rowDataLen {
 			return nil, errors.New("the length of hashValue, timestamps, rowIDs, RowData are not equal")
 		}
 		for index, key := range keys {
@@ -49,7 +51,9 @@ func InsertRepackFunc(tsMsgs []TsMsg, hashKeys [][]int32) (map[int32]*MsgPack, e
 				msgPack := MsgPack{}
 				result[key] = &msgPack
 			}
-
+			colNum := len(insertRequest.FieldsData)
+			fieldsData := make([]*schemapb.FieldData, colNum)
+			typeutil.AppendFieldData(fieldsData, insertRequest.FieldsData, int64(index))
 			sliceRequest := internalpb.InsertRequest{
 				Base: &commonpb.MsgBase{
 					MsgType:   commonpb.MsgType_Insert,
@@ -66,7 +70,7 @@ func InsertRepackFunc(tsMsgs []TsMsg, hashKeys [][]int32) (map[int32]*MsgPack, e
 				ShardName:      insertRequest.ShardName,
 				Timestamps:     []uint64{insertRequest.Timestamps[index]},
 				RowIDs:         []int64{insertRequest.RowIDs[index]},
-				RowData:        []*commonpb.Blob{insertRequest.RowData[index]},
+				FieldsData:     fieldsData,
 			}
 
 			insertMsg := &InsertMsg{
