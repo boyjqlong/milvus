@@ -17,7 +17,6 @@
 package datanode
 
 import (
-	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -423,7 +422,7 @@ func (ibNode *insertBufferNode) updateSegStatesInReplica(insertMsgs []*msgstream
 // 	1.3 Put back into buffer
 // 	1.4 Update related statistics
 func (ibNode *insertBufferNode) bufferInsertMsg(msg *msgstream.InsertMsg, endPos *internalpb.MsgPosition) error {
-	if len(msg.RowIDs) != len(msg.Timestamps) || len(msg.RowIDs) != len(msg.RowData) {
+	if len(msg.RowIDs) != len(msg.Timestamps) || uint32(len(msg.RowIDs)) != msg.NumRows {
 		return errors.New("misaligned messages detected")
 	}
 	currentSegID := msg.GetSegmentID()
@@ -465,17 +464,9 @@ func (ibNode *insertBufferNode) bufferInsertMsg(msg *msgstream.InsertMsg, endPos
 	buffer := bd.(*BufferData)
 	idata := buffer.buffer
 
-	// 1.2 Get Fields
-	var fieldIDs []int64
-	var fieldTypes []schemapb.DataType
-	for _, field := range collSchema.Fields {
-		fieldIDs = append(fieldIDs, field.FieldID)
-		fieldTypes = append(fieldTypes, field.DataType)
-	}
-
-	blobReaders := make([]io.Reader, 0)
-	for _, blob := range msg.RowData {
-		blobReaders = append(blobReaders, bytes.NewReader(blob.GetValue()))
+	srcFields := make(map[storage.FieldID]*schemapb.FieldData, 0)
+	for _, field := range msg.FieldsData {
+		srcFields[field.FieldId] = field
 	}
 
 	for _, field := range collSchema.Fields {
@@ -500,17 +491,10 @@ func (ibNode *insertBufferNode) bufferInsertMsg(msg *msgstream.InsertMsg, endPos
 					Dim:     dim,
 				}
 			}
-
 			fieldData := idata.Data[field.FieldID].(*storage.FloatVectorFieldData)
-			for _, r := range blobReaders {
-				var v []float32 = make([]float32, dim)
-
-				readBinary(r, &v, field.DataType)
-
-				fieldData.Data = append(fieldData.Data, v...)
-			}
-
-			fieldData.NumRows = append(fieldData.NumRows, int64(len(msg.RowData)))
+			srcData := srcFields[field.FieldID].GetVectors().GetFloatVector().GetData()
+			fieldData.Data = append(fieldData.Data, srcData...)
+			fieldData.NumRows = append(fieldData.NumRows, int64(msg.NumRows))
 
 		case schemapb.DataType_BinaryVector:
 			var dim int
@@ -532,16 +516,11 @@ func (ibNode *insertBufferNode) bufferInsertMsg(msg *msgstream.InsertMsg, endPos
 					Dim:     dim,
 				}
 			}
+
 			fieldData := idata.Data[field.FieldID].(*storage.BinaryVectorFieldData)
-
-			for _, r := range blobReaders {
-				var v []byte = make([]byte, dim/8)
-				readBinary(r, &v, field.DataType)
-
-				fieldData.Data = append(fieldData.Data, v...)
-			}
-
-			fieldData.NumRows = append(fieldData.NumRows, int64(len(msg.RowData)))
+			srcData := srcFields[field.FieldID].GetVectors().GetBinaryVector()
+			fieldData.Data = append(fieldData.Data, srcData...)
+			fieldData.NumRows = append(fieldData.NumRows, int64(msg.NumRows))
 
 		case schemapb.DataType_Bool:
 			if _, ok := idata.Data[field.FieldID]; !ok {
@@ -552,14 +531,9 @@ func (ibNode *insertBufferNode) bufferInsertMsg(msg *msgstream.InsertMsg, endPos
 			}
 
 			fieldData := idata.Data[field.FieldID].(*storage.BoolFieldData)
-			for _, r := range blobReaders {
-				var v bool
-				readBinary(r, &v, field.DataType)
-
-				fieldData.Data = append(fieldData.Data, v)
-			}
-
-			fieldData.NumRows = append(fieldData.NumRows, int64(len(msg.RowData)))
+			srcData := srcFields[field.FieldID].GetScalars().GetBoolData().GetData()
+			fieldData.Data = append(fieldData.Data, srcData...)
+			fieldData.NumRows = append(fieldData.NumRows, int64(msg.NumRows))
 
 		case schemapb.DataType_Int8:
 			if _, ok := idata.Data[field.FieldID]; !ok {
@@ -570,14 +544,13 @@ func (ibNode *insertBufferNode) bufferInsertMsg(msg *msgstream.InsertMsg, endPos
 			}
 
 			fieldData := idata.Data[field.FieldID].(*storage.Int8FieldData)
-			for _, r := range blobReaders {
-				var v int8
-				readBinary(r, &v, field.DataType)
-
-				fieldData.Data = append(fieldData.Data, v)
+			srcData := srcFields[field.FieldID].GetScalars().GetIntData().GetData()
+			int8SrcData := make([]int8, len(srcData))
+			for i := 0; i < len(srcData); i++ {
+				int8SrcData[i] = int8(srcData[i])
 			}
-
-			fieldData.NumRows = append(fieldData.NumRows, int64(len(msg.RowData)))
+			fieldData.Data = append(fieldData.Data, int8SrcData...)
+			fieldData.NumRows = append(fieldData.NumRows, int64(msg.NumRows))
 
 		case schemapb.DataType_Int16:
 			if _, ok := idata.Data[field.FieldID]; !ok {
@@ -588,14 +561,13 @@ func (ibNode *insertBufferNode) bufferInsertMsg(msg *msgstream.InsertMsg, endPos
 			}
 
 			fieldData := idata.Data[field.FieldID].(*storage.Int16FieldData)
-			for _, r := range blobReaders {
-				var v int16
-				readBinary(r, &v, field.DataType)
-
-				fieldData.Data = append(fieldData.Data, v)
+			srcData := srcFields[field.FieldID].GetScalars().GetIntData().GetData()
+			int16SrcData := make([]int16, len(srcData))
+			for i := 0; i < len(srcData); i++ {
+				int16SrcData[i] = int16(srcData[i])
 			}
-
-			fieldData.NumRows = append(fieldData.NumRows, int64(len(msg.RowData)))
+			fieldData.Data = append(fieldData.Data, int16SrcData...)
+			fieldData.NumRows = append(fieldData.NumRows, int64(msg.NumRows))
 
 		case schemapb.DataType_Int32:
 			if _, ok := idata.Data[field.FieldID]; !ok {
@@ -606,14 +578,9 @@ func (ibNode *insertBufferNode) bufferInsertMsg(msg *msgstream.InsertMsg, endPos
 			}
 
 			fieldData := idata.Data[field.FieldID].(*storage.Int32FieldData)
-			for _, r := range blobReaders {
-				var v int32
-				readBinary(r, &v, field.DataType)
-
-				fieldData.Data = append(fieldData.Data, v)
-			}
-
-			fieldData.NumRows = append(fieldData.NumRows, int64(len(msg.RowData)))
+			srcData := srcFields[field.FieldID].GetScalars().GetIntData().GetData()
+			fieldData.Data = append(fieldData.Data, srcData...)
+			fieldData.NumRows = append(fieldData.NumRows, int64(msg.NumRows))
 
 		case schemapb.DataType_Int64:
 			if _, ok := idata.Data[field.FieldID]; !ok {
@@ -627,21 +594,16 @@ func (ibNode *insertBufferNode) bufferInsertMsg(msg *msgstream.InsertMsg, endPos
 			switch field.FieldID {
 			case 0: // rowIDs
 				fieldData.Data = append(fieldData.Data, msg.RowIDs...)
-				fieldData.NumRows = append(fieldData.NumRows, int64(len(msg.RowData)))
+				fieldData.NumRows = append(fieldData.NumRows, int64(msg.NumRows))
 			case 1: // Timestamps
 				for _, ts := range msg.Timestamps {
 					fieldData.Data = append(fieldData.Data, int64(ts))
 				}
-				fieldData.NumRows = append(fieldData.NumRows, int64(len(msg.RowData)))
+				fieldData.NumRows = append(fieldData.NumRows, int64(msg.NumRows))
 			default:
-				for _, r := range blobReaders {
-					var v int64
-					readBinary(r, &v, field.DataType)
-
-					fieldData.Data = append(fieldData.Data, v)
-				}
-
-				fieldData.NumRows = append(fieldData.NumRows, int64(len(msg.RowData)))
+				srcData := srcFields[field.FieldID].GetScalars().GetLongData().GetData()
+				fieldData.Data = append(fieldData.Data, srcData...)
+				fieldData.NumRows = append(fieldData.NumRows, int64(msg.NumRows))
 			}
 			if field.IsPrimaryKey {
 				// update segment pk filter
@@ -657,14 +619,9 @@ func (ibNode *insertBufferNode) bufferInsertMsg(msg *msgstream.InsertMsg, endPos
 			}
 
 			fieldData := idata.Data[field.FieldID].(*storage.FloatFieldData)
-
-			for _, r := range blobReaders {
-				var v float32
-				readBinary(r, &v, field.DataType)
-
-				fieldData.Data = append(fieldData.Data, v)
-			}
-			fieldData.NumRows = append(fieldData.NumRows, int64(len(msg.RowData)))
+			srcData := srcFields[field.FieldID].GetScalars().GetFloatData().GetData()
+			fieldData.Data = append(fieldData.Data, srcData...)
+			fieldData.NumRows = append(fieldData.NumRows, int64(msg.NumRows))
 
 		case schemapb.DataType_Double:
 			if _, ok := idata.Data[field.FieldID]; !ok {
@@ -675,19 +632,14 @@ func (ibNode *insertBufferNode) bufferInsertMsg(msg *msgstream.InsertMsg, endPos
 			}
 
 			fieldData := idata.Data[field.FieldID].(*storage.DoubleFieldData)
-
-			for _, r := range blobReaders {
-				var v float64
-				readBinary(r, &v, field.DataType)
-
-				fieldData.Data = append(fieldData.Data, v)
-			}
-			fieldData.NumRows = append(fieldData.NumRows, int64(len(msg.RowData)))
+			srcData := srcFields[field.FieldID].GetScalars().GetDoubleData().GetData()
+			fieldData.Data = append(fieldData.Data, srcData...)
+			fieldData.NumRows = append(fieldData.NumRows, int64(msg.NumRows))
 		}
 	}
 
 	// update buffer size
-	buffer.updateSize(int64(len(msg.RowData)))
+	buffer.updateSize(int64(msg.NumRows))
 
 	// store in buffer
 	ibNode.insertBuffer.Store(currentSegID, buffer)

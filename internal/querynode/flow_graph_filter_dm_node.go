@@ -240,7 +240,7 @@ func (fdmNode *filterDmNode) filterInvalidInsertMessage(msg *msgstream.InsertMsg
 		}
 	}
 
-	if len(msg.RowIDs) != len(msg.Timestamps) || len(msg.RowIDs) != len(msg.RowData) {
+	if len(msg.RowIDs) != len(msg.Timestamps) || uint32(len(msg.RowIDs)) != msg.NumRows {
 		// TODO: what if the messages are misaligned? Here, we ignore those messages and print error
 		log.Warn("Error, misaligned messages detected")
 		return nil

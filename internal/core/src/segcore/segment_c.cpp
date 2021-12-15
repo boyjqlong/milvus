@@ -149,6 +149,30 @@ Insert(CSegmentInterface c_segment,
     }
 }
 
+//////////////////////////////    interfaces for growing segment    //////////////////////////////
+CStatus
+InsertColumns(CSegmentInterface c_segment,
+       int64_t reserved_offset,
+       int64_t size,
+       const int64_t* row_ids,
+       const uint64_t* timestamps,
+       void* raw_data,
+       int sizeof_per_row,
+       int64_t count) {
+    try {
+        auto segment = (milvus::segcore::SegmentGrowing*)c_segment;
+        milvus::segcore::RowBasedRawData dataChunk{};
+
+        dataChunk.raw_data = raw_data;
+        dataChunk.sizeof_per_row = sizeof_per_row;
+        dataChunk.count = count;
+        segment->Insert(reserved_offset, size, row_ids, timestamps, dataChunk);
+        return milvus::SuccessCStatus();
+    } catch (std::exception& e) {
+        return milvus::FailureCStatus(UnexpectedError, e.what());
+    }
+}
+
 CStatus
 PreInsert(CSegmentInterface c_segment, int64_t size, int64_t* offset) {
     try {

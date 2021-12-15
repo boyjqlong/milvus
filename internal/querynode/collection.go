@@ -66,6 +66,21 @@ func (c *Collection) ID() UniqueID {
 	return c.id
 }
 
+// PrimaryFieldSchema returns the schema of primary field
+func (c *Collection) PrimaryFieldSchema() *schemapb.FieldSchema {
+	for _, field := range c.schema.Fields {
+		if field.IsPrimaryKey {
+			return field
+		}
+	}
+	return nil
+}
+
+// PrimaryFieldID returns the ID of primary field
+func (c *Collection) PrimaryFieldID() UniqueID {
+	return c.PrimaryFieldSchema().FieldID
+}
+
 // Schema returns the schema of collection
 func (c *Collection) Schema() *schemapb.CollectionSchema {
 	return c.schema

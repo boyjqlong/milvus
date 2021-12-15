@@ -41,7 +41,6 @@ import (
 
 	"github.com/milvus-io/milvus/internal/common"
 	"github.com/milvus-io/milvus/internal/log"
-	"github.com/milvus-io/milvus/internal/proto/commonpb"
 	"github.com/milvus-io/milvus/internal/proto/datapb"
 	"github.com/milvus-io/milvus/internal/proto/schemapb"
 	"github.com/milvus-io/milvus/internal/proto/segcorepb"
@@ -592,7 +591,7 @@ func (s *Segment) segmentPreDelete(numOfRecords int) int64 {
 }
 
 // TODO: remove reference of slice
-func (s *Segment) segmentInsert(offset int64, entityIDs *[]UniqueID, timestamps *[]Timestamp, records *[]*commonpb.Blob) error {
+func (s *Segment) segmentInsert(offset int64, entityIDs *[]UniqueID, timestamps *[]Timestamp, fields []*schemapb.FieldData) error {
 	/*
 		CStatus
 		Insert(CSegmentInterface c_segment,

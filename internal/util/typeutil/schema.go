@@ -185,6 +185,60 @@ func IsBoolType(dataType schemapb.DataType) bool {
 	}
 }
 
+func CheckAndGetRowNum(fields []*schemapb.FieldData) (int64, bool) {
+	fieldCnt := len(fields)
+	if fieldCnt == 0 {
+		return 0, true
+	}
+	fieldNums := make([]int, len(fields))
+	for i, fieldData := range fields {
+		switch fieldType := fieldData.Field.(type) {
+		case *schemapb.FieldData_Scalars:
+			theScalar := fieldData.GetScalars()
+			switch fieldType.Scalars.Data.(type) {
+			case *schemapb.ScalarField_BoolData:
+				fieldNums[i] = len(theScalar.GetBoolData().Data)
+			case *schemapb.ScalarField_IntData:
+				fieldNums[i] = len(theScalar.GetIntData().Data)
+			case *schemapb.ScalarField_LongData:
+				fieldNums[i] = len(theScalar.GetLongData().Data)
+			case *schemapb.ScalarField_FloatData:
+				fieldNums[i] = len(theScalar.GetFloatData().Data)
+			case *schemapb.ScalarField_DoubleData:
+				fieldNums[i] = len(theScalar.GetDoubleData().Data)
+			default:
+				log.Error("Not supported field type", zap.String("field type", fieldData.Type.String()))
+			}
+		case *schemapb.FieldData_Vectors:
+			theVector := fieldData.GetVectors()
+			dim := fieldType.Vectors.Dim
+			switch fieldType.Vectors.Data.(type) {
+			case *schemapb.VectorField_BinaryVector:
+				fieldNums[i] = len(theVector.GetBinaryVector()) * 8 / int(dim)
+				//dstBinaryVector.BinaryVector = append(dstBinaryVector.BinaryVector, srcVector.BinaryVector[idx*(dim/8):(idx+1)*(dim/8)]...)
+			case *schemapb.VectorField_FloatVector:
+				fieldNums[i] = len(theVector.GetFloatVector().GetData()) / int(dim)
+				//dstVector.GetFloatVector().Data = append(dstVector.GetFloatVector().Data, srcVector.FloatVector.Data[idx*dim:(idx+1)*dim]...)
+			default:
+				log.Error("Not supported field type", zap.String("field type", fieldData.Type.String()))
+			}
+		}
+	}
+	for i := 1; i < len(fieldNums); i++ {
+		if fieldNums[i] != fieldNums[0] {
+			return 0, false
+		}
+	}
+	return int64(fieldNums[0]), true
+}
+
+func AppendFieldDatas(dst []*schemapb.FieldData, src []*schemapb.FieldData) {
+	num, _ := CheckAndGetRowNum(src)
+	for i := int64(0); i < num; i++ {
+		AppendFieldData(dst, src, i)
+	}
+}
+
 // AppendFieldData appends fields data of specified index from src to dst
 func AppendFieldData(dst []*schemapb.FieldData, src []*schemapb.FieldData, idx int64) {
 	for i, fieldData := range src {

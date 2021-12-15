@@ -17,12 +17,7 @@
 package querynode
 
 import (
-	"bytes"
-	"encoding/binary"
-	"errors"
 	"fmt"
-	"io"
-	"strconv"
 	"sync"
 
 	"github.com/opentracing/opentracing-go"
@@ -31,7 +26,6 @@ import (
 	"github.com/milvus-io/milvus/internal/common"
 	"github.com/milvus-io/milvus/internal/log"
 	"github.com/milvus-io/milvus/internal/msgstream"
-	"github.com/milvus-io/milvus/internal/proto/commonpb"
 	"github.com/milvus-io/milvus/internal/proto/schemapb"
 	"github.com/milvus-io/milvus/internal/util/flowgraph"
 	"github.com/milvus-io/milvus/internal/util/trace"
@@ -47,7 +41,7 @@ type insertNode struct {
 type insertData struct {
 	insertIDs        map[UniqueID][]int64
 	insertTimestamps map[UniqueID][]Timestamp
-	insertRecords    map[UniqueID][]*commonpb.Blob
+	insertRecords    map[UniqueID][]*schemapb.FieldData
 	insertOffset     map[UniqueID]int64
 	insertPKs        map[UniqueID][]int64
 }
@@ -82,7 +76,7 @@ func (iNode *insertNode) Operate(in []flowgraph.Msg) []flowgraph.Msg {
 	iData := insertData{
 		insertIDs:        make(map[UniqueID][]int64),
 		insertTimestamps: make(map[UniqueID][]Timestamp),
-		insertRecords:    make(map[UniqueID][]*commonpb.Blob),
+		insertRecords:    make(map[UniqueID][]*schemapb.FieldData),
 		insertOffset:     make(map[UniqueID]int64),
 		insertPKs:        make(map[UniqueID][]int64),
 	}
@@ -99,10 +93,10 @@ func (iNode *insertNode) Operate(in []flowgraph.Msg) []flowgraph.Msg {
 	}
 
 	// 1. hash insertMessages to insertData
-	for _, task := range iMsg.insertMessages {
+	for _, msg := range iMsg.insertMessages {
 		// check if partition exists, if not, create partition
-		if hasPartition := iNode.streamingReplica.hasPartition(task.PartitionID); !hasPartition {
-			err := iNode.streamingReplica.addPartition(task.CollectionID, task.PartitionID)
+		if hasPartition := iNode.streamingReplica.hasPartition(msg.PartitionID); !hasPartition {
+			err := iNode.streamingReplica.addPartition(msg.CollectionID, msg.PartitionID)
 			if err != nil {
 				log.Warn(err.Error())
 				continue
@@ -110,23 +104,23 @@ func (iNode *insertNode) Operate(in []flowgraph.Msg) []flowgraph.Msg {
 		}
 
 		// check if segment exists, if not, create this segment
-		if !iNode.streamingReplica.hasSegment(task.SegmentID) {
-			err := iNode.streamingReplica.addSegment(task.SegmentID, task.PartitionID, task.CollectionID, task.ShardName, segmentTypeGrowing, true)
+		if !iNode.streamingReplica.hasSegment(msg.SegmentID) {
+			err := iNode.streamingReplica.addSegment(msg.SegmentID, msg.PartitionID, msg.CollectionID, msg.ShardName, segmentTypeGrowing, true)
 			if err != nil {
 				log.Warn(err.Error())
 				continue
 			}
 		}
 
-		iData.insertIDs[task.SegmentID] = append(iData.insertIDs[task.SegmentID], task.RowIDs...)
-		iData.insertTimestamps[task.SegmentID] = append(iData.insertTimestamps[task.SegmentID], task.Timestamps...)
-		iData.insertRecords[task.SegmentID] = append(iData.insertRecords[task.SegmentID], task.RowData...)
-		pks, err := getPrimaryKeys(task, iNode.streamingReplica)
+		iData.insertIDs[msg.SegmentID] = append(iData.insertIDs[msg.SegmentID], msg.RowIDs...)
+		iData.insertTimestamps[msg.SegmentID] = append(iData.insertTimestamps[msg.SegmentID], msg.Timestamps...)
+		iData.insertRecords[msg.SegmentID] = append(iData.insertRecords[msg.SegmentID], msg.FieldsData...)
+		pks, err := getPrimaryKeys(msg.CollectionID, msg.FieldsData, iNode.streamingReplica)
 		if err != nil {
 			log.Warn(err.Error())
 			continue
 		}
-		iData.insertPKs[task.SegmentID] = append(iData.insertPKs[task.SegmentID], pks...)
+		iData.insertPKs[msg.SegmentID] = append(iData.insertPKs[msg.SegmentID], pks...)
 	}
 
 	// 2. do preInsert
@@ -137,7 +131,7 @@ func (iNode *insertNode) Operate(in []flowgraph.Msg) []flowgraph.Msg {
 			continue
 		}
 
-		var numOfRecords = len(iData.insertRecords[segmentID])
+		var numOfRecords = len(iData.insertIDs)
 		if targetSegment != nil {
 			offset, err := targetSegment.segmentPreInsert(numOfRecords)
 			if err != nil {
@@ -286,7 +280,7 @@ func (iNode *insertNode) insert(iData *insertData, segmentID UniqueID, wg *sync.
 	records := iData.insertRecords[segmentID]
 	offsets := iData.insertOffset[segmentID]
 
-	err = targetSegment.segmentInsert(offsets, &ids, &timestamps, &records)
+	err = targetSegment.segmentInsert(offsets, &ids, &timestamps, records)
 	if err != nil {
 		log.Debug("QueryNode: targetSegmentInsert failed", zap.Error(err))
 		// TODO: add error handling
@@ -327,78 +321,28 @@ func (iNode *insertNode) delete(deleteData *deleteData, segmentID UniqueID, wg *
 
 // TODO: remove this function to proper file
 // getPrimaryKeys would get primary keys by insert messages
-func getPrimaryKeys(msg *msgstream.InsertMsg, streamingReplica ReplicaInterface) ([]int64, error) {
-	if len(msg.RowIDs) != len(msg.Timestamps) || len(msg.RowIDs) != len(msg.RowData) {
-		log.Warn("misaligned messages detected")
-		return nil, errors.New("misaligned messages detected")
-	}
-	collectionID := msg.GetCollectionID()
+func getPrimaryKeys(collectionID UniqueID, fields []*schemapb.FieldData, streamingReplica ReplicaInterface) ([]int64, error) {
+	pks := make([]int64, 0)
 
 	collection, err := streamingReplica.getCollectionByID(collectionID)
 	if err != nil {
 		log.Warn(err.Error())
 		return nil, err
 	}
-	offset := 0
-	for _, field := range collection.schema.Fields {
-		if field.IsPrimaryKey {
+	primaryFieldID := collection.PrimaryFieldID()
+	var primaryField *schemapb.FieldData
+	for _, field := range fields {
+		if field.FieldId == primaryFieldID {
+			primaryField = field
 			break
 		}
-		switch field.DataType {
-		case schemapb.DataType_Bool:
-			offset++
-		case schemapb.DataType_Int8:
-			offset++
-		case schemapb.DataType_Int16:
-			offset += 2
-		case schemapb.DataType_Int32:
-			offset += 4
-		case schemapb.DataType_Int64:
-			offset += 8
-		case schemapb.DataType_Float:
-			offset += 4
-		case schemapb.DataType_Double:
-			offset += 8
-		case schemapb.DataType_FloatVector:
-			for _, t := range field.TypeParams {
-				if t.Key == "dim" {
-					dim, err := strconv.Atoi(t.Value)
-					if err != nil {
-						log.Error("strconv wrong on get dim", zap.Error(err))
-						break
-					}
-					offset += dim * 4
-					break
-				}
-			}
-		case schemapb.DataType_BinaryVector:
-			for _, t := range field.TypeParams {
-				if t.Key == "dim" {
-					dim, err := strconv.Atoi(t.Value)
-					if err != nil {
-						log.Error("strconv wrong on get dim", zap.Error(err))
-						return nil, err
-					}
-					offset += dim / 8
-					break
-				}
-			}
-		}
+	}
+	if primaryField == nil {
+		return nil, fmt.Errorf("QueryNode failed to getPrimaryField from collection:%d", collectionID)
 	}
 
-	blobReaders := make([]io.Reader, len(msg.RowData))
-	for i, blob := range msg.RowData {
-		blobReaders[i] = bytes.NewReader(blob.GetValue()[offset : offset+8])
-	}
-	pks := make([]int64, len(blobReaders))
-
-	for i, reader := range blobReaders {
-		err := binary.Read(reader, common.Endian, &pks[i])
-		if err != nil {
-			log.Warn("binary read blob value failed", zap.Error(err))
-			return nil, err
-		}
-	}
+	srcData := primaryField.GetScalars().GetLongData().GetData()
+	pks = append(pks, srcData...)
 
 	return pks, nil
 }
