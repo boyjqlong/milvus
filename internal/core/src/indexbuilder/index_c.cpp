@@ -119,6 +119,7 @@ void
 DeleteCBinary(CBinary c_binary) {
     auto cBinary = (milvus::indexbuilder::IndexWrapper::Binary*)c_binary;
     delete cBinary;
+    malloc_trim(0);
 }
 
 CStatus
@@ -276,6 +277,7 @@ DeleteIndexQueryResult(CIndexQueryResult res) {
     try {
         auto c_res = (milvus::indexbuilder::IndexWrapper::QueryResult*)res;
         delete c_res;
+        malloc_trim(0);
 
         status.error_code = Success;
         status.error_msg = "";
@@ -289,4 +291,5 @@ DeleteIndexQueryResult(CIndexQueryResult res) {
 void
 DeleteByteArray(const char* array) {
     delete[] array;
+    malloc_trim(0);
 }

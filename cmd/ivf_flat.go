@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"runtime/debug"
 
 	"github.com/milvus-io/milvus/internal/common"
 
@@ -151,5 +152,6 @@ func main() {
 			indexOnlyCGO(i, vectors)
 		}
 		i++
+		debug.FreeOSMemory()
 	}
 }

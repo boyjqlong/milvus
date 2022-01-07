@@ -102,6 +102,36 @@ class IndexWrapperTest : public ::testing::TestWithParam<Param> {
     std::vector<uint8_t> xq_bin_data;
 };
 
+TEST(SQ8, Leak) {
+    auto f = [&]{
+        auto index_type = milvus::knowhere::IndexEnum::INDEX_FAISS_IVFSQ8;
+        auto metric_type = milvus::knowhere::Metric::L2;
+        indexcgo::TypeParams type_params;
+        indexcgo::IndexParams index_params;
+        std::tie(type_params, index_params) = generate_params(index_type, metric_type);
+        std::string type_params_str, index_params_str;
+        bool ok;
+        ok = google::protobuf::TextFormat::PrintToString(type_params, &type_params_str);
+        assert(ok);
+        ok = google::protobuf::TextFormat::PrintToString(index_params, &index_params_str);
+        assert(ok);
+
+        CIndex index;
+        CreateIndex(type_params_str.c_str(), index_params_str.c_str(), &index);
+        auto nb = 1000000;
+        auto dataset = GenDataset(nb, metric_type, false);
+        auto xb_data = dataset.get_col<float>(0);
+        BuildFloatVecIndexWithoutIds(index, xb_data.size(), xb_data.data());
+        CBinary cbinary;
+        SerializeToSlicedBuffer(index, &cbinary);
+        DeleteCBinary(cbinary);
+        DeleteIndex(index);
+    };
+    while (true) {
+        f();
+    }
+}
+
 TEST(PQ, Build) {
     auto index_type = milvus::knowhere::IndexEnum::INDEX_FAISS_IVFPQ;
     auto metric_type = milvus::knowhere::Metric::L2;
