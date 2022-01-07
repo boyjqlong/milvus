@@ -50,15 +50,17 @@ func generateInt64Array(numRows int, random bool) []int64 {
 }
 
 var typeParams map[string]string
+var indexType = "IVF_SQ8"
 var indexParams = map[string]string{
-	"index_type":  "IVF_FLAT",
+	"index_type":  indexType,
 	"metric_type": "L2",
 	"dim":         "128",
 	"nlist":       "100",
 }
 var nb = 1000000
 var dim = 128
-var vectors = generateFloatVectors(nb, dim)
+
+// var vectors = generateFloatVectors(nb, dim)
 var tss = generateInt64Array(nb, false)
 
 func indexOnlyCGO(i int, vectors []float32) {
@@ -78,7 +80,7 @@ func indexOnlyCGO(i int, vectors []float32) {
 	}
 }
 
-func indexWithCodecAndCGO(i int) {
+func indexWithCodecAndCGO(i int, vectors []float32) {
 	fmt.Printf("round %d\n", i)
 	codec := storage.NewInsertCodec(&etcdpb.CollectionMeta{
 		Schema: &schemapb.CollectionSchema{
@@ -142,8 +144,9 @@ func main() {
 
 	i := 0
 	for {
+		var vectors = generateFloatVectors(nb, dim)
 		if withCodec {
-			indexWithCodecAndCGO(i)
+			indexWithCodecAndCGO(i, vectors)
 		} else {
 			indexOnlyCGO(i, vectors)
 		}
