@@ -386,7 +386,7 @@ func handleSignal(n int, listen, seg, abort bool) chan struct{} {
 
 // Run Milvus components.
 func (mr *MilvusRoles) Run(local bool, alias string) {
-	done := handleSignal(10000, true, false, false)
+	// done := handleSignal(10000, true, false, false)
 
 	if os.Getenv(metricsinfo.DeployModeEnvKey) == metricsinfo.StandaloneDeployMode {
 		closer := trace.InitTracing("standalone")
@@ -532,28 +532,16 @@ func (mr *MilvusRoles) Run(local bool, alias string) {
 
 	metrics.ServeHTTP()
 
-	// sc := make(chan os.Signal, 10)
-	// signal.Notify(sc,
-	// 	syscall.SIGHUP,
-	// 	syscall.SIGINT,
-	// 	syscall.SIGTERM,
-	// 	syscall.SIGSEGV,
-	// 	syscall.SIGQUIT,
-	// )
-	// for {
-	// 	sig := <-sc
-	// 	switch sig {
-	// 	case syscall.SIGSEGV:
-	// 		// core dump
-	// 		log.Error("Get signal to exit\n", zap.String("signal", sig.String()))
-	// 		return
-	// 	default:
-	// 		log.Error("Get signal to exit\n", zap.String("signal", sig.String()))
-	// 		// some deferred Stop has race with context cancel
-	// 		cancel()
-	// 		// return
-	// 	}
-	// }
-	<-done
+	sc := make(chan os.Signal, 10)
+	signal.Notify(sc,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		// syscall.SIGSEGV, // if so, core dump won't be generated.
+		syscall.SIGQUIT,
+	)
+	sig := <-sc
+	log.Error("Get signal to exit\n", zap.String("signal", sig.String()))
+	// <-done
 	cancel()
 }
