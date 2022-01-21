@@ -341,8 +341,53 @@ func (mr *MilvusRoles) runIndexNode(ctx context.Context, localMsg bool, alias st
 	return in
 }
 
+func handleSignal(n int, listen, seg, abort bool) chan struct{} {
+	log.Info("handle signals",
+		zap.Any("n", n),
+		zap.Any("listen", listen),
+		zap.Any("seg", seg),
+		zap.Any("abort", abort))
+	ch := make(chan struct{}, 1)
+	if listen {
+		go func(ch chan struct{}) {
+			sc := make(chan os.Signal, n)
+			var signals []os.Signal = []os.Signal{
+				syscall.SIGHUP,
+				syscall.SIGINT,
+				syscall.SIGTERM,
+				syscall.SIGQUIT,
+			}
+			if seg {
+				signals = append(signals, syscall.SIGSEGV)
+			}
+			if abort {
+				signals = append(signals, syscall.SIGABRT)
+			}
+			signal.Notify(sc, signals...)
+			log.Info("receiving signal")
+			for sig := range sc {
+				switch sig {
+				case syscall.SIGSEGV, syscall.SIGABRT:
+					// core dump
+					log.Error("sigsegv")
+					ch <- struct{}{}
+					return
+				default:
+					log.Error("Get signal to exit\n", zap.String("signal", sig.String()))
+					// ch <- struct{}{}
+					// return
+				}
+			}
+		}(ch)
+	}
+	time.Sleep(time.Second)
+	return ch
+}
+
 // Run Milvus components.
 func (mr *MilvusRoles) Run(local bool, alias string) {
+	done := handleSignal(10000, true, false, false)
+
 	if os.Getenv(metricsinfo.DeployModeEnvKey) == metricsinfo.StandaloneDeployMode {
 		closer := trace.InitTracing("standalone")
 		if closer != nil {
@@ -486,16 +531,29 @@ func (mr *MilvusRoles) Run(local bool, alias string) {
 	}
 
 	metrics.ServeHTTP()
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc,
-		syscall.SIGHUP,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGSEGV,
-		syscall.SIGQUIT)
-	sig := <-sc
-	log.Error("Get signal to exit\n", zap.String("signal", sig.String()))
 
-	// some deferred Stop has race with context cancel
+	// sc := make(chan os.Signal, 10)
+	// signal.Notify(sc,
+	// 	syscall.SIGHUP,
+	// 	syscall.SIGINT,
+	// 	syscall.SIGTERM,
+	// 	syscall.SIGSEGV,
+	// 	syscall.SIGQUIT,
+	// )
+	// for {
+	// 	sig := <-sc
+	// 	switch sig {
+	// 	case syscall.SIGSEGV:
+	// 		// core dump
+	// 		log.Error("Get signal to exit\n", zap.String("signal", sig.String()))
+	// 		return
+	// 	default:
+	// 		log.Error("Get signal to exit\n", zap.String("signal", sig.String()))
+	// 		// some deferred Stop has race with context cancel
+	// 		cancel()
+	// 		// return
+	// 	}
+	// }
+	<-done
 	cancel()
 }

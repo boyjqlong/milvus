@@ -31,6 +31,9 @@ std::once_flag init_knowhere_once_;
 void
 KnowhereInitImpl() {
     auto init = []() {
+        // test core dump
+        int* p = nullptr;
+        printf("*p: %d\n", *p); // segmentation fault
         namespace eg = milvus::engine;
         eg::KnowhereConfig::SetBlasThreshold(16384);
         eg::KnowhereConfig::SetEarlyStopThreshold(0);
