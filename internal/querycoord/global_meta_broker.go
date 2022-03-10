@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/milvus-io/milvus/internal/proto/rootcoordpb"
+
 	"go.uber.org/zap"
 
 	"github.com/milvus-io/milvus/internal/kv"
@@ -282,7 +284,114 @@ func (broker *globalMetaBroker) parseIndexInfo(ctx context.Context, segmentID Un
 	return nil
 }
 
-func (broker *globalMetaBroker) getIndexInfo(ctx context.Context, collectionID UniqueID, segmentID UniqueID, schema *schemapb.CollectionSchema) ([]*querypb.VecFieldIndexInfo, error) {
+// Better to let index params key appear first.
+func (broker *globalMetaBroker) loadIndexExtraInfo(ctx context.Context, fieldPathInfo *indexpb.IndexFilePathInfo) (*extraIndexInfo, error) {
+	indexCodec := storage.NewIndexFileBinlogCodec()
+	for _, indexFilePath := range fieldPathInfo.IndexFilePaths {
+		// get index params when detecting indexParamPrefix
+		if path.Base(indexFilePath) == storage.IndexParamsKey {
+			indexPiece, err := broker.dataKV.Load(indexFilePath)
+			if err != nil {
+				return nil, err
+			}
+
+			_, indexParams, indexName, _, err := indexCodec.Deserialize([]*storage.Blob{{Key: storage.IndexParamsKey, Value: []byte(indexPiece)}})
+			if err != nil {
+				return nil, err
+			}
+
+			return &extraIndexInfo{
+				indexName:   indexName,
+				indexParams: funcutil.Map2KeyValuePair(indexParams),
+			}, nil
+		}
+	}
+	return nil, errors.New("failed to load index extra info")
+}
+
+func (broker *globalMetaBroker) getFullIndexInfo(ctx context.Context, collectionID UniqueID, segmentID UniqueID) ([]*querypb.VecFieldIndexInfo, error) {
+	resp, err := broker.rootCoord.DescribeSegments(ctx, &rootcoordpb.DescribeSegmentsRequest{
+		Base: &commonpb.MsgBase{
+			MsgType: commonpb.MsgType_DescribeSegments,
+		},
+		CollectionID: collectionID,
+		SegmentIDs:   []UniqueID{segmentID},
+	})
+	if err != nil {
+		log.Error("failed to describe segments",
+			zap.Int64("collection", collectionID),
+			zap.Int64("segment", segmentID),
+			zap.Error(err))
+		return nil, err
+	}
+
+	infos, ok := resp.GetSegmentIndexInfos()[segmentID]
+	if !ok {
+		log.Warn("segment not found",
+			zap.Int64("collection", collectionID),
+			zap.Int64("segment", segmentID))
+		return nil, fmt.Errorf("segment not found, collection: %d, segment: %d", collectionID, segmentID)
+	}
+
+	ret := make([]*querypb.VecFieldIndexInfo, 0, len(infos.IndexInfos))
+	for _, info := range infos.IndexInfos {
+		extraInfo, ok := infos.GetExtraInfos()[info.IndexID]
+		indexInfo := &querypb.VecFieldIndexInfo{
+			FieldID:        info.FieldID,
+			EnableIndex:    info.EnableIndex,
+			IndexName:      "",
+			IndexID:        info.IndexID,
+			BuildID:        info.BuildID,
+			IndexParams:    nil,
+			IndexFilePaths: nil,
+			IndexSize:      0,
+		}
+
+		if !info.EnableIndex {
+			ret = append(ret, indexInfo)
+			continue
+		}
+
+		paths, err := broker.getIndexFilePaths(ctx, info.BuildID)
+		if err != nil {
+			log.Error("failed to get index file paths",
+				zap.Int64("collection", collectionID),
+				zap.Int64("segment", segmentID),
+				zap.Int64("buildID", info.BuildID),
+				zap.Error(err))
+			return nil, err
+		}
+
+		if len(paths) <= 0 {
+			return nil, fmt.Errorf("index not exist, index build id: %d", info.BuildID)
+		}
+		indexInfo.IndexFilePaths = paths[0].IndexFilePaths
+		indexInfo.IndexSize = int64(paths[0].SerializedSize)
+
+		if ok {
+			indexInfo.IndexName = extraInfo.IndexName
+			indexInfo.IndexParams = extraInfo.IndexParams
+		} else {
+			// get index name, index params from binlog.
+			extra, err := broker.loadIndexExtraInfo(ctx, paths[0])
+			if err != nil {
+				log.Error("failed to load index extra info",
+					zap.Int64("index build id", info.BuildID),
+					zap.Error(err))
+				return nil, err
+			}
+			indexInfo.IndexName = extra.indexName
+			indexInfo.IndexParams = extra.indexParams
+		}
+
+		ret = append(ret, indexInfo)
+	}
+
+	return ret, nil
+}
+
+// TODO: deprecated
+func (broker *globalMetaBroker) getVecIndexInfo(ctx context.Context, collectionID UniqueID, segmentID UniqueID, schema *schemapb.CollectionSchema) ([]*querypb.VecFieldIndexInfo, error) {
 	// TODO:: collection has multi vec field, and build index for every vec field, get indexInfo by fieldID
 	// Currently, each collection can only have one vector field
 	vecFieldIDs := funcutil.GetVecFieldIDs(schema)
@@ -317,6 +426,10 @@ func (broker *globalMetaBroker) getIndexInfo(ctx context.Context, collectionID U
 	log.Debug("get index info success", zap.Int64("collectionID", collectionID), zap.Int64("segmentID", segmentID), zap.Bool("enableIndex", enableIndex))
 
 	return []*querypb.VecFieldIndexInfo{indexInfo}, nil
+}
+
+func (broker *globalMetaBroker) getIndexInfo(ctx context.Context, collectionID UniqueID, segmentID UniqueID, schema *schemapb.CollectionSchema) ([]*querypb.VecFieldIndexInfo, error) {
+	return broker.getFullIndexInfo(ctx, collectionID, segmentID)
 }
 
 func (broker *globalMetaBroker) generateSegmentLoadInfo(ctx context.Context,

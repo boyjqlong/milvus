@@ -8,6 +8,7 @@ import "milvus.proto";
 import "internal.proto";
 import "proxy.proto";
 import "data_coord.proto";
+import "etcd_meta.proto";
 
 service RootCoord {
   rpc GetComponentStates(internal.GetComponentStatesRequest) returns (internal.ComponentStates) {}
@@ -92,8 +93,9 @@ service RootCoord {
 
     rpc DescribeSegment(milvus.DescribeSegmentRequest) returns (milvus.DescribeSegmentResponse) {}
     rpc ShowSegments(milvus.ShowSegmentsRequest) returns (milvus.ShowSegmentsResponse) {}
+    rpc DescribeSegments(DescribeSegmentsRequest) returns (DescribeSegmentsResponse) {}
 
-    rpc CreateIndex(milvus.CreateIndexRequest) returns (common.Status) {}
+  rpc CreateIndex(milvus.CreateIndexRequest) returns (common.Status) {}
     rpc DescribeIndex(milvus.DescribeIndexRequest) returns (milvus.DescribeIndexResponse) {}
     rpc DropIndex(milvus.DropIndexRequest) returns (common.Status) {}
 
@@ -127,4 +129,27 @@ message AllocIDResponse {
   common.Status status = 1;
   int64 ID = 2;
   uint32 count = 3;
+}
+
+// TODO: find a proper place for these segment-related messages.
+
+message DescribeSegmentsRequest {
+  common.MsgBase base = 1;
+  int64 collectionID = 2;
+  repeated int64 segmentIDs = 3;
+}
+
+message SegmentIndexInfos {
+  repeated etcd.SegmentIndexInfo index_infos = 1;
+  // IndexInfo contains index_name, index_params, and index_size.
+  // Note: index_size not exist in earlier meta version, we need to keep compatibility here.
+  map<int64, etcd.IndexInfo> extra_infos = 2;
+}
+
+message DescribeSegmentsResponse {
+  common.Status status = 1;
+  int64 collectionID = 2;
+  // segment id -> index infos
+  map<int64, SegmentIndexInfos> segment_index_infos = 3;
+  // TODO: other information.
 }

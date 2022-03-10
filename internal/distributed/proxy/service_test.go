@@ -155,6 +155,10 @@ func (m *MockRootCoord) DescribeSegment(ctx context.Context, req *milvuspb.Descr
 	return nil, nil
 }
 
+func (m *MockRootCoord) DescribeSegments(ctx context.Context, req *rootcoordpb.DescribeSegmentsRequest) (*rootcoordpb.DescribeSegmentsResponse, error) {
+	return nil, nil
+}
+
 func (m *MockRootCoord) ShowSegments(ctx context.Context, req *milvuspb.ShowSegmentsRequest) (*milvuspb.ShowSegmentsResponse, error) {
 	return nil, nil
 }
