@@ -340,7 +340,7 @@ func TestImpl_GetSegmentInfo(t *testing.T) {
 		seg, err := node.historical.replica.getSegmentByID(defaultSegmentID)
 		assert.NoError(t, err)
 
-		seg.setVectorFieldInfo(simpleVecField.id, &VectorFieldInfo{
+		seg.setIndexedFieldInfo(simpleVecField.id, &IndexedFieldInfo{
 			indexInfo: &queryPb.VecFieldIndexInfo{
 				IndexName: "query-node-test",
 				IndexID:   UniqueID(0),

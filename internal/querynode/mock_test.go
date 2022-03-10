@@ -317,7 +317,7 @@ func loadIndexForSegment(ctx context.Context, node *QueryNode, segmentID UniqueI
 	if err != nil {
 		return err
 	}
-	vecFieldInfo, err := segment.getVectorFieldInfo(simpleVecField.id)
+	vecFieldInfo, err := segment.getIndexedFieldInfo(simpleVecField.id)
 	if err != nil {
 		return err
 	}

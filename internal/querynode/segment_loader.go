@@ -135,7 +135,7 @@ func (loader *segmentLoader) loadSegment(req *querypb.LoadSegmentsRequest, segme
 		segmentID := loadInfo.SegmentID
 		segment := newSegments[segmentID]
 		tr := timerecord.NewTimeRecorder("loadDurationPerSegment")
-		err = loader.loadSegmentInternal(segment, loadInfo)
+		err = loader.loadSegmentInternalV2(segment, loadInfo)
 		if err != nil {
 			log.Error("load segment failed when load data into memory",
 				zap.Int64("collectionID", collectionID),
@@ -175,6 +175,71 @@ func (loader *segmentLoader) loadSegment(req *querypb.LoadSegmentsRequest, segme
 	return nil
 }
 
+func (loader *segmentLoader) loadSegmentInternalV2(segment *Segment,
+	loadInfo *querypb.SegmentLoadInfo) error {
+	collectionID := loadInfo.CollectionID
+	partitionID := loadInfo.PartitionID
+	segmentID := loadInfo.SegmentID
+	log.Debug("start loading segment data into memory",
+		zap.Int64("collectionID", collectionID),
+		zap.Int64("partitionID", partitionID),
+		zap.Int64("segmentID", segmentID))
+	pkFieldID, err := loader.historicalReplica.getPKFieldIDByCollectionID(collectionID)
+	if err != nil {
+		return err
+	}
+
+	var nonIndexedFieldBinlogs []*datapb.FieldBinlog
+	if segment.getType() == segmentTypeSealed {
+		fieldID2IndexInfo := make(map[int64]*querypb.VecFieldIndexInfo)
+		for _, indexInfo := range loadInfo.IndexInfos {
+			fieldID := indexInfo.FieldID
+			fieldID2IndexInfo[fieldID] = indexInfo
+		}
+
+		indexedFieldInfos := make(map[int64]*IndexedFieldInfo)
+
+		for _, fieldBinlog := range loadInfo.BinlogPaths {
+			fieldID := fieldBinlog.FieldID
+			if indexInfo, ok := fieldID2IndexInfo[fieldID]; ok {
+				fieldInfo := &IndexedFieldInfo{
+					fieldBinlog: fieldBinlog,
+					indexInfo:   indexInfo,
+				}
+				indexedFieldInfos[fieldID] = fieldInfo
+			} else {
+				nonIndexedFieldBinlogs = append(nonIndexedFieldBinlogs, fieldBinlog)
+			}
+		}
+
+		err = loader.loadIndexedFieldData(segment, indexedFieldInfos)
+		if err != nil {
+			return err
+		}
+	} else {
+		nonIndexedFieldBinlogs = loadInfo.BinlogPaths
+	}
+	err = loader.loadFiledBinlogData(segment, nonIndexedFieldBinlogs)
+	if err != nil {
+		return err
+	}
+
+	if pkFieldID == common.InvalidFieldID {
+		log.Warn("segment primary key field doesn't exist when load segment")
+	} else {
+		log.Debug("loading bloom filter...")
+		pkStatsBinlogs := loader.filterPKStatsBinlogs(loadInfo.Statslogs, pkFieldID)
+		err = loader.loadSegmentBloomFilter(segment, pkStatsBinlogs)
+		if err != nil {
+			return err
+		}
+	}
+
+	log.Debug("loading delta...")
+	err = loader.loadDeltaLogs(segment, loadInfo.Deltalogs)
+	return err
+}
+
 func (loader *segmentLoader) loadSegmentInternal(segment *Segment,
 	loadInfo *querypb.SegmentLoadInfo) error {
 	collectionID := loadInfo.CollectionID
@@ -201,12 +266,12 @@ func (loader *segmentLoader) loadSegmentInternal(segment *Segment,
 			fieldID2IndexInfo[fieldID] = indexInfo
 		}
 
-		vecFieldInfos := make(map[int64]*VectorFieldInfo)
+		vecFieldInfos := make(map[int64]*IndexedFieldInfo)
 
 		for _, fieldBinlog := range loadInfo.BinlogPaths {
 			fieldID := fieldBinlog.FieldID
 			if funcutil.SliceContain(vecFieldIDs, fieldID) {
-				fieldInfo := &VectorFieldInfo{
+				fieldInfo := &IndexedFieldInfo{
 					fieldBinlog: fieldBinlog,
 				}
 				if indexInfo, ok := fieldID2IndexInfo[fieldID]; ok {
@@ -218,7 +283,7 @@ func (loader *segmentLoader) loadSegmentInternal(segment *Segment,
 			}
 		}
 
-		err = loader.loadVecFieldData(segment, vecFieldInfos)
+		err = loader.loadIndexedFieldData(segment, vecFieldInfos)
 		if err != nil {
 			return err
 		}
@@ -297,8 +362,8 @@ func (loader *segmentLoader) loadFiledBinlogData(segment *Segment, fieldBinlogs 
 	}
 }
 
-func (loader *segmentLoader) loadVecFieldData(segment *Segment, vecFieldInfos map[int64]*VectorFieldInfo) error {
-	for fieldID, fieldInfo := range vecFieldInfos {
+func (loader *segmentLoader) loadIndexedFieldData(segment *Segment, indexedFieldInfos map[int64]*IndexedFieldInfo) error {
+	for fieldID, fieldInfo := range indexedFieldInfos {
 		if fieldInfo.indexInfo == nil || !fieldInfo.indexInfo.EnableIndex {
 			fieldBinlog := fieldInfo.fieldBinlog
 			err := loader.loadFiledBinlogData(segment, []*datapb.FieldBinlog{fieldBinlog})
@@ -308,19 +373,19 @@ func (loader *segmentLoader) loadVecFieldData(segment *Segment, vecFieldInfos ma
 			log.Debug("load vector field's binlog data done", zap.Int64("segmentID", segment.ID()), zap.Int64("fieldID", fieldID))
 		} else {
 			indexInfo := fieldInfo.indexInfo
-			err := loader.loadVecFieldIndexData(segment, indexInfo)
+			err := loader.loadFieldIndexData(segment, indexInfo)
 			if err != nil {
 				return err
 			}
 			log.Debug("load vector field's index data done", zap.Int64("segmentID", segment.ID()), zap.Int64("fieldID", fieldID))
 		}
-		segment.setVectorFieldInfo(fieldID, fieldInfo)
+		segment.setIndexedFieldInfo(fieldID, fieldInfo)
 	}
 
 	return nil
 }
 
-func (loader *segmentLoader) loadVecFieldIndexData(segment *Segment, indexInfo *querypb.VecFieldIndexInfo) error {
+func (loader *segmentLoader) loadFieldIndexData(segment *Segment, indexInfo *querypb.VecFieldIndexInfo) error {
 	indexBuffer := make([][]byte, 0)
 	indexCodec := storage.NewIndexFileBinlogCodec()
 	for _, p := range indexInfo.IndexFilePaths {

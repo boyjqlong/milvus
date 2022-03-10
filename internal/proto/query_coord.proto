@@ -193,6 +193,7 @@ message SegmentLoadInfo {
   int64 segment_size = 12;
 }
 
+// TODO: rename to FieldIndexInfo.
 message VecFieldIndexInfo {
   int64 fieldID =1;
   bool enable_index = 2;

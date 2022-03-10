@@ -318,6 +318,19 @@ func (colReplica *collectionReplica) getVecFieldIDsByCollectionIDPrivate(collect
 	return vecFields, nil
 }
 
+func (colReplica *collectionReplica) getAllFieldIDByCollectionIDPrivate(collectionID UniqueID) ([]FieldID, error) {
+	fields, err := colReplica.getFieldsByCollectionIDPrivate(collectionID)
+	if err != nil {
+		return nil, err
+	}
+
+	fieldIDS := make([]FieldID, 0)
+	for _, field := range fields {
+		fieldIDS = append(fieldIDS, field.FieldID)
+	}
+	return fieldIDS, nil
+}
+
 // getVecFieldIDsByCollectionID returns vector field ids of collection
 func (colReplica *collectionReplica) getVecFieldIDsByCollectionID(collectionID UniqueID) ([]FieldID, error) {
 	colReplica.mu.RLock()
@@ -727,15 +740,16 @@ func newCollectionReplica(etcdKv *etcdkv.EtcdKV) ReplicaInterface {
 func (colReplica *collectionReplica) getSegmentInfo(segment *Segment) *querypb.SegmentInfo {
 	var indexName string
 	var indexID int64
+	var indexInfos []*querypb.VecFieldIndexInfo
 	// TODO:: segment has multi vec column
-	vecFieldIDs, _ := colReplica.getVecFieldIDsByCollectionIDPrivate(segment.collectionID)
-	for _, fieldID := range vecFieldIDs {
-		if segment.hasLoadIndexForVecField(fieldID) {
-			fieldInfo, err := segment.getVectorFieldInfo(fieldID)
+	fieldIDs, _ := colReplica.getAllFieldIDByCollectionIDPrivate(segment.collectionID)
+	for _, fieldID := range fieldIDs {
+		if segment.hasLoadIndexForField(fieldID) {
+			fieldInfo, err := segment.getIndexedFieldInfo(fieldID)
 			if err == nil {
 				indexName = fieldInfo.indexInfo.IndexName
 				indexID = fieldInfo.indexInfo.IndexID
-				break
+				indexInfos = append(indexInfos, fieldInfo.indexInfo)
 			}
 		}
 	}
@@ -750,6 +764,7 @@ func (colReplica *collectionReplica) getSegmentInfo(segment *Segment) *querypb.S
 		IndexID:      indexID,
 		DmChannel:    segment.vChannelID,
 		SegmentState: segment.segmentType,
+		IndexInfos:   indexInfos,
 	}
 	return info
 }
