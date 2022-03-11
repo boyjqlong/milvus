@@ -841,7 +841,7 @@ func (t *DescribeSegmentsReqTask) Type() commonpb.MsgType {
 }
 
 func (t *DescribeSegmentsReqTask) Execute(ctx context.Context) error {
-	coll, err := t.core.MetaTable.GetCollectionByID(t.Req.CollectionID, 0)
+	_, err := t.core.MetaTable.GetCollectionByID(t.Req.CollectionID, 0)
 	if err != nil {
 		return err
 	}

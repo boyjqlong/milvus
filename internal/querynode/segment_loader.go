@@ -26,6 +26,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/milvus-io/milvus/internal/util/funcutil"
+
 	"go.uber.org/zap"
 
 	"github.com/milvus-io/milvus/internal/common"
