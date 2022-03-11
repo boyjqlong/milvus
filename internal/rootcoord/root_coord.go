@@ -1762,7 +1762,30 @@ func (c *Core) DescribeSegment(ctx context.Context, in *milvuspb.DescribeSegment
 }
 
 func (c *Core) DescribeSegments(ctx context.Context, in *rootcoordpb.DescribeSegmentsRequest) (*rootcoordpb.DescribeSegmentsResponse, error) {
-	panic("implement me")
+	if code, ok := c.checkHealthy(); !ok {
+		return &rootcoordpb.DescribeSegmentsResponse{
+			Status: failStatus(commonpb.ErrorCode_UnexpectedError, "StateCode="+internalpb.StateCode_name[int32(code)]),
+		}, nil
+	}
+
+	t := &DescribeSegmentsReqTask{
+		baseReqTask: baseReqTask{
+			ctx:  ctx,
+			core: c,
+		},
+		Req: in,
+		Rsp: &rootcoordpb.DescribeSegmentsResponse{},
+	}
+
+	err := executeTask(t)
+	if err != nil {
+		return &rootcoordpb.DescribeSegmentsResponse{
+			Status: failStatus(commonpb.ErrorCode_UnexpectedError, "DescribeSegments failed: "+err.Error()),
+		}, nil
+	}
+
+	t.Rsp.Status = succStatus()
+	return t.Rsp, nil
 }
 
 // ShowSegments list all segments

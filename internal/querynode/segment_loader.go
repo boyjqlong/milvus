@@ -42,7 +42,6 @@ import (
 	"github.com/milvus-io/milvus/internal/rootcoord"
 	"github.com/milvus-io/milvus/internal/storage"
 	"github.com/milvus-io/milvus/internal/types"
-	"github.com/milvus-io/milvus/internal/util/funcutil"
 	"github.com/milvus-io/milvus/internal/util/metricsinfo"
 	"github.com/milvus-io/milvus/internal/util/timerecord"
 )
@@ -135,7 +134,7 @@ func (loader *segmentLoader) loadSegment(req *querypb.LoadSegmentsRequest, segme
 		segmentID := loadInfo.SegmentID
 		segment := newSegments[segmentID]
 		tr := timerecord.NewTimeRecorder("loadDurationPerSegment")
-		err = loader.loadSegmentInternalV2(segment, loadInfo)
+		err = loader.loadSegmentInternal(segment, loadInfo)
 		if err != nil {
 			log.Error("load segment failed when load data into memory",
 				zap.Int64("collectionID", collectionID),
@@ -175,7 +174,7 @@ func (loader *segmentLoader) loadSegment(req *querypb.LoadSegmentsRequest, segme
 	return nil
 }
 
-func (loader *segmentLoader) loadSegmentInternalV2(segment *Segment,
+func (loader *segmentLoader) loadSegmentInternal(segment *Segment,
 	loadInfo *querypb.SegmentLoadInfo) error {
 	collectionID := loadInfo.CollectionID
 	partitionID := loadInfo.PartitionID
@@ -220,77 +219,6 @@ func (loader *segmentLoader) loadSegmentInternalV2(segment *Segment,
 		nonIndexedFieldBinlogs = loadInfo.BinlogPaths
 	}
 	err = loader.loadFiledBinlogData(segment, nonIndexedFieldBinlogs)
-	if err != nil {
-		return err
-	}
-
-	if pkFieldID == common.InvalidFieldID {
-		log.Warn("segment primary key field doesn't exist when load segment")
-	} else {
-		log.Debug("loading bloom filter...")
-		pkStatsBinlogs := loader.filterPKStatsBinlogs(loadInfo.Statslogs, pkFieldID)
-		err = loader.loadSegmentBloomFilter(segment, pkStatsBinlogs)
-		if err != nil {
-			return err
-		}
-	}
-
-	log.Debug("loading delta...")
-	err = loader.loadDeltaLogs(segment, loadInfo.Deltalogs)
-	return err
-}
-
-func (loader *segmentLoader) loadSegmentInternal(segment *Segment,
-	loadInfo *querypb.SegmentLoadInfo) error {
-	collectionID := loadInfo.CollectionID
-	partitionID := loadInfo.PartitionID
-	segmentID := loadInfo.SegmentID
-	log.Debug("start loading segment data into memory",
-		zap.Int64("collectionID", collectionID),
-		zap.Int64("partitionID", partitionID),
-		zap.Int64("segmentID", segmentID))
-	vecFieldIDs, err := loader.historicalReplica.getVecFieldIDsByCollectionID(collectionID)
-	if err != nil {
-		return err
-	}
-	pkFieldID, err := loader.historicalReplica.getPKFieldIDByCollectionID(collectionID)
-	if err != nil {
-		return err
-	}
-
-	var nonVecFieldBinlogs []*datapb.FieldBinlog
-	if segment.getType() == segmentTypeSealed {
-		fieldID2IndexInfo := make(map[int64]*querypb.VecFieldIndexInfo)
-		for _, indexInfo := range loadInfo.IndexInfos {
-			fieldID := indexInfo.FieldID
-			fieldID2IndexInfo[fieldID] = indexInfo
-		}
-
-		vecFieldInfos := make(map[int64]*IndexedFieldInfo)
-
-		for _, fieldBinlog := range loadInfo.BinlogPaths {
-			fieldID := fieldBinlog.FieldID
-			if funcutil.SliceContain(vecFieldIDs, fieldID) {
-				fieldInfo := &IndexedFieldInfo{
-					fieldBinlog: fieldBinlog,
-				}
-				if indexInfo, ok := fieldID2IndexInfo[fieldID]; ok {
-					fieldInfo.indexInfo = indexInfo
-				}
-				vecFieldInfos[fieldID] = fieldInfo
-			} else {
-				nonVecFieldBinlogs = append(nonVecFieldBinlogs, fieldBinlog)
-			}
-		}
-
-		err = loader.loadIndexedFieldData(segment, vecFieldInfos)
-		if err != nil {
-			return err
-		}
-	} else {
-		nonVecFieldBinlogs = loadInfo.BinlogPaths
-	}
-	err = loader.loadFiledBinlogData(segment, nonVecFieldBinlogs)
 	if err != nil {
 		return err
 	}

@@ -1010,7 +1010,7 @@ func TestSegment_fillVectorFieldsData(t *testing.T) {
 	vecCM, err := genVectorChunkManager(ctx)
 	assert.NoError(t, err)
 
-	t.Run("test fillVectorFieldsData float-vector invalid vectorChunkManager", func(t *testing.T) {
+	t.Run("test fillIndexedFieldsData float-vector invalid vectorChunkManager", func(t *testing.T) {
 		fieldID := FieldID(100)
 		fieldName := "float-vector-field-0"
 		info := &IndexedFieldInfo{
@@ -1043,7 +1043,7 @@ func TestSegment_fillVectorFieldsData(t *testing.T) {
 			Offset:     []int64{0},
 			FieldsData: fieldData,
 		}
-		err = segment.fillVectorFieldsData(defaultCollectionID, vecCM, result)
+		err = segment.fillIndexedFieldsData(defaultCollectionID, vecCM, result)
 		assert.Error(t, err)
 	})
 }

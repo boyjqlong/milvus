@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/milvus-io/milvus/internal/proto/rootcoordpb"
+
 	"github.com/milvus-io/milvus/internal/metrics"
 
 	"github.com/golang/protobuf/proto"
@@ -825,6 +827,62 @@ func (t *ShowSegmentReqTask) Execute(ctx context.Context) error {
 	}
 
 	t.Rsp.SegmentIDs = append(t.Rsp.SegmentIDs, segIDs...)
+	return nil
+}
+
+type DescribeSegmentsReqTask struct {
+	baseReqTask
+	Req *rootcoordpb.DescribeSegmentsRequest
+	Rsp *rootcoordpb.DescribeSegmentsResponse
+}
+
+func (t *DescribeSegmentsReqTask) Type() commonpb.MsgType {
+	return t.Req.Base.MsgType
+}
+
+func (t *DescribeSegmentsReqTask) Execute(ctx context.Context) error {
+	coll, err := t.core.MetaTable.GetCollectionByID(t.Req.CollectionID, 0)
+	if err != nil {
+		return err
+	}
+	segIDs, err := t.core.CallGetFlushedSegmentsService(ctx, t.Req.CollectionID, -1)
+
+	segIDsMap := make(map[typeutil.UniqueID]struct{})
+	for _, segID := range segIDs {
+		segIDsMap[segID] = struct{}{}
+	}
+
+	for _, segID := range t.Req.SegmentIDs {
+		if _, ok := segIDsMap[segID]; !ok {
+			return fmt.Errorf("segment not found, collection: %d, segment: %d",
+				t.Req.CollectionID, segID)
+		}
+
+		segmentInfo, err := t.core.MetaTable.GetSegmentIndexInfos(segID)
+		if err != nil {
+			return err
+		}
+
+		for indexID, indexInfo := range segmentInfo {
+			t.Rsp.GetSegmentIndexInfos()[segID].IndexInfos =
+				append(t.Rsp.GetSegmentIndexInfos()[segID].IndexInfos,
+					&etcdpb.SegmentIndexInfo{
+						CollectionID: indexInfo.CollectionID,
+						PartitionID:  indexInfo.PartitionID,
+						SegmentID:    indexInfo.SegmentID,
+						FieldID:      indexInfo.FieldID,
+						IndexID:      indexInfo.IndexID,
+						BuildID:      indexInfo.BuildID,
+						EnableIndex:  indexInfo.EnableIndex,
+					})
+			extraIndexInfo, err := t.core.MetaTable.GetIndexByID(indexID)
+			if err != nil {
+				return err
+			}
+			t.Rsp.GetSegmentIndexInfos()[segID].GetExtraInfos()[indexID] = extraIndexInfo
+		}
+	}
+
 	return nil
 }
 

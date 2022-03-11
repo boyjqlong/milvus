@@ -141,8 +141,7 @@ message DescribeSegmentsRequest {
 
 message SegmentIndexInfos {
   repeated etcd.SegmentIndexInfo index_infos = 1;
-  // IndexInfo contains index_name, index_params, and index_size.
-  // Note: index_size not exist in earlier meta version, we need to keep compatibility here.
+  // IndexInfo contains index_name, index_params, and indexID.
   map<int64, etcd.IndexInfo> extra_infos = 2;
 }
 
