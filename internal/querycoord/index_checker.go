@@ -185,6 +185,7 @@ func (ic *IndexChecker) checkIndexLoop() {
 						// if index exist or not enableIndex, ready to load
 						segmentInfo.IndexInfos = indexInfo
 						ic.enqueueIndexedSegment(segmentInfo)
+						fmt.Printf("segment info:\n%s\n\n", segmentInfo.String())
 						break
 					}
 

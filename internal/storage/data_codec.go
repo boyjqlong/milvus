@@ -1091,13 +1091,13 @@ func (codec *IndexFileBinlogCodec) serializeImpl(
 	value []byte,
 	ts Timestamp,
 ) (*Blob, error) {
-	writer := NewIndexFileBinlogWriter(indexBuildID, version, collectionID, partitionID, segmentID, fieldID, indexName, indexID, IndexParamsKey)
+	writer := NewIndexFileBinlogWriter(indexBuildID, version, collectionID, partitionID, segmentID, fieldID, indexName, indexID, key)
+	defer writer.Close()
+
 	eventWriter, err := writer.NextIndexFileEventWriter()
 	if err != nil {
-		writer.Close()
 		return nil, err
 	}
-	defer writer.Close()
 	defer eventWriter.Close()
 
 	err = eventWriter.AddByteToPayload(value)

@@ -22,6 +22,10 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/milvus-io/milvus/internal/proto/etcdpb"
+
+	"github.com/milvus-io/milvus/internal/proto/rootcoordpb"
+
 	"github.com/milvus-io/milvus/internal/common"
 	"github.com/milvus-io/milvus/internal/proto/commonpb"
 	"github.com/milvus-io/milvus/internal/proto/datapb"
@@ -254,6 +258,43 @@ func (rc *rootCoordMock) DescribeSegment(ctx context.Context, req *milvuspb.Desc
 		},
 		EnableIndex: rc.enableIndex,
 	}, nil
+}
+
+func (rc *rootCoordMock) DescribeSegments(ctx context.Context, req *rootcoordpb.DescribeSegmentsRequest) (*rootcoordpb.DescribeSegmentsResponse, error) {
+	if rc.returnGrpcError {
+		return nil, errors.New("describe segment failed")
+	}
+
+	if rc.returnError {
+		return &rootcoordpb.DescribeSegmentsResponse{
+			Status: &commonpb.Status{
+				ErrorCode: commonpb.ErrorCode_UnexpectedError,
+				Reason:    "describe segments failed",
+			},
+		}, nil
+	}
+
+	ret := &rootcoordpb.DescribeSegmentsResponse{
+		Status: &commonpb.Status{
+			ErrorCode: commonpb.ErrorCode_Success,
+		},
+		CollectionID:      req.GetCollectionID(),
+		SegmentIndexInfos: make(map[int64]*rootcoordpb.SegmentIndexInfos),
+	}
+
+	for _, segID := range req.GetSegmentIDs() {
+		ret.SegmentIndexInfos[segID] = &rootcoordpb.SegmentIndexInfos{
+			IndexInfos: []*etcdpb.SegmentIndexInfo{
+				{
+					SegmentID:   segID,
+					EnableIndex: rc.enableIndex,
+				},
+			},
+			ExtraInfos: nil,
+		}
+	}
+
+	return ret, nil
 }
 
 type dataCoordMock struct {

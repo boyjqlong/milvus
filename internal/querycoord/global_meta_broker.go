@@ -269,17 +269,22 @@ func (broker *globalMetaBroker) parseIndexInfo(ctx context.Context, segmentID Un
 	return nil
 }
 
-// Better to let index params key appear first.
+// Better to let index params key appear in the file paths first.
 func (broker *globalMetaBroker) loadIndexExtraInfo(ctx context.Context, fieldPathInfo *indexpb.IndexFilePathInfo) (*extraIndexInfo, error) {
 	indexCodec := storage.NewIndexFileBinlogCodec()
 	for _, indexFilePath := range fieldPathInfo.IndexFilePaths {
 		// get index params when detecting indexParamPrefix
 		if path.Base(indexFilePath) == storage.IndexParamsKey {
-			indexPiece, err := broker.dataKV.Load(indexFilePath)
+			content, err := broker.cm.MultiRead([]string{indexFilePath})
 			if err != nil {
 				return nil, err
 			}
 
+			if len(content) <= 0 {
+				return nil, fmt.Errorf("failed to read index file binlog, path: %s", indexFilePath)
+			}
+
+			indexPiece := content[0]
 			_, indexParams, indexName, _, err := indexCodec.Deserialize([]*storage.Blob{{Key: storage.IndexParamsKey, Value: []byte(indexPiece)}})
 			if err != nil {
 				return nil, err
@@ -375,44 +380,6 @@ func (broker *globalMetaBroker) getFullIndexInfo(ctx context.Context, collection
 	return ret, nil
 }
 
-// TODO: deprecated
-func (broker *globalMetaBroker) getVecIndexInfo(ctx context.Context, collectionID UniqueID, segmentID UniqueID, schema *schemapb.CollectionSchema) ([]*querypb.VecFieldIndexInfo, error) {
-	// TODO:: collection has multi vec field, and build index for every vec field, get indexInfo by fieldID
-	// Currently, each collection can only have one vector field
-	vecFieldIDs := funcutil.GetVecFieldIDs(schema)
-	if len(vecFieldIDs) != 1 {
-		err := fmt.Errorf("collection %d has multi vec field, num of vec fields = %d", collectionID, len(vecFieldIDs))
-		log.Error("get index info failed",
-			zap.Int64("collectionID", collectionID),
-			zap.Int64("segmentID", segmentID),
-			zap.Error(err))
-		return nil, err
-	}
-	indexInfo := &querypb.VecFieldIndexInfo{
-		FieldID: vecFieldIDs[0],
-	}
-	// check the buildID of the segment's index whether exist on rootCoord
-	enableIndex, buildID, err := broker.getIndexBuildID(ctx, collectionID, segmentID)
-	if err != nil {
-		return nil, err
-	}
-
-	// if the segment.EnableIndex == false, then load the segment immediately
-	if !enableIndex {
-		indexInfo.EnableIndex = false
-	} else {
-		indexInfo.BuildID = buildID
-		indexInfo.EnableIndex = true
-		err = broker.parseIndexInfo(ctx, segmentID, indexInfo)
-		if err != nil {
-			return nil, err
-		}
-	}
-	log.Debug("get index info success", zap.Int64("collectionID", collectionID), zap.Int64("segmentID", segmentID), zap.Bool("enableIndex", enableIndex))
-
-	return []*querypb.VecFieldIndexInfo{indexInfo}, nil
-}
-
 func (broker *globalMetaBroker) getIndexInfo(ctx context.Context, collectionID UniqueID, segmentID UniqueID, schema *schemapb.CollectionSchema) ([]*querypb.VecFieldIndexInfo, error) {
 	return broker.getFullIndexInfo(ctx, collectionID, segmentID)
 }
@@ -440,6 +407,8 @@ func (broker *globalMetaBroker) generateSegmentLoadInfo(ctx context.Context,
 			segmentLoadInfo.IndexInfos = indexInfo
 		}
 	}
+
+	fmt.Printf("segment load info:\n%s\n", segmentLoadInfo.String())
 
 	// set the estimate segment size to segmentLoadInfo
 	segmentLoadInfo.SegmentSize = estimateSegmentSize(segmentLoadInfo)

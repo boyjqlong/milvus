@@ -54,7 +54,6 @@ import (
 	"github.com/milvus-io/milvus/internal/proto/segcorepb"
 	"github.com/milvus-io/milvus/internal/storage"
 	"github.com/milvus-io/milvus/internal/util/cgoconverter"
-	"github.com/milvus-io/milvus/internal/util/typeutil"
 )
 
 type segmentType = commonpb.SegmentState
@@ -356,22 +355,24 @@ func (s *Segment) retrieve(plan *RetrievePlan) (*segcorepb.RetrieveResults, erro
 	return result, nil
 }
 
+// TODO: move to proper place.
+func readBinary(endian binary.ByteOrder, bs []byte, receiver interface{}) error {
+	buf := bytes.NewReader(bs)
+	return binary.Read(buf, endian, receiver)
+}
+
 func (s *Segment) fillVectorFieldsData(collectionID UniqueID,
 	vcm storage.ChunkManager, result *segcorepb.RetrieveResults) error {
 
 	for _, fieldData := range result.FieldsData {
-		if !typeutil.IsVectorType(fieldData.Type) {
+		// If the vector field doesn't have indexed. Vector data is in memory for
+		// brute force search. No need to download data from remote.
+		if !s.hasLoadIndexForVecField(fieldData.FieldId) {
 			continue
 		}
 
 		vecFieldInfo, err := s.getVectorFieldInfo(fieldData.FieldId)
 		if err != nil {
-			continue
-		}
-
-		// If the vector field doesn't have indexed. Vector data is in memory for
-		// brute force search. No need to download data from remote.
-		if !s.hasLoadIndexForVecField(fieldData.FieldId) {
 			continue
 		}
 

@@ -352,6 +352,11 @@ func generateIndex(segmentID UniqueID) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err := index.Delete(); err != nil {
+			panic(err)
+		}
+	}()
 
 	err = index.BuildFloatVecIndexWithoutIds(indexRowData)
 	if err != nil {
