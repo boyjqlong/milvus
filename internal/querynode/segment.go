@@ -371,44 +371,45 @@ func (s *Segment) fillVectorFieldsData(collectionID UniqueID,
 			continue
 		}
 
-		vecFieldInfo, err := s.getVectorFieldInfo(fieldData.FieldId)
+		indexedFieldInfo, err := s.getVectorFieldInfo(fieldData.FieldId)
 		if err != nil {
 			continue
 		}
 
-		dim := fieldData.GetVectors().GetDim()
-		log.Debug("FillVectorFieldData", zap.Int64("fieldId", fieldData.FieldId),
-			zap.Any("datatype", fieldData.Type), zap.Int64("dim", dim))
-
+		// TODO: optimize here. Now we'll read a whole file from storage every time we retrieve raw data by offset.
 		for i, offset := range result.Offset {
-			var vecPath string
+			var dataPath string
 			for index, idBinlogRowSize := range s.idBinlogRowSizes {
 				if offset < idBinlogRowSize {
-					vecPath = vecFieldInfo.fieldBinlog.Binlogs[index].GetLogPath()
+					dataPath = indexedFieldInfo.fieldBinlog.Binlogs[index].GetLogPath()
 					break
 				} else {
 					offset -= idBinlogRowSize
 				}
 			}
-			log.Debug("FillVectorFieldData", zap.String("path", vecPath))
 
+			endian := common.Endian
+			// codec-protocol see details in https://github.com/milvus-io/milvus/pull/16010.
+			// TODO: better to have a wrapper to decode the byte slice from chunk manager.
 			switch fieldData.Type {
 			case schemapb.DataType_BinaryVector:
+				dim := fieldData.GetVectors().GetDim()
 				rowBytes := dim / 8
-				x := fieldData.GetVectors().GetData().(*schemapb.VectorField_BinaryVector)
-				content, err := vcm.ReadAt(vecPath, offset*rowBytes, rowBytes)
+				content, err := vcm.ReadAt(dataPath, offset*rowBytes, rowBytes)
 				if err != nil {
 					return err
 				}
+				x := fieldData.GetVectors().GetData().(*schemapb.VectorField_BinaryVector)
 				resultLen := dim / 8
 				copy(x.BinaryVector[i*int(resultLen):(i+1)*int(resultLen)], content)
 			case schemapb.DataType_FloatVector:
-				x := fieldData.GetVectors().GetData().(*schemapb.VectorField_FloatVector)
+				dim := fieldData.GetVectors().GetDim()
 				rowBytes := dim * 4
-				content, err := vcm.ReadAt(vecPath, offset*rowBytes, rowBytes)
+				content, err := vcm.ReadAt(dataPath, offset*rowBytes, rowBytes)
 				if err != nil {
 					return err
 				}
+				x := fieldData.GetVectors().GetData().(*schemapb.VectorField_FloatVector)
 				floatResult := make([]float32, dim)
 				buf := bytes.NewReader(content)
 				if err = binary.Read(buf, common.Endian, &floatResult); err != nil {
@@ -416,9 +417,107 @@ func (s *Segment) fillVectorFieldsData(collectionID UniqueID,
 				}
 				resultLen := dim
 				copy(x.FloatVector.Data[i*int(resultLen):(i+1)*int(resultLen)], floatResult)
+			// TODO: optimize scalar. Now we'll read a whole file from storage every time we retrieve raw data by offset.
+			case schemapb.DataType_Bool:
+				// read whole file.
+				content, err := vcm.Read(dataPath)
+				if err != nil {
+					return err
+				}
+				var arr schemapb.BoolArray
+				err = proto.Unmarshal(content, &arr)
+				if err != nil {
+					return err
+				}
+				fieldData.GetScalars().GetBoolData().GetData()[i] = arr.Data[offset]
+			case schemapb.DataType_String:
+				// read whole file.
+				content, err := vcm.Read(dataPath)
+				if err != nil {
+					return err
+				}
+				var arr schemapb.StringArray
+				err = proto.Unmarshal(content, &arr)
+				if err != nil {
+					return err
+				}
+				fieldData.GetScalars().GetStringData().GetData()[i] = arr.Data[offset]
+			case schemapb.DataType_Int8:
+				// read by offset.
+				rowBytes := int64(1)
+				content, err := vcm.ReadAt(dataPath, offset*rowBytes, rowBytes)
+				if err != nil {
+					return err
+				}
+				var i8 int8
+				if err := readBinary(endian, content, &i8); err != nil {
+					return err
+				}
+				fieldData.GetScalars().GetIntData().GetData()[i] = int32(i8)
+			case schemapb.DataType_Int16:
+				// read by offset.
+				rowBytes := int64(2)
+				content, err := vcm.ReadAt(dataPath, offset*rowBytes, rowBytes)
+				if err != nil {
+					return err
+				}
+				var i16 int16
+				if err := readBinary(endian, content, &i16); err != nil {
+					return err
+				}
+				fieldData.GetScalars().GetIntData().GetData()[i] = int32(i16)
+			case schemapb.DataType_Int32:
+				// read by offset.
+				rowBytes := int64(4)
+				content, err := vcm.ReadAt(dataPath, offset*rowBytes, rowBytes)
+				if err != nil {
+					return err
+				}
+				var i32 int32
+				if err := readBinary(endian, content, &i32); err != nil {
+					return err
+				}
+				fieldData.GetScalars().GetIntData().GetData()[i] = i32
+			case schemapb.DataType_Int64:
+				// read by offset.
+				rowBytes := int64(8)
+				content, err := vcm.ReadAt(dataPath, offset*rowBytes, rowBytes)
+				if err != nil {
+					return err
+				}
+				var i64 int64
+				if err := readBinary(endian, content, &i64); err != nil {
+					return err
+				}
+				fieldData.GetScalars().GetLongData().GetData()[i] = i64
+			case schemapb.DataType_Float:
+				// read by offset.
+				rowBytes := int64(4)
+				content, err := vcm.ReadAt(dataPath, offset*rowBytes, rowBytes)
+				if err != nil {
+					return err
+				}
+				var f float32
+				if err := readBinary(endian, content, &f); err != nil {
+					return err
+				}
+				fieldData.GetScalars().GetFloatData().GetData()[i] = f
+			case schemapb.DataType_Double:
+				// read by offset.
+				rowBytes := int64(8)
+				content, err := vcm.ReadAt(dataPath, offset*rowBytes, rowBytes)
+				if err != nil {
+					return err
+				}
+				var d float64
+				if err := readBinary(endian, content, &d); err != nil {
+					return err
+				}
+				fieldData.GetScalars().GetDoubleData().GetData()[i] = d
 			}
 		}
 	}
+
 	return nil
 }
 
