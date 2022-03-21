@@ -8,6 +8,7 @@ import "milvus.proto";
 import "internal.proto";
 import "proxy.proto";
 import "data_coord.proto";
+import "etcd_meta.proto";
 
 service RootCoord {
   rpc GetComponentStates(internal.GetComponentStatesRequest) returns (internal.ComponentStates) {}
@@ -92,8 +93,9 @@ service RootCoord {
 
     rpc DescribeSegment(milvus.DescribeSegmentRequest) returns (milvus.DescribeSegmentResponse) {}
     rpc ShowSegments(milvus.ShowSegmentsRequest) returns (milvus.ShowSegmentsResponse) {}
+    rpc DescribeSegments(DescribeSegmentsRequest) returns (DescribeSegmentsResponse) {}
 
-    rpc CreateIndex(milvus.CreateIndexRequest) returns (common.Status) {}
+  rpc CreateIndex(milvus.CreateIndexRequest) returns (common.Status) {}
     rpc DescribeIndex(milvus.DescribeIndexRequest) returns (milvus.DescribeIndexResponse) {}
     rpc DropIndex(milvus.DropIndexRequest) returns (common.Status) {}
 
@@ -139,4 +141,23 @@ message ImportResult {
   repeated int64 segments = 2;             // id array of new sealed segments
   int64 row_count = 3;                     // how many rows are imported by this task
   repeated common.KeyValuePair infos = 4;  // more informations about the task, file path, failed reason, etc.
+}
+
+// TODO: find a proper place for these segment-related messages.
+
+message DescribeSegmentsRequest {
+  common.MsgBase base = 1;
+  int64 collectionID = 2;
+  repeated int64 segmentIDs = 3;
+}
+
+message SegmentIndexInfos {
+  repeated etcd.SegmentIndexInfo index_infos = 1;
+  map<int64, etcd.IndexInfo> extra_infos = 2; // index_id -> IndexInfo{index_name, index_id, index_params}
+}
+
+message DescribeSegmentsResponse {
+  common.Status status = 1;
+  int64 collectionID = 2;
+  map<int64, SegmentIndexInfos> segment_index_infos = 3;  // segment_id -> index infos
 }

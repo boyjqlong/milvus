@@ -1761,6 +1761,10 @@ func (c *Core) DescribeSegment(ctx context.Context, in *milvuspb.DescribeSegment
 	return t.Rsp, nil
 }
 
+func (c *Core) DescribeSegments(ctx context.Context, in *rootcoordpb.DescribeSegmentsRequest) (*rootcoordpb.DescribeSegmentsResponse, error) {
+	panic("implement me")
+}
+
 // ShowSegments list all segments
 func (c *Core) ShowSegments(ctx context.Context, in *milvuspb.ShowSegmentsRequest) (*milvuspb.ShowSegmentsResponse, error) {
 	metrics.RootCoordShowSegmentsCounter.WithLabelValues(metrics.TotalLabel).Inc()

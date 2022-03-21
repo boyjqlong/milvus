@@ -854,6 +854,10 @@ func (coord *RootCoordMock) DescribeSegment(ctx context.Context, req *milvuspb.D
 	}, nil
 }
 
+func (coord *RootCoordMock) DescribeSegments(ctx context.Context, req *rootcoordpb.DescribeSegmentsRequest) (*rootcoordpb.DescribeSegmentsResponse, error) {
+	panic("implement me")
+}
+
 func (coord *RootCoordMock) ShowSegments(ctx context.Context, req *milvuspb.ShowSegmentsRequest) (*milvuspb.ShowSegmentsResponse, error) {
 	code := coord.state.Load().(internalpb.StateCode)
 	if code != internalpb.StateCode_Healthy {
