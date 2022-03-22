@@ -298,7 +298,6 @@ const char descriptor_table_protodef_common_2eproto[] PROTOBUF_SECTION_VARIABLE(
   "\020\316\001\022\021\n\014ShowSegments\020\372\001\022\024\n\017DescribeSegmen"
   "t\020\373\001\022\021\n\014LoadSegments\020\374\001\022\024\n\017ReleaseSegmen"
   "ts\020\375\001\022\024\n\017HandoffSegments\020\376\001\022\030\n\023LoadBalan"
-<<<<<<< HEAD
   "ceSegments\020\377\001\022\025\n\020DescribeSegments\020\200\002\022\020\n\013"
   "CreateIndex\020\254\002\022\022\n\rDescribeIndex\020\255\002\022\016\n\tDr"
   "opIndex\020\256\002\022\013\n\006Insert\020\220\003\022\013\n\006Delete\020\221\003\022\n\n\005"
@@ -321,40 +320,12 @@ const char descriptor_table_protodef_common_2eproto[] PROTOBUF_SECTION_VARIABLE(
   "\022\021\n\rUndefiedState\020\000\022\r\n\tExecuting\020\001\022\r\n\tCo"
   "mpleted\020\002*X\n\020ConsistencyLevel\022\n\n\006Strong\020"
   "\000\022\013\n\007Session\020\001\022\013\n\007Bounded\020\002\022\016\n\nEventuall"
-  "y\020\003\022\016\n\nCustomized\020\004*\203\001\n\013ImportState\022\021\n\rI"
-  "mportPending\020\000\022\020\n\014ImportFailed\020\001\022\021\n\rImpo"
-  "rtParsing\020\002\022\023\n\017ImportPersisted\020\003\022\022\n\016Impo"
-  "rtIndexing\020\004\022\023\n\017ImportCompleted\020\005B5Z3git"
-=======
-  "ceSegments\020\377\001\022\020\n\013CreateIndex\020\254\002\022\022\n\rDescr"
-  "ibeIndex\020\255\002\022\016\n\tDropIndex\020\256\002\022\013\n\006Insert\020\220\003"
-  "\022\013\n\006Delete\020\221\003\022\n\n\005Flush\020\222\003\022\013\n\006Search\020\364\003\022\021"
-  "\n\014SearchResult\020\365\003\022\022\n\rGetIndexState\020\366\003\022\032\n"
-  "\025GetIndexBuildProgress\020\367\003\022\034\n\027GetCollecti"
-  "onStatistics\020\370\003\022\033\n\026GetPartitionStatistic"
-  "s\020\371\003\022\r\n\010Retrieve\020\372\003\022\023\n\016RetrieveResult\020\373\003"
-  "\022\024\n\017WatchDmChannels\020\374\003\022\025\n\020RemoveDmChanne"
-  "ls\020\375\003\022\027\n\022WatchQueryChannels\020\376\003\022\030\n\023Remove"
-  "QueryChannels\020\377\003\022\035\n\030SealedSegmentsChange"
-  "Info\020\200\004\022\027\n\022WatchDeltaChannels\020\201\004\022\020\n\013Segm"
-  "entInfo\020\330\004\022\017\n\nSystemInfo\020\331\004\022\024\n\017GetRecove"
-  "ryInfo\020\332\004\022\024\n\017GetSegmentState\020\333\004\022\r\n\010TimeT"
-  "ick\020\260\t\022\023\n\016QueryNodeStats\020\261\t\022\016\n\tLoadIndex"
-  "\020\262\t\022\016\n\tRequestID\020\263\t\022\017\n\nRequestTSO\020\264\t\022\024\n\017"
-  "AllocateSegment\020\265\t\022\026\n\021SegmentStatistics\020"
-  "\266\t\022\025\n\020SegmentFlushDone\020\267\t\022\017\n\nDataNodeTt\020"
-  "\270\t*\"\n\007DslType\022\007\n\003Dsl\020\000\022\016\n\nBoolExprV1\020\001*B"
-  "\n\017CompactionState\022\021\n\rUndefiedState\020\000\022\r\n\t"
-  "Executing\020\001\022\r\n\tCompleted\020\002*X\n\020Consistenc"
-  "yLevel\022\n\n\006Strong\020\000\022\013\n\007Session\020\001\022\013\n\007Bound"
-  "ed\020\002\022\016\n\nEventually\020\003\022\016\n\nCustomized\020\004*\232\001\n"
-  "\013ImportState\022\021\n\rImportPending\020\000\022\020\n\014Impor"
-  "tFailed\020\001\022\025\n\021ImportDownloading\020\002\022\021\n\rImpo"
-  "rtParsing\020\003\022\023\n\017ImportPersisted\020\004\022\022\n\016Impo"
-  "rtIndexing\020\005\022\023\n\017ImportCompleted\020\006B5Z3git"
->>>>>>> zilliz/master
-  "hub.com/milvus-io/milvus/internal/proto/"
-  "commonpbb\006proto3"
+  "y\020\003\022\016\n\nCustomized\020\004*\232\001\n\013ImportState\022\021\n\rI"
+  "mportPending\020\000\022\020\n\014ImportFailed\020\001\022\025\n\021Impo"
+  "rtDownloading\020\002\022\021\n\rImportParsing\020\003\022\023\n\017Im"
+  "portPersisted\020\004\022\022\n\016ImportIndexing\020\005\022\023\n\017I"
+  "mportCompleted\020\006B5Z3github.com/milvus-io"
+  "/milvus/internal/proto/commonpbb\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_common_2eproto_deps[1] = {
 };
@@ -371,7 +342,7 @@ static ::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase*const descriptor_table_com
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_common_2eproto_once;
 static bool descriptor_table_common_2eproto_initialized = false;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_common_2eproto = {
-  &descriptor_table_common_2eproto_initialized, descriptor_table_protodef_common_2eproto, "common.proto", 2896,
+  &descriptor_table_common_2eproto_initialized, descriptor_table_protodef_common_2eproto, "common.proto", 2919,
   &descriptor_table_common_2eproto_once, descriptor_table_common_2eproto_sccs, descriptor_table_common_2eproto_deps, 8, 0,
   schemas, file_default_instances, TableStruct_common_2eproto::offsets,
   file_level_metadata_common_2eproto, 8, file_level_enum_descriptors_common_2eproto, file_level_service_descriptors_common_2eproto,
