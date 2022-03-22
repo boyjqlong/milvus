@@ -850,7 +850,8 @@ func (t *DescribeSegmentsReqTask) Execute(ctx context.Context) error {
 		return err
 	}
 
-	t.Rsp.SegmentIndexInfos = make(map[typeutil.UniqueID]*rootcoordpb.SegmentIndexInfos)
+	t.Rsp.CollectionID = collectionID
+	t.Rsp.SegmentInfos = make(map[typeutil.UniqueID]*rootcoordpb.SegmentInfos)
 
 	segIDsMap := make(map[typeutil.UniqueID]struct{})
 	for _, segID := range segIDs {
@@ -866,24 +867,25 @@ func (t *DescribeSegmentsReqTask) Execute(ctx context.Context) error {
 				collectionID, segID)
 		}
 
-		segmentInfo, err := t.core.MetaTable.GetSegmentIndexInfos(segID)
-		if err != nil {
-			log.Error("segment not found in meta table",
-				zap.Error(err),
-				zap.Int64("collection", collectionID),
-				zap.Int64("segment", segID))
-			return err
-		}
-
-		if _, ok := t.Rsp.SegmentIndexInfos[segID]; !ok {
-			t.Rsp.SegmentIndexInfos[segID] = &rootcoordpb.SegmentIndexInfos{
-				ExtraInfos: make(map[typeutil.UniqueID]*etcdpb.IndexInfo),
+		if _, ok := t.Rsp.SegmentInfos[segID]; !ok {
+			t.Rsp.SegmentInfos[segID] = &rootcoordpb.SegmentInfos{
+				BaseInfo: &rootcoordpb.SegmentBaseInfo{
+					CollectionID: collectionID,
+					PartitionID:  0, // TODO: change this after MetaTable.partID2SegID been fixed.
+				},
+				IndexInfos:      nil,
+				ExtraIndexInfos: make(map[typeutil.UniqueID]*etcdpb.IndexInfo),
 			}
 		}
 
+		segmentInfo, err := t.core.MetaTable.GetSegmentIndexInfos(segID)
+		if err != nil {
+			continue
+		}
+
 		for indexID, indexInfo := range segmentInfo {
-			t.Rsp.SegmentIndexInfos[segID].IndexInfos =
-				append(t.Rsp.SegmentIndexInfos[segID].IndexInfos,
+			t.Rsp.SegmentInfos[segID].IndexInfos =
+				append(t.Rsp.SegmentInfos[segID].IndexInfos,
 					&etcdpb.SegmentIndexInfo{
 						CollectionID: indexInfo.CollectionID,
 						PartitionID:  indexInfo.PartitionID,
@@ -902,7 +904,7 @@ func (t *DescribeSegmentsReqTask) Execute(ctx context.Context) error {
 					zap.Int64("segment", segID))
 				return err
 			}
-			t.Rsp.SegmentIndexInfos[segID].ExtraInfos[indexID] = extraIndexInfo
+			t.Rsp.SegmentInfos[segID].ExtraIndexInfos[indexID] = extraIndexInfo
 		}
 	}
 

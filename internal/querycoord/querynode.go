@@ -379,8 +379,6 @@ func (qn *queryNode) loadSegments(ctx context.Context, in *querypb.LoadSegmentsR
 		return errors.New("LoadSegments: queryNode is offline")
 	}
 
-	fmt.Printf("in:\n%s\n", in.String())
-
 	status, err := qn.client.LoadSegments(qn.ctx, in)
 	if err != nil {
 		return err

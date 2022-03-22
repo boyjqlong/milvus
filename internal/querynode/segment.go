@@ -68,8 +68,8 @@ const (
 	maxBloomFalsePositive float64 = 0.005
 )
 
-// VectorFieldInfo contains binlog info of vector field
-type VectorFieldInfo struct {
+// IndexedFieldInfo contains binlog info of vector field
+type IndexedFieldInfo struct {
 	fieldBinlog *datapb.FieldBinlog
 	indexInfo   *querypb.VecFieldIndexInfo
 }
@@ -97,8 +97,8 @@ type Segment struct {
 
 	idBinlogRowSizes []int64
 
-	vectorFieldMutex sync.RWMutex // guards vectorFieldInfos
-	vectorFieldInfos map[UniqueID]*VectorFieldInfo
+	indexedFieldMutex sync.RWMutex // guards indexedFieldInfos
+	indexedFieldInfos map[UniqueID]*IndexedFieldInfo
 
 	pkFilter *bloom.BloomFilter //  bloom filter of pk inside a segment
 }
@@ -148,17 +148,17 @@ func (s *Segment) setOnService(onService bool) {
 	s.onService = onService
 }
 
-func (s *Segment) setVectorFieldInfo(fieldID UniqueID, info *VectorFieldInfo) {
-	s.vectorFieldMutex.Lock()
-	defer s.vectorFieldMutex.Unlock()
-	s.vectorFieldInfos[fieldID] = info
+func (s *Segment) setIndexedFieldInfo(fieldID UniqueID, info *IndexedFieldInfo) {
+	s.indexedFieldMutex.Lock()
+	defer s.indexedFieldMutex.Unlock()
+	s.indexedFieldInfos[fieldID] = info
 }
 
-func (s *Segment) getVectorFieldInfo(fieldID UniqueID) (*VectorFieldInfo, error) {
-	s.vectorFieldMutex.RLock()
-	defer s.vectorFieldMutex.RUnlock()
-	if info, ok := s.vectorFieldInfos[fieldID]; ok {
-		return &VectorFieldInfo{
+func (s *Segment) getIndexedFieldInfo(fieldID UniqueID) (*IndexedFieldInfo, error) {
+	s.indexedFieldMutex.RLock()
+	defer s.indexedFieldMutex.RUnlock()
+	if info, ok := s.indexedFieldInfos[fieldID]; ok {
+		return &IndexedFieldInfo{
 			fieldBinlog: info.fieldBinlog,
 			indexInfo:   info.indexInfo,
 		}, nil
@@ -166,11 +166,11 @@ func (s *Segment) getVectorFieldInfo(fieldID UniqueID) (*VectorFieldInfo, error)
 	return nil, errors.New("Invalid fieldID " + strconv.Itoa(int(fieldID)))
 }
 
-func (s *Segment) hasLoadIndexForVecField(fieldID int64) bool {
-	s.vectorFieldMutex.RLock()
-	defer s.vectorFieldMutex.RUnlock()
+func (s *Segment) hasLoadIndexForIndexedField(fieldID int64) bool {
+	s.indexedFieldMutex.RLock()
+	defer s.indexedFieldMutex.RUnlock()
 
-	if fieldInfo, ok := s.vectorFieldInfos[fieldID]; ok {
+	if fieldInfo, ok := s.indexedFieldInfos[fieldID]; ok {
 		return fieldInfo.indexInfo != nil && fieldInfo.indexInfo.EnableIndex
 	}
 
@@ -206,14 +206,14 @@ func newSegment(collection *Collection, segmentID UniqueID, partitionID UniqueID
 		zap.Int32("segmentType", int32(segType)))
 
 	var segment = &Segment{
-		segmentPtr:       segmentPtr,
-		segmentType:      segType,
-		segmentID:        segmentID,
-		partitionID:      partitionID,
-		collectionID:     collectionID,
-		vChannelID:       vChannelID,
-		onService:        onService,
-		vectorFieldInfos: make(map[UniqueID]*VectorFieldInfo),
+		segmentPtr:        segmentPtr,
+		segmentType:       segType,
+		segmentID:         segmentID,
+		partitionID:       partitionID,
+		collectionID:      collectionID,
+		vChannelID:        vChannelID,
+		onService:         onService,
+		indexedFieldInfos: make(map[UniqueID]*IndexedFieldInfo),
 
 		pkFilter: bloom.NewWithEstimates(bloomFilterSize, maxBloomFalsePositive),
 	}
@@ -367,11 +367,11 @@ func (s *Segment) fillVectorFieldsData(collectionID UniqueID,
 	for _, fieldData := range result.FieldsData {
 		// If the vector field doesn't have indexed. Vector data is in memory for
 		// brute force search. No need to download data from remote.
-		if !s.hasLoadIndexForVecField(fieldData.FieldId) {
+		if !s.hasLoadIndexForIndexedField(fieldData.FieldId) {
 			continue
 		}
 
-		indexedFieldInfo, err := s.getVectorFieldInfo(fieldData.FieldId)
+		indexedFieldInfo, err := s.getIndexedFieldInfo(fieldData.FieldId)
 		if err != nil {
 			continue
 		}

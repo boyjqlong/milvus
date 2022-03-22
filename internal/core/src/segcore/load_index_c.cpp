@@ -92,7 +92,7 @@ AppendIndex(CLoadIndexInfo c_load_index_info, CBinarySet c_binary_set) {
     try {
         auto load_index_info = (LoadIndexInfo*)c_load_index_info;
         auto binary_set = (milvus::knowhere::BinarySet*)c_binary_set;
-        DebugBinarySet(binary_set);
+        // DebugBinarySet(binary_set);
         auto& index_params = load_index_info->index_params;
         bool find_index_type = index_params.count("index_type") > 0 ? true : false;
         bool find_index_mode = index_params.count("index_mode") > 0 ? true : false;

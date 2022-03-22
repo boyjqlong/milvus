@@ -509,7 +509,7 @@ func TestSegmentLoader_testLoadSealedSegmentWithIndex(t *testing.T) {
 
 	segment, err := node.historical.replica.getSegmentByID(segmentID)
 	assert.NoError(t, err)
-	vecFieldInfo, err := segment.getVectorFieldInfo(simpleVecField.id)
+	vecFieldInfo, err := segment.getIndexedFieldInfo(simpleVecField.id)
 	assert.NoError(t, err)
 	assert.NotNil(t, vecFieldInfo)
 	assert.Equal(t, true, vecFieldInfo.indexInfo.EnableIndex)

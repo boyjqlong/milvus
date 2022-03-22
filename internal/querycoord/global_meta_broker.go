@@ -315,7 +315,7 @@ func (broker *globalMetaBroker) getFullIndexInfo(ctx context.Context, collection
 		return nil, err
 	}
 
-	infos, ok := resp.GetSegmentIndexInfos()[segmentID]
+	infos, ok := resp.GetSegmentInfos()[segmentID]
 	if !ok {
 		log.Warn("segment not found",
 			zap.Int64("collection", collectionID),
@@ -325,7 +325,7 @@ func (broker *globalMetaBroker) getFullIndexInfo(ctx context.Context, collection
 
 	ret := make([]*querypb.VecFieldIndexInfo, 0, len(infos.IndexInfos))
 	for _, info := range infos.IndexInfos {
-		extraInfo, ok := infos.GetExtraInfos()[info.IndexID]
+		extraInfo, ok := infos.GetExtraIndexInfos()[info.IndexID]
 		indexInfo := &querypb.VecFieldIndexInfo{
 			FieldID:        info.FieldID,
 			EnableIndex:    info.EnableIndex,
@@ -352,9 +352,11 @@ func (broker *globalMetaBroker) getFullIndexInfo(ctx context.Context, collection
 			return nil, err
 		}
 
-		if len(paths) <= 0 {
-			return nil, fmt.Errorf("index not exist, index build id: %d", info.BuildID)
+		if len(paths) <= 0 || len(paths[0].IndexFilePaths) <= 0 {
+			log.Warn("index not ready", zap.Int64("index_build_id", info.BuildID))
+			return nil, fmt.Errorf("index not ready, index build id: %d", info.BuildID)
 		}
+
 		indexInfo.IndexFilePaths = paths[0].IndexFilePaths
 		indexInfo.IndexSize = int64(paths[0].SerializedSize)
 
@@ -407,8 +409,6 @@ func (broker *globalMetaBroker) generateSegmentLoadInfo(ctx context.Context,
 			segmentLoadInfo.IndexInfos = indexInfo
 		}
 	}
-
-	fmt.Printf("segment load info:\n%s\n", segmentLoadInfo.String())
 
 	// set the estimate segment size to segmentLoadInfo
 	segmentLoadInfo.SegmentSize = estimateSegmentSize(segmentLoadInfo)

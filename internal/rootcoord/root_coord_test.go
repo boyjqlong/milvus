@@ -2927,8 +2927,8 @@ func TestCore_DescribeSegments(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, commonpb.ErrorCode_Success, infos.GetStatus().GetErrorCode())
-	assert.Equal(t, 1, len(infos.GetSegmentIndexInfos()))
-	segmentInfo, ok := infos.GetSegmentIndexInfos()[segID]
+	assert.Equal(t, 1, len(infos.GetSegmentInfos()))
+	segmentInfo, ok := infos.GetSegmentInfos()[segID]
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(segmentInfo.GetIndexInfos()))
 	assert.Equal(t, collID, segmentInfo.GetIndexInfos()[0].GetCollectionID())
@@ -2939,7 +2939,7 @@ func TestCore_DescribeSegments(t *testing.T) {
 	assert.Equal(t, buildID, segmentInfo.GetIndexInfos()[0].GetBuildID())
 	assert.Equal(t, true, segmentInfo.GetIndexInfos()[0].GetEnableIndex())
 
-	indexInfo, ok := segmentInfo.GetExtraInfos()[indexID]
+	indexInfo, ok := segmentInfo.GetExtraIndexInfos()[indexID]
 	assert.True(t, ok)
 	assert.Equal(t, indexName, indexInfo.IndexName)
 	assert.Equal(t, indexID, indexInfo.IndexID)

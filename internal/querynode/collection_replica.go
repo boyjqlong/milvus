@@ -737,8 +737,8 @@ func (colReplica *collectionReplica) getSegmentInfo(segment *Segment) *querypb.S
 	// TODO:: segment has multi vec column
 	vecFieldIDs, _ := colReplica.getAllFieldIDByCollectionIDPrivate(segment.collectionID)
 	for _, fieldID := range vecFieldIDs {
-		if segment.hasLoadIndexForVecField(fieldID) {
-			fieldInfo, err := segment.getVectorFieldInfo(fieldID)
+		if segment.hasLoadIndexForIndexedField(fieldID) {
+			fieldInfo, err := segment.getIndexedFieldInfo(fieldID)
 			if err == nil {
 				indexName = fieldInfo.indexInfo.IndexName
 				indexID = fieldInfo.indexInfo.IndexID

@@ -925,9 +925,9 @@ func TestSegment_indexInfo(t *testing.T) {
 		BuildID:        buildID,
 	}
 
-	seg.setVectorFieldInfo(fieldID, &VectorFieldInfo{indexInfo: indexInfo})
+	seg.setIndexedFieldInfo(fieldID, &IndexedFieldInfo{indexInfo: indexInfo})
 
-	fieldInfo, err := seg.getVectorFieldInfo(fieldID)
+	fieldInfo, err := seg.getIndexedFieldInfo(fieldID)
 	assert.Nil(t, err)
 	info := fieldInfo.indexInfo
 	assert.Equal(t, indexName, info.IndexName)
@@ -974,20 +974,20 @@ func TestSegment_BasicMetrics(t *testing.T) {
 		assert.Equal(t, false, resOnService)
 	})
 
-	t.Run("test VectorFieldInfo", func(t *testing.T) {
+	t.Run("test IndexedFieldInfo", func(t *testing.T) {
 		fieldID := rowIDFieldID
-		info := &VectorFieldInfo{
+		info := &IndexedFieldInfo{
 			fieldBinlog: &datapb.FieldBinlog{
 				FieldID: fieldID,
 				Binlogs: []*datapb.Binlog{},
 			},
 		}
-		segment.setVectorFieldInfo(fieldID, info)
-		resInfo, err := segment.getVectorFieldInfo(fieldID)
+		segment.setIndexedFieldInfo(fieldID, info)
+		resInfo, err := segment.getIndexedFieldInfo(fieldID)
 		assert.NoError(t, err)
 		assert.Equal(t, info, resInfo)
 
-		_, err = segment.getVectorFieldInfo(FieldID(1000))
+		_, err = segment.getIndexedFieldInfo(FieldID(1000))
 		assert.Error(t, err)
 	})
 }
@@ -1013,14 +1013,14 @@ func TestSegment_fillVectorFieldsData(t *testing.T) {
 	t.Run("test fillVectorFieldsData float-vector invalid vectorChunkManager", func(t *testing.T) {
 		fieldID := FieldID(100)
 		fieldName := "float-vector-field-0"
-		info := &VectorFieldInfo{
+		info := &IndexedFieldInfo{
 			fieldBinlog: &datapb.FieldBinlog{
 				FieldID: fieldID,
 				Binlogs: []*datapb.Binlog{},
 			},
 			indexInfo: &querypb.VecFieldIndexInfo{EnableIndex: true},
 		}
-		segment.setVectorFieldInfo(fieldID, info)
+		segment.setIndexedFieldInfo(fieldID, info)
 		fieldData := []*schemapb.FieldData{
 			{
 				Type:      schemapb.DataType_FloatVector,
