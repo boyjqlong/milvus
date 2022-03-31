@@ -45,23 +45,15 @@ class IndexFactory {
 
         switch (real_dtype) {
             case milvus::proto::schema::Bool:
-                return std::make_unique<ScalarIndexCreator<bool>>(type_params, index_params);
             case milvus::proto::schema::Int8:
-                return std::make_unique<ScalarIndexCreator<int8_t>>(type_params, index_params);
             case milvus::proto::schema::Int16:
-                return std::make_unique<ScalarIndexCreator<int16_t>>(type_params, index_params);
             case milvus::proto::schema::Int32:
-                return std::make_unique<ScalarIndexCreator<int32_t>>(type_params, index_params);
             case milvus::proto::schema::Int64:
-                return std::make_unique<ScalarIndexCreator<int64_t>>(type_params, index_params);
             case milvus::proto::schema::Float:
-                return std::make_unique<ScalarIndexCreator<float_t>>(type_params, index_params);
             case milvus::proto::schema::Double:
-                return std::make_unique<ScalarIndexCreator<double_t>>(type_params, index_params);
-
             case proto::schema::VarChar:
             case milvus::proto::schema::String:
-                return std::make_unique<ScalarIndexCreator<std::string>>(type_params, index_params);
+                return CreateScalarIndex(dtype, type_params, index_params);
 
             case milvus::proto::schema::BinaryVector:
             case milvus::proto::schema::FloatVector:

@@ -11,9 +11,18 @@
 
 aux_source_directory( ${MILVUS_ENGINE_SRC}/index INDEX_FILES )
 
-add_library( milvus_index STATIC ${INDEX_FILES} )
+add_library( milvus_index SHARED ${INDEX_FILES} )
+
+# TODO: support compile marisa on windows and mac.
+set(PLATFORM_LIBS )
+if ( LINUX )
+    set(PLATFORM_LIBS marisa)
+endif()
 
 target_link_libraries(milvus_index
-        knowhere
         milvus_proto
+        knowhere
+        ${PLATFORM_LIBS}
         )
+
+install(TARGETS milvus_index DESTINATION lib)

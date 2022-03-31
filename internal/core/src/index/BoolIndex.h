@@ -11,29 +11,28 @@
 
 #pragma once
 
+#include <vector>
 #include <memory>
-#include <knowhere/index/Index.h>
-#include <knowhere/common/Dataset.h>
-#include "index/OperatorType.h"
-#include <boost/dynamic_bitset.hpp>
+#include "index/ScalarIndexSort.h"
 
 namespace milvus::scalar {
-using Index = knowhere::Index;
-using IndexPtr = std::unique_ptr<Index>;
-using BinarySet = knowhere::BinarySet;
-using Config = knowhere::Config;
-using DatasetPtr = knowhere::DatasetPtr;
-using TargetBitmap = boost::dynamic_bitset<>;
-using TargetBitmapPtr = std::unique_ptr<TargetBitmap>;
 
-class IndexBase : public Index {
+// TODO: optimize here.
+class BoolIndex : public ScalarIndexSort<bool> {
  public:
-    virtual void
-    BuildWithDs(const DatasetPtr& dataset) = 0;
-
-    virtual const TargetBitmapPtr
-    Query(const DatasetPtr& dataset) = 0;
+    void
+    BuildWithDs(const DatasetPtr& dataset) override {
+        auto size = dataset->Get<int64_t>(knowhere::meta::ROWS);
+        auto data = dataset->Get<const void*>(knowhere::meta::TENSOR);
+        proto::schema::BoolArray arr;
+        arr.ParseFromArray(data, size);
+        Build(arr.data().size(), arr.data().data());
+    }
 };
-using IndexBasePtr = std::unique_ptr<IndexBase>;
+using BoolIndexPtr = std::unique_ptr<BoolIndex>;
 
+inline BoolIndexPtr
+CreateBoolIndex() {
+    return std::make_unique<BoolIndex>();
+}
 }  // namespace milvus::scalar
