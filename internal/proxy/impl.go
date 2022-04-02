@@ -2064,7 +2064,7 @@ func (node *Proxy) GetIndexState(ctx context.Context, request *milvuspb.GetIndex
 		rootCoord:            node.rootCoord,
 	}
 
-	method := "GetIndexState"
+	method := "get index state"
 	tr := timerecord.NewTimeRecorder(method)
 
 	log.Debug(
@@ -2147,7 +2147,8 @@ func (node *Proxy) GetIndexState(ctx context.Context, request *milvuspb.GetIndex
 		zap.String("db", request.DbName),
 		zap.String("collection", request.CollectionName),
 		zap.String("field", request.FieldName),
-		zap.String("index name", request.IndexName))
+		zap.String("index name", request.IndexName),
+		zap.String("index state", dipt.result.State.String()))
 
 	metrics.ProxyDQLFunctionCall.WithLabelValues(strconv.FormatInt(Params.ProxyCfg.ProxyID, 10), method,
 		metrics.TotalLabel).Inc()
