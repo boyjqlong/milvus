@@ -152,7 +152,7 @@ func (node *Proxy) CreateCollection(ctx context.Context, request *milvuspb.Creat
 	sp, ctx := trace.StartSpanFromContextWithOperationName(ctx, "Proxy-CreateCollection")
 	defer sp.Finish()
 	traceID, _, _ := trace.InfoFromSpan(sp)
-	method := "CreateCollection"
+	method := "create collection"
 	tr := timerecord.NewTimeRecorder(method)
 
 	metrics.ProxyDDLFunctionCall.WithLabelValues(strconv.FormatInt(Params.ProxyCfg.ProxyID, 10), method, metrics.TotalLabel).Inc()
@@ -167,7 +167,7 @@ func (node *Proxy) CreateCollection(ctx context.Context, request *milvuspb.Creat
 	// avoid data race
 	lenOfSchema := len(request.Schema)
 
-	log.Debug(
+	log.Info(
 		rpcReceived(method),
 		zap.String("traceID", traceID),
 		zap.String("role", typeutil.ProxyRole),
@@ -196,7 +196,7 @@ func (node *Proxy) CreateCollection(ctx context.Context, request *milvuspb.Creat
 		}, nil
 	}
 
-	log.Debug(
+	log.Info(
 		rpcEnqueued(method),
 		zap.String("traceID", traceID),
 		zap.String("role", typeutil.ProxyRole),
@@ -232,7 +232,7 @@ func (node *Proxy) CreateCollection(ctx context.Context, request *milvuspb.Creat
 		}, nil
 	}
 
-	log.Debug(
+	log.Info(
 		rpcDone(method),
 		zap.String("traceID", traceID),
 		zap.String("role", typeutil.ProxyRole),
