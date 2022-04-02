@@ -345,12 +345,13 @@ func (node *Proxy) HasCollection(ctx context.Context, request *milvuspb.HasColle
 	sp, ctx := trace.StartSpanFromContextWithOperationName(ctx, "Proxy-HasCollection")
 	defer sp.Finish()
 	traceID, _, _ := trace.InfoFromSpan(sp)
-	method := "HasCollection"
+	method := "has collection"
 	tr := timerecord.NewTimeRecorder(method)
 	metrics.ProxyDQLFunctionCall.WithLabelValues(strconv.FormatInt(Params.ProxyCfg.ProxyID, 10), method,
 		metrics.TotalLabel).Inc()
 
-	log.Debug("HasCollection received",
+	log.Info(
+		rpcReceived(method),
 		zap.String("traceID", traceID),
 		zap.String("role", typeutil.ProxyRole),
 		zap.String("db", request.DbName),
@@ -364,7 +365,8 @@ func (node *Proxy) HasCollection(ctx context.Context, request *milvuspb.HasColle
 	}
 
 	if err := node.sched.ddQueue.Enqueue(hct); err != nil {
-		log.Warn("HasCollection failed to enqueue",
+		log.Warn(
+			rpcFailedToEnqueue(method),
 			zap.Error(err),
 			zap.String("traceID", traceID),
 			zap.String("role", typeutil.ProxyRole),
@@ -381,7 +383,8 @@ func (node *Proxy) HasCollection(ctx context.Context, request *milvuspb.HasColle
 		}, nil
 	}
 
-	log.Debug("HasCollection enqueued",
+	log.Info(
+		rpcEnqueued(method),
 		zap.String("traceID", traceID),
 		zap.String("role", typeutil.ProxyRole),
 		zap.Int64("MsgID", hct.ID()),
@@ -391,7 +394,8 @@ func (node *Proxy) HasCollection(ctx context.Context, request *milvuspb.HasColle
 		zap.String("collection", request.CollectionName))
 
 	if err := hct.WaitToFinish(); err != nil {
-		log.Warn("HasCollection failed to WaitToFinish",
+		log.Warn(
+			rpcFailedToWaitToFinish(method),
 			zap.Error(err),
 			zap.String("traceID", traceID),
 			zap.String("role", typeutil.ProxyRole),
@@ -411,7 +415,8 @@ func (node *Proxy) HasCollection(ctx context.Context, request *milvuspb.HasColle
 		}, nil
 	}
 
-	log.Debug("HasCollection done",
+	log.Info(
+		rpcDone(method),
 		zap.String("traceID", traceID),
 		zap.String("role", typeutil.ProxyRole),
 		zap.Int64("MsgID", hct.ID()),
