@@ -259,7 +259,7 @@ func (node *Proxy) DropCollection(ctx context.Context, request *milvuspb.DropCol
 	sp, ctx := trace.StartSpanFromContextWithOperationName(ctx, "Proxy-DropCollection")
 	defer sp.Finish()
 	traceID, _, _ := trace.InfoFromSpan(sp)
-	method := "DropCollection"
+	method := "drop collection"
 	tr := timerecord.NewTimeRecorder(method)
 	metrics.ProxyDDLFunctionCall.WithLabelValues(strconv.FormatInt(Params.ProxyCfg.ProxyID, 10), method, metrics.TotalLabel).Inc()
 
@@ -272,7 +272,8 @@ func (node *Proxy) DropCollection(ctx context.Context, request *milvuspb.DropCol
 		chTicker:              node.chTicker,
 	}
 
-	log.Debug("DropCollection received",
+	log.Info(
+		rpcReceived(method),
 		zap.String("traceID", traceID),
 		zap.String("role", typeutil.ProxyRole),
 		zap.String("db", request.DbName),
@@ -293,7 +294,8 @@ func (node *Proxy) DropCollection(ctx context.Context, request *milvuspb.DropCol
 		}, nil
 	}
 
-	log.Debug("DropCollection enqueued",
+	log.Info(
+		rpcEnqueued(method),
 		zap.String("traceID", traceID),
 		zap.String("role", typeutil.ProxyRole),
 		zap.Int64("MsgID", dct.ID()),
@@ -320,7 +322,8 @@ func (node *Proxy) DropCollection(ctx context.Context, request *milvuspb.DropCol
 		}, nil
 	}
 
-	log.Debug("DropCollection done",
+	log.Info(
+		rpcDone(method),
 		zap.String("traceID", traceID),
 		zap.String("role", typeutil.ProxyRole),
 		zap.Int64("MsgID", dct.ID()),
