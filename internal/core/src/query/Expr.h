@@ -86,15 +86,15 @@ struct LogicalBinaryExpr : BinaryExprBase {
 };
 
 struct TermExpr : Expr {
-    const FieldOffset field_offset_;
+    const FieldId field_id_;
     const DataType data_type_;
 
  protected:
     // prevent accidential instantiation
     TermExpr() = delete;
 
-    TermExpr(const FieldOffset field_offset, const DataType data_type)
-        : field_offset_(field_offset), data_type_(data_type) {
+    TermExpr(const FieldId field_id, const DataType data_type)
+        : field_id_(field_id), data_type_(data_type) {
     }
 
  public:
@@ -120,7 +120,7 @@ static const std::map<std::string, OpType> mapping_ = {
 };
 
 struct UnaryRangeExpr : Expr {
-    const FieldOffset field_offset_;
+    const FieldId field_id_;
     const DataType data_type_;
     const OpType op_type_;
 
@@ -128,8 +128,8 @@ struct UnaryRangeExpr : Expr {
     // prevent accidential instantiation
     UnaryRangeExpr() = delete;
 
-    UnaryRangeExpr(const FieldOffset field_offset, const DataType data_type, const OpType op_type)
-        : field_offset_(field_offset), data_type_(data_type), op_type_(op_type) {
+    UnaryRangeExpr(const FieldId field_id, const DataType data_type, const OpType op_type)
+        : field_id_(field_id), data_type_(data_type), op_type_(op_type) {
     }
 
  public:
@@ -138,7 +138,7 @@ struct UnaryRangeExpr : Expr {
 };
 
 struct BinaryRangeExpr : Expr {
-    const FieldOffset field_offset_;
+    const FieldId field_id_;
     const DataType data_type_;
     const bool lower_inclusive_;
     const bool upper_inclusive_;
@@ -147,11 +147,11 @@ struct BinaryRangeExpr : Expr {
     // prevent accidential instantiation
     BinaryRangeExpr() = delete;
 
-    BinaryRangeExpr(const FieldOffset field_offset,
+    BinaryRangeExpr(const FieldId field_id,
                     const DataType data_type,
                     const bool lower_inclusive,
                     const bool upper_inclusive)
-        : field_offset_(field_offset),
+        : field_id_(field_id),
           data_type_(data_type),
           lower_inclusive_(lower_inclusive),
           upper_inclusive_(upper_inclusive) {
@@ -163,8 +163,8 @@ struct BinaryRangeExpr : Expr {
 };
 
 struct CompareExpr : Expr {
-    FieldOffset left_field_offset_;
-    FieldOffset right_field_offset_;
+    FieldId left_field_id_;
+    FieldId right_field_id_;
     DataType left_data_type_;
     DataType right_data_type_;
     OpType op_type_;

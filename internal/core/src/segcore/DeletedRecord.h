@@ -33,7 +33,7 @@ struct DeletedRecord {
     DeletedRecord()
         : lru_(std::make_shared<TmpBitmap>()),
           timestamps_(deprecated_size_per_chunk),
-          uids_(deprecated_size_per_chunk) {
+          pks_(deprecated_size_per_chunk) {
         lru_->bitmap_ptr = std::make_shared<faiss::ConcurrentBitset>(0);
     }
 
@@ -59,7 +59,7 @@ struct DeletedRecord {
     std::atomic<int64_t> reserved = 0;
     AckResponder ack_responder_;
     ConcurrentVector<Timestamp> timestamps_;
-    ConcurrentVector<idx_t> uids_;
+    ConcurrentVector<PkType> pks_;
     int64_t record_size_ = 0;
 
  private:

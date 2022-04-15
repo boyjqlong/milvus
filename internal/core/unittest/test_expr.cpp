@@ -103,7 +103,7 @@ TEST(Expr, Range) {
     schema->AddDebugField("age", DataType::INT32);
     auto plan = CreatePlan(*schema, dsl_string);
     ShowPlanNodeVisitor shower;
-    Assert(plan->tag2field_.at("$0") == schema->get_offset(FieldName("fakevec")));
+    Assert(plan->tag2field_.at("$0") == schema->get_field_id(FieldName("fakevec")));
     auto out = shower.call_child(*plan->plan_node_);
     std::cout << out.dump(4);
 }
@@ -145,7 +145,7 @@ TEST(Expr, RangeBinary) {
     schema->AddDebugField("age", DataType::INT32);
     auto plan = CreatePlan(*schema, dsl_string);
     ShowPlanNodeVisitor shower;
-    Assert(plan->tag2field_.at("$0") == schema->get_offset(FieldName("fakevec")));
+    Assert(plan->tag2field_.at("$0") == schema->get_field_id(FieldName("fakevec")));
     auto out = shower.call_child(*plan->plan_node_);
     std::cout << out.dump(4);
 }
@@ -231,14 +231,14 @@ TEST(Expr, ShowExecutor) {
     using namespace milvus::segcore;
     auto node = std::make_unique<FloatVectorANNS>();
     auto schema = std::make_shared<Schema>();
-    schema->AddDebugField("fakevec", DataType::VECTOR_FLOAT, 16, MetricType::METRIC_L2);
+    auto field_id = schema->AddDebugField("fakevec", DataType::VECTOR_FLOAT, 16, MetricType::METRIC_L2);
     int64_t num_queries = 100L;
     auto raw_data = DataGen(schema, num_queries);
     auto& info = node->search_info_;
 
     info.metric_type_ = MetricType::METRIC_L2;
     info.topk_ = 20;
-    info.field_offset_ = FieldOffset(0);
+    info.field_id_ = field_id;
     node->predicate_ = std::nullopt;
     ShowPlanNodeVisitor show_visitor;
     PlanNodePtr base(node.release());
@@ -291,8 +291,9 @@ TEST(Expr, TestRange) {
         }
     })";
     auto schema = std::make_shared<Schema>();
-    schema->AddDebugField("fakevec", DataType::VECTOR_FLOAT, 16, MetricType::METRIC_L2);
-    schema->AddDebugField("age", DataType::INT32);
+    auto vec_fid = schema->AddDebugField("fakevec", DataType::VECTOR_FLOAT, 16, MetricType::METRIC_L2);
+    auto i64_fid = schema->AddDebugField("age", DataType::INT64);
+    schema->set_primary_field_id(i64_fid);
 
     auto seg = CreateGrowingSegment(schema);
     int N = 1000;
@@ -300,7 +301,7 @@ TEST(Expr, TestRange) {
     int num_iters = 100;
     for (int iter = 0; iter < num_iters; ++iter) {
         auto raw_data = DataGen(schema, N, iter);
-        auto new_age_col = raw_data.get_col<int>(1);
+        auto new_age_col = raw_data.get_col<int>(i64_fid);
         age_col.insert(age_col.end(), new_age_col.begin(), new_age_col.end());
         seg->PreInsert(N);
         seg->Insert(iter * N, N, raw_data.row_ids_.data(), raw_data.timestamps_.data(), raw_data.raw_);
@@ -373,8 +374,9 @@ TEST(Expr, TestTerm) {
         }
     })";
     auto schema = std::make_shared<Schema>();
-    schema->AddDebugField("fakevec", DataType::VECTOR_FLOAT, 16, MetricType::METRIC_L2);
-    schema->AddDebugField("age", DataType::INT32);
+    auto vec_fid = schema->AddDebugField("fakevec", DataType::VECTOR_FLOAT, 16, MetricType::METRIC_L2);
+    auto i64_fid = schema->AddDebugField("age", DataType::INT64);
+    schema->set_primary_field_id(i64_fid);
 
     auto seg = CreateGrowingSegment(schema);
     int N = 1000;
@@ -382,7 +384,7 @@ TEST(Expr, TestTerm) {
     int num_iters = 100;
     for (int iter = 0; iter < num_iters; ++iter) {
         auto raw_data = DataGen(schema, N, iter);
-        auto new_age_col = raw_data.get_col<int>(1);
+        auto new_age_col = raw_data.get_col<int>(i64_fid);
         age_col.insert(age_col.end(), new_age_col.begin(), new_age_col.end());
         seg->PreInsert(N);
         seg->Insert(iter * N, N, raw_data.row_ids_.data(), raw_data.timestamps_.data(), raw_data.raw_);
@@ -445,7 +447,7 @@ TEST(Expr, TestSimpleDsl) {
     {
         Json dsl;
         dsl["must"] = Json::array({vec_dsl, get_item(0), get_item(1), get_item(2, 0), get_item(3)});
-        testcases.emplace_back(dsl, [](int x) { return (x & 0b1111) == 0b1011; });
+        testcases.emplace_back(dsl, [](int64_t x) { return (x & 0b1111) == 0b1011; });
     }
 
     {
@@ -453,7 +455,7 @@ TEST(Expr, TestSimpleDsl) {
         Json sub_dsl;
         sub_dsl["must"] = Json::array({get_item(0), get_item(1), get_item(2, 0), get_item(3)});
         dsl["must"] = Json::array({sub_dsl, vec_dsl});
-        testcases.emplace_back(dsl, [](int x) { return (x & 0b1111) == 0b1011; });
+        testcases.emplace_back(dsl, [](int64_t x) { return (x & 0b1111) == 0b1011; });
     }
 
     {
@@ -461,7 +463,7 @@ TEST(Expr, TestSimpleDsl) {
         Json sub_dsl;
         sub_dsl["should"] = Json::array({get_item(0), get_item(1), get_item(2, 0), get_item(3)});
         dsl["must"] = Json::array({sub_dsl, vec_dsl});
-        testcases.emplace_back(dsl, [](int x) { return !!((x & 0b1111) ^ 0b0100); });
+        testcases.emplace_back(dsl, [](int64_t x) { return !!((x & 0b1111) ^ 0b0100); });
     }
 
     {
@@ -469,19 +471,20 @@ TEST(Expr, TestSimpleDsl) {
         Json sub_dsl;
         sub_dsl["must_not"] = Json::array({get_item(0), get_item(1), get_item(2, 0), get_item(3)});
         dsl["must"] = Json::array({sub_dsl, vec_dsl});
-        testcases.emplace_back(dsl, [](int x) { return (x & 0b1111) != 0b1011; });
+        testcases.emplace_back(dsl, [](int64_t x) { return (x & 0b1111) != 0b1011; });
     }
 
     auto schema = std::make_shared<Schema>();
-    schema->AddDebugField("fakevec", DataType::VECTOR_FLOAT, 16, MetricType::METRIC_L2);
-    schema->AddDebugField("age", DataType::INT32);
+    auto vec_fid = schema->AddDebugField("fakevec", DataType::VECTOR_FLOAT, 16, MetricType::METRIC_L2);
+    auto i64_fid = schema->AddDebugField("age", DataType::INT64);
+    schema->set_primary_field_id(i64_fid);
 
     auto seg = CreateGrowingSegment(schema);
-    std::vector<int> age_col;
+    std::vector<int64_t> age_col;
     int num_iters = 100;
     for (int iter = 0; iter < num_iters; ++iter) {
         auto raw_data = DataGen(schema, N, iter);
-        auto new_age_col = raw_data.get_col<int>(1);
+        auto new_age_col = raw_data.get_col<int64_t>(i64_fid);
         age_col.insert(age_col.end(), new_age_col.begin(), new_age_col.end());
         seg->PreInsert(N);
         seg->Insert(iter * N, N, raw_data.row_ids_.data(), raw_data.timestamps_.data(), raw_data.raw_);
@@ -543,9 +546,10 @@ TEST(Expr, TestCompare) {
         }
     })";
     auto schema = std::make_shared<Schema>();
-    schema->AddDebugField("fakevec", DataType::VECTOR_FLOAT, 16, MetricType::METRIC_L2);
-    schema->AddDebugField("age1", DataType::INT32);
-    schema->AddDebugField("age2", DataType::INT64);
+    auto vec_fid = schema->AddDebugField("fakevec", DataType::VECTOR_FLOAT, 16, MetricType::METRIC_L2);
+    auto i32_fid = schema->AddDebugField("age1", DataType::INT32);
+    auto i64_fid = schema->AddDebugField("age2", DataType::INT64);
+    schema->set_primary_field_id(i64_fid);
 
     auto seg = CreateGrowingSegment(schema);
     int N = 1000;
@@ -554,8 +558,8 @@ TEST(Expr, TestCompare) {
     int num_iters = 100;
     for (int iter = 0; iter < num_iters; ++iter) {
         auto raw_data = DataGen(schema, N, iter);
-        auto new_age1_col = raw_data.get_col<int>(1);
-        auto new_age2_col = raw_data.get_col<int64_t>(2);
+        auto new_age1_col = raw_data.get_col<int>(i32_fid);
+        auto new_age2_col = raw_data.get_col<int64_t>(i64_fid);
         age1_col.insert(age1_col.end(), new_age1_col.begin(), new_age1_col.end());
         age2_col.insert(age2_col.end(), new_age2_col.begin(), new_age2_col.end());
         seg->PreInsert(N);
