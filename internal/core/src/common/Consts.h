@@ -17,7 +17,12 @@
 #pragma once
 
 #include <stdint.h>
+#include "Types.h"
 
 const int64_t INVALID_ID = -1;
 const int64_t INVALID_OFFSET = -1;
 const int64_t INVALID_SEG_OFFSET = -1;
+const std::string INVALID_STRING = "";
+const milvus::PkType INVALID_PK;
+// TODO:: default field start id, could get from config.yaml
+const int64_t START_USER_FIELDID = 100;

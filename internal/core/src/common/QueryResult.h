@@ -35,7 +35,7 @@ struct SearchResult {
     SearchResult(int64_t num_queries, int64_t topk) : topk_(topk), num_queries_(num_queries) {
         auto count = get_row_count();
         distances_.resize(count);
-        ids_.resize(count);
+        seg_offsets_.resize(count);
     }
 
     int64_t
@@ -43,41 +43,26 @@ struct SearchResult {
         return topk_ * num_queries_;
     }
 
-    // vector type
-    void
-    AddField(const FieldName& name,
-             const FieldId id,
-             DataType data_type,
-             int64_t dim,
-             std::optional<MetricType> metric_type) {
-        this->AddField(FieldMeta(name, id, data_type, dim, metric_type));
-    }
-
-    // scalar type
-    void
-    AddField(const FieldName& name, const FieldId id, DataType data_type) {
-        this->AddField(FieldMeta(name, id, data_type));
-    }
-
-    void
-    AddField(FieldMeta&& field_meta) {
-        output_fields_meta_.emplace_back(std::move(field_meta));
-    }
-
  public:
     int64_t num_queries_;
     int64_t topk_;
-    std::vector<float> distances_;
-    std::vector<int64_t> ids_;  // primary keys
-
- public:
-    // TODO(gexi): utilize these fields
     void* segment_;
+
+    // first fill data during search, and then update data after reducing search results
+    std::vector<float> distances_;
+    std::vector<int64_t> seg_offsets_;
+
+    // fist fill data during fillPrimaryKey, and then update data after reducing search results
+    std::vector<PkType> primary_keys_;
+    DataType pk_type_;
+
+    // fill data during reducing search result
     std::vector<int64_t> result_offsets_;
-    std::vector<int64_t> primary_keys_;
-    aligned_vector<char> ids_data_;
-    std::vector<aligned_vector<char>> output_fields_data_;
-    std::vector<FieldMeta> output_fields_meta_;
+    // after reducing search result done, size(distances_) = size(seg_offsets_) = size(primary_keys_) =
+    // size(primary_keys_)
+
+    // set output fields data when fill target entity
+    std::map<FieldId, std::unique_ptr<milvus::DataArray>> output_fields_data_;
 };
 
 using SearchResultPtr = std::shared_ptr<SearchResult>;

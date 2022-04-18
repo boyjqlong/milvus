@@ -142,6 +142,8 @@ CreateIndex(const FieldMeta& field_meta, const SegcoreConfig& segcore_config) {
             return std::make_unique<ScalarFieldIndexing<float>>(field_meta, segcore_config);
         case DataType::DOUBLE:
             return std::make_unique<ScalarFieldIndexing<double>>(field_meta, segcore_config);
+        case DataType::VarChar:
+            return std::make_unique<ScalarFieldIndexing<std::string>>(field_meta, segcore_config);
         default:
             PanicInfo("unsupported");
     }

@@ -55,4 +55,24 @@ MetricTypeToName(MetricType metric_type) {
     return metric_bimap.right.at(metric_type);
 }
 
+bool
+IsPrimaryKeyDataType(DataType data_type) {
+    return data_type == engine::DataType::INT64 || data_type == DataType::VarChar;
+}
+
+bool
+IsValidPrimaryKey(PkType pk) {
+    // pk type is int64
+    if (pk.index() == 1 && std::get<int64_t>(pk) != -1) {
+        return true;
+    }
+
+    // pk type is string
+    if (pk.index() == 2 && !std::get<std::string>(pk).empty()) {
+        return true;
+    }
+
+    return false;
+}
+
 }  // namespace milvus

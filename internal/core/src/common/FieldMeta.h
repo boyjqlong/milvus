@@ -91,6 +91,17 @@ datatype_is_vector(DataType datatype) {
 }
 
 inline bool
+datatype_is_string(DataType datatype) {
+    switch (datatype) {
+        case DataType::VarChar:
+        case DataType::STRING:
+            return true;
+        default:
+            return false;
+    }
+}
+
+inline bool
 datatype_is_integer(DataType datatype) {
     switch (datatype) {
         case DataType::INT8:
@@ -128,6 +139,11 @@ class FieldMeta {
         Assert(!is_vector());
     }
 
+    FieldMeta(const FieldName& name, FieldId id, DataType type, int64_t max_len_per_row)
+        : name_(name), id_(id), type_(type), string_info_(StringInfo{max_len_per_row}) {
+        Assert(is_string());
+    }
+
     FieldMeta(const FieldName& name, FieldId id, DataType type, int64_t dim, std::optional<MetricType> metric_type)
         : name_(name), id_(id), type_(type), vector_info_(VectorInfo{dim, metric_type}) {
         Assert(is_vector());
@@ -139,12 +155,25 @@ class FieldMeta {
         return type_ == DataType::VECTOR_BINARY || type_ == DataType::VECTOR_FLOAT;
     }
 
+    bool
+    is_string() const {
+        Assert(type_ != DataType::NONE);
+        return type_ == DataType::VarChar || type_ == DataType::STRING;
+    }
+
     int64_t
     get_dim() const {
         Assert(is_vector());
         Assert(vector_info_.has_value());
         return vector_info_->dim_;
     }
+
+    int64_t
+    get_max_len() const {
+        Assert(is_string());
+        Assert(string_info_.has_value());
+        return string_info_->max_len_per_row;
+    };
 
     std::optional<MetricType>
     get_metric_type() const {
@@ -168,10 +197,12 @@ class FieldMeta {
         return type_;
     }
 
-    int
+    int64_t
     get_sizeof() const {
         if (is_vector()) {
             return datatype_sizeof(type_, get_dim());
+        } else if (is_string()) {
+            return string_info_->max_len_per_row;
         } else {
             return datatype_sizeof(type_);
         }
@@ -182,10 +213,14 @@ class FieldMeta {
         int64_t dim_;
         std::optional<MetricType> metric_type_;
     };
+    struct StringInfo {
+        int64_t max_len_per_row;
+    };
     FieldName name_;
     FieldId id_;
     DataType type_ = DataType::NONE;
     std::optional<VectorInfo> vector_info_;
+    std::optional<StringInfo> string_info_;
 };
 
 }  // namespace milvus
