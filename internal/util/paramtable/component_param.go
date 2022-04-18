@@ -87,6 +87,10 @@ func (p *ComponentParam) PulsarEnable() bool {
 	return p.PulsarCfg.Address != ""
 }
 
+func (p *ComponentParam) KafkaEnable() bool {
+	return p.KafkaCfg.Address != ""
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // --- common ---
 type commonConfig struct {
@@ -120,6 +124,7 @@ type commonConfig struct {
 
 	SimdType       string
 	IndexSliceSize int64
+	StorageType    string
 }
 
 func (p *commonConfig) init(base *BaseTable) {
@@ -154,6 +159,7 @@ func (p *commonConfig) init(base *BaseTable) {
 
 	p.initSimdType()
 	p.initIndexSliceSize()
+	p.initStorageType()
 }
 
 func (p *commonConfig) initClusterPrefix() {
@@ -187,6 +193,7 @@ func (p *commonConfig) initProxySubName() {
 }
 
 // --- rootcoord ---
+// Deprecate
 func (p *commonConfig) initRootCoordTimeTick() {
 	keys := []string{
 		"common.chanNamePrefix.rootCoordTimeTick",
@@ -236,6 +243,7 @@ func (p *commonConfig) initQueryCoordSearch() {
 	p.QueryCoordSearch = p.initChanNamePrefix(keys)
 }
 
+// Deprecated, search result use grpc instead of a result channel
 func (p *commonConfig) initQueryCoordSearchResult() {
 	keys := []string{
 		"common.chanNamePrefix.searchResult",
@@ -244,6 +252,7 @@ func (p *commonConfig) initQueryCoordSearchResult() {
 	p.QueryCoordSearchResult = p.initChanNamePrefix(keys)
 }
 
+// Deprecate
 func (p *commonConfig) initQueryCoordTimeTick() {
 	keys := []string{
 		"common.chanNamePrefix.queryTimeTick",
@@ -278,6 +287,7 @@ func (p *commonConfig) initDataCoordStatistic() {
 	p.DataCoordStatistic = p.initChanNamePrefix(keys)
 }
 
+// Deprecate
 func (p *commonConfig) initDataCoordTimeTick() {
 	keys := []string{
 		"common.chanNamePrefix.dataCoordTimeTick",
@@ -334,6 +344,10 @@ func (p *commonConfig) initIndexSliceSize() {
 	p.IndexSliceSize = p.Base.ParseInt64WithDefault("common.indexSliceSize", DefaultIndexSliceSize)
 }
 
+func (p *commonConfig) initStorageType() {
+	p.StorageType = p.Base.LoadWithDefault("storageType", "minio")
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // --- rootcoord ---
 type rootCoordConfig struct {
@@ -385,6 +399,8 @@ type proxyConfig struct {
 	TimeTickInterval         time.Duration
 	MsgStreamTimeTickBufSize int64
 	MaxNameLength            int64
+	MaxUsernameLength        int64
+	MaxPasswordLength        int64
 	MaxFieldNum              int64
 	MaxShardNum              int32
 	MaxDimension             int64
@@ -409,6 +425,8 @@ func (p *proxyConfig) init(base *BaseTable) {
 
 	p.initMsgStreamTimeTickBufSize()
 	p.initMaxNameLength()
+	p.initMaxUsernameLength()
+	p.initMaxPasswordLength()
 	p.initMaxFieldNum()
 	p.initMaxShardNum()
 	p.initMaxDimension()
@@ -440,6 +458,24 @@ func (p *proxyConfig) initMaxNameLength() {
 		panic(err)
 	}
 	p.MaxNameLength = maxNameLength
+}
+
+func (p *proxyConfig) initMaxUsernameLength() {
+	str := p.Base.LoadWithDefault("proxy.maxUsernameLength", "32")
+	maxUsernameLength, err := strconv.ParseInt(str, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	p.MaxUsernameLength = maxUsernameLength
+}
+
+func (p *proxyConfig) initMaxPasswordLength() {
+	str := p.Base.LoadWithDefault("proxy.maxPasswordLength", "256")
+	maxPasswordLength, err := strconv.ParseInt(str, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	p.MaxPasswordLength = maxPasswordLength
 }
 
 func (p *proxyConfig) initMaxShardNum() {

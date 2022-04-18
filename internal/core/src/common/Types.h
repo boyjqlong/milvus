@@ -27,7 +27,6 @@
 #include <NamedType/named_type.hpp>
 #include <variant>
 
-#include "knowhere/utils/BitsetView.h"
 #include "knowhere/common/MetricType.h"
 #include "pb/schema.pb.h"
 #include "pb/segcore.pb.h"
@@ -87,17 +86,8 @@ using FieldName = fluent::NamedType<std::string, impl::FieldNameTag, fluent::Com
 //using FieldOffset = fluent::NamedType<int64_t, impl::FieldOffsetTag, fluent::Comparable, fluent::Hashable>;
 using SegOffset = fluent::NamedType<int64_t, impl::SegOffsetTag, fluent::Arithmetic>;
 
-using BitsetView = faiss::BitsetView;
-inline BitsetView
-BitsetSubView(const BitsetView& view, int64_t offset, int64_t size) {
-    if (view.empty()) {
-        return BitsetView();
-    }
-    assert(offset % 8 == 0);
-    return BitsetView(view.data() + offset / 8, size);
-}
-
 using BitsetType = boost::dynamic_bitset<>;
+using BitsetTypePtr = std::shared_ptr<boost::dynamic_bitset<>>;
 using BitsetTypeOpt = std::optional<BitsetType>;
 
 template <typename Type>
