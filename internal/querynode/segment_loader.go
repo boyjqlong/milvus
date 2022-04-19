@@ -284,11 +284,21 @@ func (loader *segmentLoader) loadFiledBinlogData(segment *Segment, fieldBinlogs 
 
 	switch segmentType {
 	case segmentTypeGrowing:
-		timestamps, ids, rowData, err := storage.TransferColumnBasedInsertDataToRowBased(insertData)
-		if err != nil {
-			return err
+		tsData, ok := insertData.Data[common.TimeStampField]
+		if !ok {
+			return errors.New("cannot get timestamps from insert data")
 		}
-		return loader.loadGrowingSegments(segment, ids, timestamps, rowData)
+		utss := make([]uint64, tsData.RowNum())
+		for i := 0; i < tsData.RowNum(); i++ {
+			utss[i] = uint64(tsData.GetRow(i).(int64))
+		}
+
+		rowIDData, ok := insertData.Data[common.RowIDField]
+		if !ok {
+			return errors.New("cannot get row ids from insert data")
+		}
+
+		return loader.loadGrowingSegments(segment, rowIDData.(*storage.Int64FieldData).Data, utss, insertData)
 	case segmentTypeSealed:
 		return loader.loadSealedSegments(segment, insertData)
 	default:
@@ -349,8 +359,9 @@ func (loader *segmentLoader) loadFieldIndexData(segment *Segment, indexInfo *que
 func (loader *segmentLoader) loadGrowingSegments(segment *Segment,
 	ids []UniqueID,
 	timestamps []Timestamp,
-	records []*commonpb.Blob) error {
-	if len(ids) != len(timestamps) || len(timestamps) != len(records) {
+	insertData *storage.InsertData) error {
+	numRows := len(ids)
+	if numRows != len(timestamps) || insertData == nil {
 		return errors.New(fmt.Sprintln("illegal insert data when load segment, collectionID = ", segment.collectionID))
 	}
 
@@ -369,12 +380,18 @@ func (loader *segmentLoader) loadGrowingSegments(segment *Segment,
 	log.Debug("insertNode operator", zap.Int("insert size", numOfRecords), zap.Int64("insert offset", offset), zap.Int64("segment id", segment.ID()))
 
 	// 2. update bloom filter
+	insertRecord, err := storage.TransferInsertDataToInsertRecord(insertData)
+	if err != nil {
+		return err
+	}
 	tmpInsertMsg := &msgstream.InsertMsg{
 		InsertRequest: internalpb.InsertRequest{
 			CollectionID: segment.collectionID,
 			Timestamps:   timestamps,
 			RowIDs:       ids,
-			RowData:      records,
+			NumRows:      uint64(numRows),
+			FieldsData:   insertRecord.FieldsData,
+			Version:      internalpb.InsertDataVersion_ColumnBased,
 		},
 	}
 	pks, err := getPrimaryKeys(tmpInsertMsg, loader.streamingReplica)
@@ -384,7 +401,7 @@ func (loader *segmentLoader) loadGrowingSegments(segment *Segment,
 	segment.updateBloomFilter(pks)
 
 	// 3. do insert
-	err = segment.segmentInsert(offset, &ids, &timestamps, &records)
+	err = segment.segmentInsert(offset, ids, timestamps, insertRecord)
 	if err != nil {
 		return err
 	}
@@ -394,51 +411,19 @@ func (loader *segmentLoader) loadGrowingSegments(segment *Segment,
 }
 
 func (loader *segmentLoader) loadSealedSegments(segment *Segment, insertData *storage.InsertData) error {
-	for fieldID, value := range insertData.Data {
-		var numRows []int64
-		var data interface{}
-		switch fieldData := value.(type) {
-		case *storage.BoolFieldData:
-			numRows = fieldData.NumRows
-			data = fieldData.Data
-		case *storage.Int8FieldData:
-			numRows = fieldData.NumRows
-			data = fieldData.Data
-		case *storage.Int16FieldData:
-			numRows = fieldData.NumRows
-			data = fieldData.Data
-		case *storage.Int32FieldData:
-			numRows = fieldData.NumRows
-			data = fieldData.Data
-		case *storage.Int64FieldData:
-			numRows = fieldData.NumRows
-			data = fieldData.Data
-		case *storage.FloatFieldData:
-			numRows = fieldData.NumRows
-			data = fieldData.Data
-		case *storage.DoubleFieldData:
-			numRows = fieldData.NumRows
-			data = fieldData.Data
-		case *storage.StringFieldData:
-			numRows = fieldData.NumRows
-			data = fieldData.Data
-		case *storage.FloatVectorFieldData:
-			numRows = fieldData.NumRows
-			data = fieldData.Data
-		case *storage.BinaryVectorFieldData:
-			numRows = fieldData.NumRows
-			data = fieldData.Data
-		default:
-			return errors.New("unexpected field data type")
-		}
+	insertRecord, err := storage.TransferInsertDataToInsertRecord(insertData)
+	if err != nil {
+		return err
+	}
+	numRows := insertRecord.NumRows
+	for _, fieldData := range insertRecord.FieldsData {
+		fieldID := fieldData.FieldId
 		if fieldID == common.TimeStampField {
-			segment.setIDBinlogRowSizes(numRows)
+			timestampsData := insertData.Data[fieldID].(*storage.Int64FieldData)
+			segment.setIDBinlogRowSizes(timestampsData.NumRows)
 		}
-		totalNumRows := int64(0)
-		for _, numRow := range numRows {
-			totalNumRows += numRow
-		}
-		err := segment.segmentLoadFieldData(fieldID, int(totalNumRows), data)
+
+		err := segment.segmentLoadFieldData(fieldID, numRows, fieldData)
 		if err != nil {
 			// TODO: return or continue?
 			return err

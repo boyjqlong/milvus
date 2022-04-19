@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/binary"
 	"math"
-	"math/rand"
 	"sync"
 	"testing"
 	"time"
@@ -129,7 +128,8 @@ func TestQueryCollection_withoutVChannel(t *testing.T) {
 	defer etcdCli.Close()
 	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
 
-	schema := genTestCollectionSchema(0, false, 2)
+	pkType := schemapb.DataType_Int64
+	schema := genTestCollectionSchema(pkType)
 	historicalReplica := newCollectionReplica(etcdKV)
 	tsReplica := newTSafeReplica()
 	streamingReplica := newCollectionReplica(etcdKV)
@@ -144,17 +144,80 @@ func TestQueryCollection_withoutVChannel(t *testing.T) {
 	segment, err := historical.replica.getSegmentByID(2)
 	assert.Nil(t, err)
 	const N = 2
-	rowID := []int32{1, 2}
-	timeStamp := []int64{0, 1}
-	age := []int64{10, 20}
-	vectorData := []float32{1, 2, 3, 4}
-	err = segment.segmentLoadFieldData(0, N, rowID)
+	rowID := &schemapb.FieldData{
+		Type:    schemapb.DataType_Int64,
+		FieldId: rowIDFieldID,
+		Field: &schemapb.FieldData_Scalars{
+			Scalars: &schemapb.ScalarField{
+				Data: &schemapb.ScalarField_LongData{
+					LongData: &schemapb.LongArray{
+						Data: []int64{1, 2},
+					},
+				},
+			},
+		},
+	}
+	timeStamp := &schemapb.FieldData{
+		Type:    schemapb.DataType_Int64,
+		FieldId: timestampFieldID,
+		Field: &schemapb.FieldData_Scalars{
+			Scalars: &schemapb.ScalarField{
+				Data: &schemapb.ScalarField_LongData{
+					LongData: &schemapb.LongArray{
+						Data: []int64{0, 1},
+					},
+				},
+			},
+		},
+	}
+	age := &schemapb.FieldData{
+		Type:    schemapb.DataType_Int32,
+		FieldId: simpleInt32Field.id,
+		Field: &schemapb.FieldData_Scalars{
+			Scalars: &schemapb.ScalarField{
+				Data: &schemapb.ScalarField_IntData{
+					IntData: &schemapb.IntArray{
+						Data: []int32{10, 20},
+					},
+				},
+			},
+		},
+	}
+	pkData := &schemapb.FieldData{
+		Type:    schemapb.DataType_Int64,
+		FieldId: simpleInt64Field.id,
+		Field: &schemapb.FieldData_Scalars{
+			Scalars: &schemapb.ScalarField{
+				Data: &schemapb.ScalarField_LongData{
+					LongData: &schemapb.LongArray{
+						Data: []int64{0, 1},
+					},
+				},
+			},
+		},
+	}
+	vectorData := &schemapb.FieldData{
+		Type:    schemapb.DataType_FloatVector,
+		FieldId: simpleFloatVecField.id,
+		Field: &schemapb.FieldData_Vectors{
+			Vectors: &schemapb.VectorField{
+				Data: &schemapb.VectorField_FloatVector{
+					FloatVector: &schemapb.FloatArray{
+						Data: generateFloatVectors(N, defaultDim),
+					},
+				},
+			},
+		},
+	}
+	err = segment.segmentLoadFieldData(rowIDFieldID, N, rowID)
 	assert.Nil(t, err)
-	err = segment.segmentLoadFieldData(1, N, timeStamp)
+	err = segment.segmentLoadFieldData(timestampFieldID, N, timeStamp)
 	assert.Nil(t, err)
-	err = segment.segmentLoadFieldData(101, N, age)
+	err = segment.segmentLoadFieldData(simpleInt32Field.id, N, age)
 	assert.Nil(t, err)
-	err = segment.segmentLoadFieldData(100, N, vectorData)
+	err = segment.segmentLoadFieldData(simpleInt64Field.id, N, pkData)
+	assert.Nil(t, err)
+	err = segment.segmentLoadFieldData(simpleFloatVecField.id, N, vectorData)
 	assert.Nil(t, err)
 
 	//create a streaming
@@ -176,13 +239,9 @@ func TestQueryCollection_withoutVChannel(t *testing.T) {
 	})
 	queryCollection.sessionManager = sessionManager
 
-	dim := 2
 	// generate search rawData
-	var vec = make([]float32, dim)
-	for i := 0; i < dim; i++ {
-		vec[i] = rand.Float32()
-	}
-	dslString := "{\"bool\": { \n\"vector\": {\n \"vec\": {\n \"metric_type\": \"L2\", \n \"params\": {\n \"nprobe\": 10 \n},\n \"query\": \"$0\",\n \"topk\": 10 \n,\"round_decimal\": 6\n } \n } \n } \n }"
+	var vec = generateFloatVectors(1, defaultDim)
+	dslString := "{\"bool\": { \n\"vector\": {\n \"floatVectorField\": {\n \"metric_type\": \"L2\", \n \"params\": {\n \"nprobe\": 10 \n},\n \"query\": \"$0\",\n \"topk\": 10 \n,\"round_decimal\": 6\n } \n } \n } \n }"
 	var searchRawData1 []byte
 	var searchRawData2 []byte
 	for i, ele := range vec {
@@ -244,7 +303,9 @@ func TestQueryCollection_unsolvedMsg(t *testing.T) {
 	queryCollection, err := genSimpleQueryCollection(ctx, cancel)
 	assert.NoError(t, err)
 
-	qm, err := genSimpleSearchMsg(IndexFaissIDMap)
+	pkType := schemapb.DataType_Int64
+	schema := genTestCollectionSchema(pkType)
+	qm, err := genSearchMsg(schema, defaultNQ, IndexFaissIDMap)
 	assert.NoError(t, err)
 
 	queryCollection.addToUnsolvedMsg(qm)
@@ -290,13 +351,17 @@ func TestQueryCollection_consumeQuery(t *testing.T) {
 	}
 
 	t.Run("consume search", func(t *testing.T) {
-		msg, err := genSimpleSearchMsg(IndexFaissIDMap)
+		pkType := schemapb.DataType_Int64
+		schema := genTestCollectionSchema(pkType)
+		msg, err := genSearchMsg(schema, defaultNQ, IndexFaissIDMap)
 		assert.NoError(t, err)
 		runConsumeQuery(msg)
 	})
 
 	t.Run("consume retrieve", func(t *testing.T) {
-		msg, err := genSimpleRetrieveMsg()
+		pkType := schemapb.DataType_Int64
+		schema := genTestCollectionSchema(pkType)
+		msg, err := genRetrieveMsg(schema)
 		assert.NoError(t, err)
 		runConsumeQuery(msg)
 	})
@@ -311,14 +376,18 @@ func TestQueryCollection_consumeQuery(t *testing.T) {
 	})
 
 	t.Run("consume invalid msg", func(t *testing.T) {
-		msg, err := genSimpleRetrieveMsg()
+		pkType := schemapb.DataType_Int64
+		schema := genTestCollectionSchema(pkType)
+		msg, err := genRetrieveMsg(schema)
 		assert.NoError(t, err)
 		msg.Base.MsgType = commonpb.MsgType_CreateCollection
 		runConsumeQuery(msg)
 	})
 
 	t.Run("consume timeout msg", func(t *testing.T) {
-		msg, err := genSimpleRetrieveMsg()
+		pkType := schemapb.DataType_Int64
+		schema := genTestCollectionSchema(pkType)
+		msg, err := genRetrieveMsg(schema)
 		assert.NoError(t, err)
 		msg.TimeoutTimestamp = tsoutil.GetCurrentTime() - Timestamp(time.Second<<18)
 		runConsumeQuery(msg)
@@ -408,7 +477,7 @@ func TestQueryCollection_TranslateHits(t *testing.T) {
 			Name:   defaultCollectionName,
 			AutoID: true,
 			Fields: []*schemapb.FieldSchema{
-				genConstantField(constFieldParam{
+				genConstantFieldSchema(constFieldParam{
 					id:       fieldID,
 					dataType: dataType,
 				}),
@@ -590,7 +659,9 @@ func TestQueryCollection_doUnsolvedQueryMsg(t *testing.T) {
 
 		go queryCollection.doUnsolvedQueryMsg()
 
-		msg, err := genSimpleSearchMsg(IndexFaissIDMap)
+		pkType := schemapb.DataType_Int64
+		schema := genTestCollectionSchema(pkType)
+		msg, err := genSearchMsg(schema, defaultNQ, IndexFaissIDMap)
 		assert.NoError(t, err)
 		queryCollection.addToUnsolvedMsg(msg)
 
@@ -614,7 +685,9 @@ func TestQueryCollection_doUnsolvedQueryMsg(t *testing.T) {
 
 		go queryCollection.doUnsolvedQueryMsg()
 
-		msg, err := genSimpleSearchMsg(IndexFaissIDMap)
+		pkType := schemapb.DataType_Int64
+		schema := genTestCollectionSchema(pkType)
+		msg, err := genSearchMsg(schema, defaultNQ, IndexFaissIDMap)
 		assert.NoError(t, err)
 		msg.TimeoutTimestamp = tsoutil.GetCurrentTime() - Timestamp(time.Second<<18)
 		queryCollection.addToUnsolvedMsg(msg)
@@ -645,7 +718,9 @@ func TestQueryCollection_search(t *testing.T) {
 	err = queryCollection.historical.replica.removeSegment(defaultSegmentID)
 	assert.NoError(t, err)
 
-	msg, err := genSimpleSearchMsg(IndexFaissIDMap)
+	pkType := schemapb.DataType_Int64
+	schema := genTestCollectionSchema(pkType)
+	msg, err := genSearchMsg(schema, defaultNQ, IndexFaissIDMap)
 	assert.NoError(t, err)
 
 	err = queryCollection.search(msg)
@@ -668,12 +743,15 @@ func TestQueryCollection_retrieve(t *testing.T) {
 	})
 	queryCollection.sessionManager = sessionManager
 
-	vecCM, err := genVectorChunkManager(ctx)
+	pkType := schemapb.DataType_Int64
+	schema := genTestCollectionSchema(pkType)
+	collection := newCollection(defaultCollectionID, schema)
+	vecCM, err := genVectorChunkManager(ctx, collection)
 	assert.NoError(t, err)
 
 	queryCollection.vectorChunkManager = vecCM
 
-	msg, err := genSimpleRetrieveMsg()
+	msg, err := genRetrieveMsg(schema)
 	assert.NoError(t, err)
 
 	err = queryCollection.retrieve(msg)
@@ -791,7 +869,9 @@ func TestQueryCollection_search_while_release(t *testing.T) {
 		})
 		queryCollection.sessionManager = sessionManager
 
-		msg, err := genSimpleSearchMsg(IndexFaissIDMap)
+		pkType := schemapb.DataType_Int64
+		schema := genTestCollectionSchema(pkType)
+		msg, err := genSearchMsg(schema, defaultNQ, IndexFaissIDMap)
 		assert.NoError(t, err)
 
 		// To prevent data race in search trackCtx
@@ -836,7 +916,9 @@ func TestQueryCollection_search_while_release(t *testing.T) {
 		})
 		queryCollection.sessionManager = sessionManager
 
-		msg, err := genSimpleSearchMsg(IndexFaissIDMap)
+		pkType := schemapb.DataType_Int64
+		schema := genTestCollectionSchema(pkType)
+		msg, err := genSearchMsg(schema, defaultNQ, IndexFaissIDMap)
 		assert.NoError(t, err)
 
 		// To prevent data race in search trackCtx

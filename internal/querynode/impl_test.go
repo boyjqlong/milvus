@@ -31,6 +31,7 @@ import (
 	"github.com/milvus-io/milvus/internal/proto/internalpb"
 	"github.com/milvus-io/milvus/internal/proto/milvuspb"
 	queryPb "github.com/milvus-io/milvus/internal/proto/querypb"
+	"github.com/milvus-io/milvus/internal/proto/schemapb"
 	"github.com/milvus-io/milvus/internal/util/etcd"
 	"github.com/milvus-io/milvus/internal/util/metricsinfo"
 	"github.com/milvus-io/milvus/internal/util/sessionutil"
@@ -126,7 +127,8 @@ func TestImpl_WatchDmChannels(t *testing.T) {
 	node, err := genSimpleQueryNode(ctx)
 	assert.NoError(t, err)
 
-	schema := genSimpleSegCoreSchema()
+	pkType := schemapb.DataType_Int64
+	schema := genTestCollectionSchema(pkType)
 
 	req := &queryPb.WatchDmChannelsRequest{
 		Base: &commonpb.MsgBase{
@@ -155,7 +157,8 @@ func TestImpl_LoadSegments(t *testing.T) {
 	node, err := genSimpleQueryNode(ctx)
 	assert.NoError(t, err)
 
-	schema := genSimpleSegCoreSchema()
+	pkType := schemapb.DataType_Int64
+	schema := genTestCollectionSchema(pkType)
 
 	req := &queryPb.LoadSegmentsRequest{
 		Base: &commonpb.MsgBase{
@@ -341,7 +344,7 @@ func TestImpl_GetSegmentInfo(t *testing.T) {
 		seg, err := node.historical.replica.getSegmentByID(defaultSegmentID)
 		assert.NoError(t, err)
 
-		seg.setIndexedFieldInfo(simpleVecField.id, &IndexedFieldInfo{
+		seg.setIndexedFieldInfo(simpleFloatVecField.id, &IndexedFieldInfo{
 			indexInfo: &queryPb.FieldIndexInfo{
 				IndexName: "query-node-test",
 				IndexID:   UniqueID(0),

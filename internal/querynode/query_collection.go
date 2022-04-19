@@ -1147,7 +1147,7 @@ func (q *queryCollection) search(msg queryMsg) error {
 	if err != nil {
 		return err
 	}
-	blobs, err := marshal(collectionID, searchMsg.ID(), searchResults, int(numSegment), reqSlices)
+	blobs, err := marshal(collectionID, searchMsg.ID(), searchResults, plan, int(numSegment), reqSlices)
 	defer deleteSearchResultDataBlobs(blobs)
 	sp.LogFields(oplog.String("statistical time", "reorganizeSearchResults end"))
 	if err != nil {

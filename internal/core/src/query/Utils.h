@@ -9,25 +9,30 @@
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 // or implied. See the License for the specific language governing permissions and limitations under the License
 
-#include <gtest/gtest.h>
+#pragma once
 
-#include "common/Consts.h"
-#include "segcore/ReduceStructure.h"
+#include <string>
+#include "query/Expr.h"
+#include "common/Utils.h"
 
-TEST(SearchResultPair, Greater) {
-    auto pair1 = SearchResultPair(0, 1.0, nullptr, 0, 0, 10);
-    auto pair2 = SearchResultPair(1, 2.0, nullptr, 1, 0, 10);
-    ASSERT_EQ(pair1 > pair2, false);
+namespace milvus::query {
 
-    pair1.primary_key_ = INVALID_PK;
-    pair2.primary_key_ = 1;
-    ASSERT_EQ(pair1 > pair2, false);
-
-    pair1.primary_key_ = 0;
-    pair2.primary_key_ = INVALID_PK;
-    ASSERT_EQ(pair1 > pair2, true);
-
-    pair1.primary_key_ = INVALID_PK;
-    pair2.primary_key_ = INVALID_PK;
-    ASSERT_EQ(pair1 > pair2, false);
+template <typename T, typename U>
+inline bool
+Match(const T& x, const U& y, OpType op) {
+    PanicInfo("not supported");
 }
+
+template <>
+inline bool
+Match<std::string>(const std::string& str, const std::string& val, OpType op) {
+    switch (op) {
+        case OpType::PrefixMatch:
+            return PrefixMatch(str, val);
+        case OpType::PostfixMatch:
+            return PostfixMatch(str, val);
+        default:
+            PanicInfo("not supported");
+    }
+}
+}  // namespace milvus::query
