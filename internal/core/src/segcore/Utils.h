@@ -55,9 +55,6 @@ MetricTypeToString(faiss::MetricType metric_type) {
     }
 }
 
-const void*
-GetFieldData(const FieldMeta& field_meta, const DataArray* data);
-
 void
 ParsePksFromFieldData(std::vector<PkType>& pks, const DataArray& data);
 

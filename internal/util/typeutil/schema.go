@@ -528,16 +528,18 @@ func GetPrimaryFieldSchema(schema *schemapb.CollectionSchema) (*schemapb.FieldSc
 // GetPrimaryFieldData get primary field data from all field data inserted from sdk
 func GetPrimaryFieldData(datas []*schemapb.FieldData, primaryFieldSchema *schemapb.FieldSchema) (*schemapb.FieldData, error) {
 	primaryFieldID := primaryFieldSchema.FieldID
+	primaryFieldName := primaryFieldSchema.Name
 
 	var primaryFieldData *schemapb.FieldData
 	for _, field := range datas {
-		if field.FieldId == primaryFieldID {
+		if field.FieldId == primaryFieldID || field.FieldName == primaryFieldName {
 			primaryFieldData = field
+			break
 		}
 	}
 
 	if primaryFieldData == nil {
-		return nil, fmt.Errorf("can't find data for primary field %v", primaryFieldSchema.Name)
+		return nil, fmt.Errorf("can't find data for primary field %v", primaryFieldName)
 	}
 
 	return primaryFieldData, nil

@@ -266,6 +266,7 @@ GetSearchResultDataSlice(SearchResult* final_search_result,
                 auto array = milvus::segcore::CreateScalarDataArrayFrom(src_data + offset_begin,
                                                                         offset_end - offset_begin, field_meta);
                 result_data = std::move(array);
+                break;
             }
             case milvus::DataType::INT8:
             case milvus::DataType::INT16:
@@ -275,6 +276,7 @@ GetSearchResultDataSlice(SearchResult* final_search_result,
                 auto array = milvus::segcore::CreateScalarDataArrayFrom(src_data + offset_begin,
                                                                         offset_end - offset_begin, field_meta);
                 result_data = std::move(array);
+                break;
             }
             case milvus::DataType::INT64: {
                 auto src_data =
@@ -282,6 +284,7 @@ GetSearchResultDataSlice(SearchResult* final_search_result,
                 auto array = milvus::segcore::CreateScalarDataArrayFrom(src_data + offset_begin,
                                                                         offset_end - offset_begin, field_meta);
                 result_data = std::move(array);
+                break;
             }
             case milvus::DataType::FLOAT: {
                 auto src_data =
@@ -289,6 +292,7 @@ GetSearchResultDataSlice(SearchResult* final_search_result,
                 auto array = milvus::segcore::CreateScalarDataArrayFrom(src_data + offset_begin,
                                                                         offset_end - offset_begin, field_meta);
                 result_data = std::move(array);
+                break;
             }
             case milvus::DataType::DOUBLE: {
                 auto src_data =
@@ -296,13 +300,15 @@ GetSearchResultDataSlice(SearchResult* final_search_result,
                 auto array = milvus::segcore::CreateScalarDataArrayFrom(src_data + offset_begin,
                                                                         offset_end - offset_begin, field_meta);
                 result_data = std::move(array);
+                break;
             }
             case milvus::DataType::VarChar: {
-                auto src_data =
-                    final_search_result->output_fields_data_.at(field_id)->scalars().string_data().data().data();
-                auto array = milvus::segcore::CreateScalarDataArrayFrom(src_data + offset_begin,
+                auto src_data = final_search_result->output_fields_data_.at(field_id)->scalars().string_data().data();
+                std::vector<std::string> data_raw(src_data.begin(), src_data.end());
+                auto array = milvus::segcore::CreateScalarDataArrayFrom(data_raw.data() + offset_begin,
                                                                         offset_end - offset_begin, field_meta);
                 result_data = std::move(array);
+                break;
             }
             default: {
                 PanicInfo("unsupported vector data type");

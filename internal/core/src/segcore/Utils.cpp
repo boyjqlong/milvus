@@ -13,54 +13,6 @@
 
 namespace milvus::segcore {
 
-const void*
-GetFieldData(const FieldMeta& field_meta, const DataArray* data) {
-    if (field_meta.is_vector()) {
-        if (field_meta.get_data_type() == DataType::VECTOR_FLOAT) {
-            return data->vectors().float_vector().data().data();
-        } else if (field_meta.get_data_type() == DataType::VECTOR_BINARY) {
-            return data->vectors().binary_vector().data();
-        } else {
-            PanicInfo("unsupported");
-        }
-    }
-    switch (field_meta.get_data_type()) {
-        case DataType::BOOL: {
-            return data->scalars().bool_data().data().data();
-        }
-        case DataType::INT8: {
-            auto src_data = data->scalars().int_data().data();
-            std::vector<int8_t> data_raw(src_data.size());
-            std::copy_n(src_data.data(), src_data.size(), data_raw.data());
-            return std::move(data_raw.data());
-        }
-        case DataType::INT16: {
-            auto src_data = data->scalars().int_data().data();
-            std::vector<int16_t> data_raw(src_data.size());
-            std::copy_n(src_data.data(), src_data.size(), data_raw.data());
-            return std::move(data_raw.data());
-        }
-        case DataType::INT32: {
-            return data->scalars().int_data().data().data();
-        }
-        case DataType::INT64: {
-            return data->scalars().long_data().data().data();
-        }
-        case DataType::FLOAT: {
-            return data->scalars().float_data().data().data();
-        }
-        case DataType::DOUBLE: {
-            return data->scalars().double_data().data().data();
-        }
-        case DataType::VarChar: {
-            return data->scalars().string_data().data().data();
-        }
-        default: {
-            PanicInfo("unsupported");
-        }
-    }
-}
-
 void
 ParsePksFromFieldData(std::vector<PkType>& pks, const DataArray& data) {
     switch (DataType(data.type())) {
@@ -70,9 +22,8 @@ ParsePksFromFieldData(std::vector<PkType>& pks, const DataArray& data) {
             break;
         }
         case DataType::VarChar: {
-            auto begin = data.scalars().string_data().data().begin();
-            auto end = data.scalars().string_data().data().end();
-            std::copy(begin, end, pks.begin());
+            auto src_data = data.scalars().string_data().data();
+            std::copy(src_data.begin(), src_data.end(), pks.begin());
             break;
         }
         default: {
@@ -90,8 +41,8 @@ ParsePksFromIDs(std::vector<PkType>& pks, DataType data_type, const IdArray& dat
             break;
         }
         case DataType::VarChar: {
-            auto source_data = reinterpret_cast<const std::string*>(data.str_id().data().data());
-            std::copy_n(source_data, pks.size(), pks.data());
+            auto source_data = data.str_id().data();
+            std::copy(source_data.begin(), source_data.end(), pks.begin());
             break;
         }
         default: {
