@@ -12,6 +12,9 @@
 #include <stdlib.h>
 #include <string>
 #include <exception>
+#include <memory>
+#include <utility>
+#include <vector>
 #include <stdexcept>
 #include <knowhere/common/MetricType.h>
 #include "common/QueryResult.h"

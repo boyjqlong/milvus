@@ -17,6 +17,7 @@
 #pragma once
 
 #include <memory>
+#include <map>
 #include <limits>
 #include <string>
 #include <utility>

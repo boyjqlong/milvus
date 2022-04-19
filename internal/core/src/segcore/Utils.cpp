@@ -1,3 +1,5 @@
+// Copyright (C) 2019-2020 Zilliz. All rights reserved.
+//
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
 // with the License. You may obtain a copy of the License at
 //
@@ -68,8 +70,9 @@ ParsePksFromFieldData(std::vector<PkType>& pks, const DataArray& data) {
             break;
         }
         case DataType::VarChar: {
-            auto source_data = reinterpret_cast<const std::string*>(data.scalars().string_data().data().data());
-            std::copy_n(source_data, pks.size(), pks.data());
+            auto begin = data.scalars().string_data().data().begin();
+            auto end = data.scalars().string_data().data().end();
+            std::copy(begin, end, pks.begin());
             break;
         }
         default: {
@@ -301,5 +304,4 @@ MergeDataArray(std::vector<std::pair<milvus::SearchResult*, int64_t>>& result_of
 
     return data_array;
 }
-
 }  // namespace milvus::segcore

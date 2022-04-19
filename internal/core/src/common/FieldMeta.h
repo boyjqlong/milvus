@@ -173,7 +173,7 @@ class FieldMeta {
         Assert(is_string());
         Assert(string_info_.has_value());
         return string_info_->max_len_per_row;
-    };
+    }
 
     std::optional<MetricType>
     get_metric_type() const {

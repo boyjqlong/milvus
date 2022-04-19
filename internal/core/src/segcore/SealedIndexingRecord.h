@@ -12,6 +12,7 @@
 #pragma once
 
 #include <map>
+#include <unordered_map>
 #include <memory>
 #include <shared_mutex>
 #include <utility>

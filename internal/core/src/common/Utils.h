@@ -12,27 +12,33 @@
 #pragma once
 
 #include <string>
-#include "query/Expr.h"
-#include "common/Utils.h"
 
-namespace milvus::query {
-
-template <typename T, typename U>
+namespace milvus {
 inline bool
-Match(const T& x, const U& y, OpType op) {
-    PanicInfo("not supported");
-}
-
-template <>
-inline bool
-Match<std::string>(const std::string& str, const std::string& val, OpType op) {
-    switch (op) {
-        case OpType::PrefixMatch:
-            return PrefixMatch(str, val);
-        case OpType::PostfixMatch:
-            return PostfixMatch(str, val);
-        default:
-            PanicInfo("not supported");
+PrefixMatch(const std::string& str, const std::string& prefix) {
+    if (prefix.length() > str.length()) {
+        return false;
     }
+    for (int i = 0; i < prefix.length(); i++) {
+        if (prefix[i] != str[i]) {
+            return false;
+        }
+    }
+    return true;
 }
-}  // namespace milvus::query
+
+inline bool
+PostfixMatch(const std::string& str, const std::string& postfix) {
+    if (postfix.length() > str.length()) {
+        return false;
+    }
+    int i = postfix.length() - 1;
+    int j = str.length() - 1;
+    for (; i >= 0; i--, j--) {
+        if (postfix[i] != str[j]) {
+            return false;
+        }
+    }
+    return true;
+}
+}  // namespace milvus

@@ -30,7 +30,7 @@ struct LoadIndexInfo {
 
 // NOTE: field_id can be system field
 // NOTE: Refer to common/SystemProperty.cpp for details
-// TODO:: use arrow to pass field data instead of proto
+// TODO: use arrow to pass field data instead of proto
 struct LoadFieldDataInfo {
     int64_t field_id;
     //    const void* blob = nullptr;

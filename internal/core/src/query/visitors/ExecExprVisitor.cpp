@@ -302,8 +302,7 @@ ExecExprVisitor::visit(UnaryRangeExpr& expr) {
             res = ExecUnaryRangeVisitorDispatcher<double>(expr);
             break;
         }
-        case DataType::STRING: {
-            // TODO: VARCHAR.
+        case DataType::VarChar: {
             res = ExecUnaryRangeVisitorDispatcher<std::string>(expr);
             break;
         }
@@ -349,8 +348,7 @@ ExecExprVisitor::visit(BinaryRangeExpr& expr) {
             res = ExecBinaryRangeVisitorDispatcher<double>(expr);
             break;
         }
-        case DataType::STRING: {
-            // TODO: VARCHAR
+        case DataType::VarChar: {
             res = ExecBinaryRangeVisitorDispatcher<std::string>(expr);
             break;
         }
@@ -615,6 +613,7 @@ ExecExprVisitor::visit(TermExpr& expr) {
         }
         case DataType::VarChar: {
             res = ExecTermVisitorImpl<std::string>(expr);
+            break;
         }
         default:
             PanicInfo("unsupported");

@@ -139,8 +139,8 @@ SegmentGrowingImpl::Insert(int64_t reserved_offset,
     insert_record_.row_ids_.set_data_raw(reserved_offset, row_ids, size);
     for (auto [field_id, offset] : field_id_to_offset) {
         auto& field_meta = schema_->operator[](field_id);
-        auto source_data = GetFieldData(field_meta, &insert_data->fields_data(offset));
-        insert_record_.get_field_data_base(field_id)->set_data_raw(reserved_offset, source_data, size);
+        insert_record_.get_field_data_base(field_id)->set_data_raw(reserved_offset, size,
+                                                                   &insert_data->fields_data(offset), field_meta);
     }
 
     // step 5: set pks to offset

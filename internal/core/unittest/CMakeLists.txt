@@ -33,6 +33,7 @@ set(MILVUS_TEST_FILES
         test_query.cpp
         test_reduce.cpp
         test_reduce_c.cpp
+        test_relational.cpp
         test_retrieve.cpp
         test_scalar_index.cpp
         test_sealed.cpp

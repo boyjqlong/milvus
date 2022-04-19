@@ -13,6 +13,7 @@
 
 #include <memory>
 #include <vector>
+#include <unordered_map>
 
 #include "common/Schema.h"
 #include "segcore/AckResponder.h"

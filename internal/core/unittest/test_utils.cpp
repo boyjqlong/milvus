@@ -13,6 +13,7 @@
 #include <string.h>
 #include <knowhere/common/MetricType.h>
 
+#include "common/Utils.h"
 #include "query/Utils.h"
 #include "segcore/Utils.h"
 
@@ -36,6 +37,7 @@ TEST(Util, FaissMetricTypeToString) {
 }
 
 TEST(Util, StringMatch) {
+    using namespace milvus;
     using namespace milvus::query;
 
     ASSERT_ANY_THROW(Match(1, 2, OpType::PrefixMatch));

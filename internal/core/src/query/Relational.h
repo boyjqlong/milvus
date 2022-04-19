@@ -12,6 +12,10 @@
 #pragma once
 
 #include "common/VectorTrait.h"
+#include "exceptions/EasyAssert.h"
+#include "query/Expr.h"
+#include "common/Utils.h"
+#include "query/Utils.h"
 
 #include <functional>
 #include <string>

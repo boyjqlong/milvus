@@ -51,7 +51,7 @@ class SegmentInterface {
     virtual std::unique_ptr<proto::segcore::RetrieveResults>
     Retrieve(const query::RetrievePlan* Plan, Timestamp timestamp) const = 0;
 
-    // TODO:: memory use is not correct when load string or load string index
+    // TODO: memory use is not correct when load string or load string index
     virtual int64_t
     GetMemoryUsageInBytes() const = 0;
 
