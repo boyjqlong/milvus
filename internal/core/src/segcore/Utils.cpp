@@ -242,9 +242,9 @@ MergeDataArray(std::vector<std::pair<milvus::SearchResult*, int64_t>>& result_of
                 continue;
             }
             case DataType::VarChar: {
-                auto data = reinterpret_cast<const std::string*>(src_field_data->scalars().string_data().data().data());
+                auto data = src_field_data->scalars().string_data();
                 auto obj = scalar_array->mutable_string_data();
-                *(obj->mutable_data()->Add()) = data[src_offset];
+                *(obj->mutable_data()->Add()) = data.data(src_offset);
                 continue;
             }
             default: {
