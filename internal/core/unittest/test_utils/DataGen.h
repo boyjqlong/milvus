@@ -26,6 +26,8 @@
 #include "segcore/SegmentGrowingImpl.h"
 #include "segcore/SegmentSealedImpl.h"
 #include "segcore/Utils.h"
+#include "index/ScalarIndexSort.h"
+#include "index/StringIndexSort.h"
 
 using boost::algorithm::starts_with;
 
@@ -393,6 +395,20 @@ GenIndexing(int64_t N, int64_t dim, const float* vec) {
     indexing->Train(database, conf);
     indexing->AddWithoutIds(database, conf);
     return indexing;
+}
+
+template <typename T>
+inline scalar::IndexBasePtr
+GenScalarIndexing(int64_t N, const T* data) {
+    if constexpr (std::is_same_v<T, std::string>) {
+        auto indexing = scalar::CreateStringIndexSort();
+        indexing->Build(N, data);
+        return indexing;
+    } else {
+        auto indexing = scalar::CreateScalarIndexSort<T>();
+        indexing->Build(N, data);
+        return indexing;
+    }
 }
 
 }  // namespace milvus::segcore

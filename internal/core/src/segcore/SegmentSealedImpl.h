@@ -163,6 +163,12 @@ class SegmentSealedImpl : public SegmentSealed {
     std::vector<SegOffset>
     search_ids(const BitsetType& view, Timestamp timestamp) const override;
 
+    void
+    LoadVecIndex(const LoadIndexInfo& info);
+
+    void
+    LoadScalarIndex(const LoadIndexInfo& info);
+
  private:
     // segment loading state
     BitsetType field_data_ready_bitset_;
@@ -174,7 +180,7 @@ class SegmentSealedImpl : public SegmentSealed {
     std::optional<int64_t> row_count_opt_;
 
     // scalar field index
-    std::unordered_map<FieldId, std::unique_ptr<knowhere::Index>> scalar_indexings_;
+    std::unordered_map<FieldId, knowhere::IndexPtr> scalar_indexings_;
     // vector field index
     SealedIndexingRecord vector_indexings_;
 
