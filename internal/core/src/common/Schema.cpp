@@ -70,8 +70,8 @@ Schema::ParseFrom(const milvus::proto::schema::CollectionSchema& schema_proto) {
             }
         } else if (datatype_is_string(data_type)) {
             auto type_map = RepeatedKeyValToMap(child.type_params());
-            AssertInfo(type_map.count("max_len_per_row"), "max_len_per_row not found");
-            auto max_len = boost::lexical_cast<int64_t>(type_map.at("max_len_per_row"));
+            AssertInfo(type_map.count("max_length_per_row"), "max_len_per_row not found");
+            auto max_len = boost::lexical_cast<int64_t>(type_map.at("max_length_per_row"));
             schema->AddField(name, field_id, data_type, max_len);
         } else {
             schema->AddField(name, field_id, data_type);
