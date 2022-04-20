@@ -742,7 +742,7 @@ TEST(CApiTest, LoadIndexInfo) {
     status = AppendIndexParam(c_load_index_info, index_param_key2.data(), index_param_value2.data());
     assert(status.error_code == Success);
     std::string field_name = "field0";
-    status = AppendFieldInfo(c_load_index_info, 0);
+    status = AppendFieldInfo(c_load_index_info, 0, CDataType::FloatVector);
     assert(status.error_code == Success);
     status = AppendIndex(c_load_index_info, c_binary_set);
     assert(status.error_code == Success);
@@ -899,7 +899,7 @@ TEST(CApiTest, Indexing_Without_Predicate) {
     AppendIndexParam(c_load_index_info, index_type_key.c_str(), index_type_value.c_str());
     AppendIndexParam(c_load_index_info, index_mode_key.c_str(), index_mode_value.c_str());
     AppendIndexParam(c_load_index_info, metric_type_key.c_str(), metric_type_value.c_str());
-    AppendFieldInfo(c_load_index_info, 100);
+    AppendFieldInfo(c_load_index_info, 100, CDataType::FloatVector);
     AppendIndex(c_load_index_info, (CBinarySet)&binary_set);
 
     auto sealed_segment = SealedCreator(schema, dataset, *(LoadIndexInfo*)c_load_index_info);
@@ -1021,7 +1021,7 @@ TEST(CApiTest, Indexing_Expr_Without_Predicate) {
     AppendIndexParam(c_load_index_info, index_type_key.c_str(), index_type_value.c_str());
     AppendIndexParam(c_load_index_info, index_mode_key.c_str(), index_mode_value.c_str());
     AppendIndexParam(c_load_index_info, metric_type_key.c_str(), metric_type_value.c_str());
-    AppendFieldInfo(c_load_index_info, 100);
+    AppendFieldInfo(c_load_index_info, 100, CDataType::FloatVector);
     AppendIndex(c_load_index_info, (CBinarySet)&binary_set);
 
     auto sealed_segment = SealedCreator(schema, dataset, *(LoadIndexInfo*)c_load_index_info);
@@ -1161,7 +1161,7 @@ TEST(CApiTest, Indexing_With_float_Predicate_Range) {
     AppendIndexParam(c_load_index_info, index_type_key.c_str(), index_type_value.c_str());
     AppendIndexParam(c_load_index_info, index_mode_key.c_str(), index_mode_value.c_str());
     AppendIndexParam(c_load_index_info, metric_type_key.c_str(), metric_type_value.c_str());
-    AppendFieldInfo(c_load_index_info, 100);
+    AppendFieldInfo(c_load_index_info, 100, CDataType::FloatVector);
     AppendIndex(c_load_index_info, (CBinarySet)&binary_set);
 
     auto sealed_segment = SealedCreator(schema, dataset, *(LoadIndexInfo*)c_load_index_info);
@@ -1316,7 +1316,7 @@ TEST(CApiTest, Indexing_Expr_With_float_Predicate_Range) {
     AppendIndexParam(c_load_index_info, index_type_key.c_str(), index_type_value.c_str());
     AppendIndexParam(c_load_index_info, index_mode_key.c_str(), index_mode_value.c_str());
     AppendIndexParam(c_load_index_info, metric_type_key.c_str(), metric_type_value.c_str());
-    AppendFieldInfo(c_load_index_info, 100);
+    AppendFieldInfo(c_load_index_info, 100, CDataType::FloatVector);
     AppendIndex(c_load_index_info, (CBinarySet)&binary_set);
 
     auto sealed_segment = SealedCreator(schema, dataset, *(LoadIndexInfo*)c_load_index_info);
@@ -1454,7 +1454,7 @@ TEST(CApiTest, Indexing_With_float_Predicate_Term) {
     AppendIndexParam(c_load_index_info, index_type_key.c_str(), index_type_value.c_str());
     AppendIndexParam(c_load_index_info, index_mode_key.c_str(), index_mode_value.c_str());
     AppendIndexParam(c_load_index_info, metric_type_key.c_str(), metric_type_value.c_str());
-    AppendFieldInfo(c_load_index_info, 100);
+    AppendFieldInfo(c_load_index_info, 100, CDataType::FloatVector);
     AppendIndex(c_load_index_info, (CBinarySet)&binary_set);
 
     auto sealed_segment = SealedCreator(schema, dataset, *(LoadIndexInfo*)c_load_index_info);
@@ -1601,7 +1601,7 @@ TEST(CApiTest, Indexing_Expr_With_float_Predicate_Term) {
     AppendIndexParam(c_load_index_info, index_type_key.c_str(), index_type_value.c_str());
     AppendIndexParam(c_load_index_info, index_mode_key.c_str(), index_mode_value.c_str());
     AppendIndexParam(c_load_index_info, metric_type_key.c_str(), metric_type_value.c_str());
-    AppendFieldInfo(c_load_index_info, 100);
+    AppendFieldInfo(c_load_index_info, 100, CDataType::FloatVector);
     AppendIndex(c_load_index_info, (CBinarySet)&binary_set);
 
     auto sealed_segment = SealedCreator(schema, dataset, *(LoadIndexInfo*)c_load_index_info);
@@ -1741,7 +1741,7 @@ TEST(CApiTest, Indexing_With_binary_Predicate_Range) {
     AppendIndexParam(c_load_index_info, index_type_key.c_str(), index_type_value.c_str());
     AppendIndexParam(c_load_index_info, index_mode_key.c_str(), index_mode_value.c_str());
     AppendIndexParam(c_load_index_info, metric_type_key.c_str(), metric_type_value.c_str());
-    AppendFieldInfo(c_load_index_info, 100);
+    AppendFieldInfo(c_load_index_info, 100, CDataType::BinaryVector);
     AppendIndex(c_load_index_info, (CBinarySet)&binary_set);
 
     auto sealed_segment = SealedCreator(schema, dataset, *(LoadIndexInfo*)c_load_index_info);
@@ -1894,7 +1894,7 @@ TEST(CApiTest, Indexing_Expr_With_binary_Predicate_Range) {
     AppendIndexParam(c_load_index_info, index_type_key.c_str(), index_type_value.c_str());
     AppendIndexParam(c_load_index_info, index_mode_key.c_str(), index_mode_value.c_str());
     AppendIndexParam(c_load_index_info, metric_type_key.c_str(), metric_type_value.c_str());
-    AppendFieldInfo(c_load_index_info, 100);
+    AppendFieldInfo(c_load_index_info, 100, CDataType::BinaryVector);
     AppendIndex(c_load_index_info, (CBinarySet)&binary_set);
 
     auto sealed_segment = SealedCreator(schema, dataset, *(LoadIndexInfo*)c_load_index_info);
@@ -2033,7 +2033,7 @@ TEST(CApiTest, Indexing_With_binary_Predicate_Term) {
     AppendIndexParam(c_load_index_info, index_type_key.c_str(), index_type_value.c_str());
     AppendIndexParam(c_load_index_info, index_mode_key.c_str(), index_mode_value.c_str());
     AppendIndexParam(c_load_index_info, metric_type_key.c_str(), metric_type_value.c_str());
-    AppendFieldInfo(c_load_index_info, 100);
+    AppendFieldInfo(c_load_index_info, 100, CDataType::BinaryVector);
     AppendIndex(c_load_index_info, (CBinarySet)&binary_set);
 
     auto sealed_segment = SealedCreator(schema, dataset, *(LoadIndexInfo*)c_load_index_info);
@@ -2185,7 +2185,7 @@ TEST(CApiTest, Indexing_Expr_With_binary_Predicate_Term) {
     AppendIndexParam(c_load_index_info, index_type_key.c_str(), index_type_value.c_str());
     AppendIndexParam(c_load_index_info, index_mode_key.c_str(), index_mode_value.c_str());
     AppendIndexParam(c_load_index_info, metric_type_key.c_str(), metric_type_value.c_str());
-    AppendFieldInfo(c_load_index_info, 100);
+    AppendFieldInfo(c_load_index_info, 100, CDataType::BinaryVector);
     AppendIndex(c_load_index_info, (CBinarySet)&binary_set);
 
     auto sealed_segment = SealedCreator(schema, dataset, *(LoadIndexInfo*)c_load_index_info);
@@ -2358,13 +2358,13 @@ TEST(CApiTest, SealedSegment_search_float_Predicate_Range) {
     AppendIndexParam(c_load_index_info, index_type_key.c_str(), index_type_value.c_str());
     AppendIndexParam(c_load_index_info, index_mode_key.c_str(), index_mode_value.c_str());
     AppendIndexParam(c_load_index_info, metric_type_key.c_str(), metric_type_value.c_str());
-    AppendFieldInfo(c_load_index_info, 100);
+    AppendFieldInfo(c_load_index_info, 100, CDataType::FloatVector);
     AppendIndex(c_load_index_info, (CBinarySet)&binary_set);
 
     auto load_index_info = (LoadIndexInfo*)c_load_index_info;
     auto query_dataset2 = knowhere::GenDataset(num_queries, DIM, query_ptr);
-    auto fuck2 = load_index_info->index;
-    auto result_on_index2 = fuck2->Query(query_dataset2, conf, nullptr);
+    auto index = std::dynamic_pointer_cast<knowhere::VecIndex>(load_index_info->index);
+    auto result_on_index2 = index->Query(query_dataset2, conf, nullptr);
     auto ids2 = result_on_index2->Get<int64_t*>(knowhere::meta::IDS);
     auto dis2 = result_on_index2->Get<float*>(knowhere::meta::DISTANCE);
 
@@ -2656,13 +2656,13 @@ TEST(CApiTest, SealedSegment_search_float_With_Expr_Predicate_Range) {
     AppendIndexParam(c_load_index_info, index_type_key.c_str(), index_type_value.c_str());
     AppendIndexParam(c_load_index_info, index_mode_key.c_str(), index_mode_value.c_str());
     AppendIndexParam(c_load_index_info, metric_type_key.c_str(), metric_type_value.c_str());
-    AppendFieldInfo(c_load_index_info, 100);
+    AppendFieldInfo(c_load_index_info, 100, CDataType::FloatVector);
     AppendIndex(c_load_index_info, (CBinarySet)&binary_set);
 
     auto load_index_info = (LoadIndexInfo*)c_load_index_info;
     auto query_dataset2 = knowhere::GenDataset(num_queries, DIM, query_ptr);
-    auto fuck2 = load_index_info->index;
-    auto result_on_index2 = fuck2->Query(query_dataset2, conf, nullptr);
+    auto index = std::dynamic_pointer_cast<knowhere::VecIndex>(load_index_info->index);
+    auto result_on_index2 = index->Query(query_dataset2, conf, nullptr);
     auto ids2 = result_on_index2->Get<int64_t*>(knowhere::meta::IDS);
     auto dis2 = result_on_index2->Get<float*>(knowhere::meta::DISTANCE);
 
@@ -2691,6 +2691,22 @@ TEST(CApiTest, SealedSegment_search_float_With_Expr_Predicate_Range) {
     assert(status.error_code == Success);
 
     status = UpdateSealedSegmentIndex(segment, c_load_index_info);
+    assert(status.error_code == Success);
+
+    auto counter_index = GenScalarIndexing(N, counter_col.data());
+    auto counter_index_binary_set = counter_index->Serialize(conf);
+    CLoadIndexInfo counter_index_info = nullptr;
+    status = NewLoadIndexInfo(&counter_index_info);
+    assert(status.error_code == Success);
+    status = AppendFieldInfo(counter_index_info, 101, CDataType::Int64);
+    assert(status.error_code == Success);
+    std::string counter_index_type_key = "index_type";
+    std::string counter_index_type_value = "sort";
+    status = AppendIndexParam(counter_index_info, counter_index_type_key.c_str(), counter_index_type_value.c_str());
+    assert(status.error_code == Success);
+    status = AppendIndex(counter_index_info, (CBinarySet)&counter_index_binary_set);
+    assert(status.error_code == Success);
+    status = UpdateSealedSegmentIndex(segment, counter_index_info);
     assert(status.error_code == Success);
 
     CSearchResult c_search_result_on_bigIndex;

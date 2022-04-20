@@ -39,13 +39,52 @@ SegmentSealedImpl::PreDelete(int64_t size) {
 }
 
 void
+print(const std::map<std::string, std::string>& m) {
+    for (const auto& [k, v] : m) {
+        std::cout << k << ": " << v << std::endl;
+    }
+}
+
+void
+print(const LoadIndexInfo& info) {
+    std::cout << "------------------LoadIndexInfo----------------------" << std::endl;
+    std::cout << "field_id: " << info.field_id << std::endl;
+    std::cout << "field_type: " << info.field_type << std::endl;
+    std::cout << "index_params:" << std::endl;
+    print(info.index_params);
+    std::cout << "------------------LoadIndexInfo----------------------" << std::endl;
+}
+
+void
+print(const LoadFieldDataInfo& info) {
+    std::cout << "------------------LoadFieldDataInfo----------------------" << std::endl;
+    std::cout << "field_id: " << info.field_id << std::endl;
+    std::cout << "------------------LoadFieldDataInfo----------------------" << std::endl;
+}
+
+void
 SegmentSealedImpl::LoadIndex(const LoadIndexInfo& info) {
+    print(info);
+    // NOTE: lock only when data is ready to avoid starvation
+    auto field_id = FieldId(info.field_id);
+    auto& field_meta = schema_->operator[](field_id);
+
+    if (field_meta.is_vector()) {
+        LoadVecIndex(info);
+    } else {
+        LoadScalarIndex(info);
+    }
+}
+
+void
+SegmentSealedImpl::LoadVecIndex(const LoadIndexInfo& info) {
     // NOTE: lock only when data is ready to avoid starvation
     auto field_id = FieldId(info.field_id);
 
+    auto index = std::dynamic_pointer_cast<knowhere::VecIndex>(info.index);
     AssertInfo(info.index_params.count("metric_type"), "Can't get metric_type in index_params");
     auto metric_type_str = info.index_params.at("metric_type");
-    auto row_count = info.index->Count();
+    auto row_count = index->Count();
     AssertInfo(row_count > 0, "Index count is 0");
 
     std::unique_lock lck(mutex_);
@@ -57,14 +96,38 @@ SegmentSealedImpl::LoadIndex(const LoadIndexInfo& info) {
         row_count_opt_ = row_count;
     }
     AssertInfo(!vector_indexings_.is_ready(field_id), "vec index is not ready");
-    vector_indexings_.append_field_indexing(field_id, GetMetricType(metric_type_str), info.index);
+    vector_indexings_.append_field_indexing(field_id, GetMetricType(metric_type_str), index);
 
     set_bit(vecindex_ready_bitset_, field_id, true);
     lck.unlock();
 }
 
 void
+SegmentSealedImpl::LoadScalarIndex(const LoadIndexInfo& info) {
+    // NOTE: lock only when data is ready to avoid starvation
+    auto field_id = FieldId(info.field_id);
+
+    auto index = std::dynamic_pointer_cast<scalar::IndexBase>(info.index);
+    auto row_count = index->Count();
+    AssertInfo(row_count > 0, "Index count is 0");
+
+    std::unique_lock lck(mutex_);
+
+    if (row_count_opt_.has_value()) {
+        AssertInfo(row_count_opt_.value() == row_count, "load data has different row count from other columns");
+    } else {
+        row_count_opt_ = row_count;
+    }
+
+    scalar_indexings_[field_id] = std::move(index);
+
+    set_bit(field_data_ready_bitset_, field_id, true);
+    lck.unlock();
+}
+
+void
 SegmentSealedImpl::LoadFieldData(const LoadFieldDataInfo& info) {
+    print(info);
     // NOTE: lock only when data is ready to avoid starvation
     AssertInfo(info.row_count > 0, "The row count of field data is 0");
     auto field_id = FieldId(info.field_id);
@@ -125,11 +188,10 @@ SegmentSealedImpl::LoadFieldData(const LoadFieldDataInfo& info) {
             }
         }
 
-        // generate scalar index
         if (field_meta.is_vector()) {
             AssertInfo(!vector_indexings_.is_ready(field_id), "field data can't be loaded when indexing exists");
-        } else {
-            AssertInfo(!scalar_indexings_.count(field_id), "scalar indexing not cleared");
+        } else if (!scalar_indexings_.count(field_id)) {
+            // generate scalar index
             std::unique_ptr<knowhere::Index> index;
             index = query::generate_scalar_index(field_data->get_span_base(0), data_type);
             scalar_indexings_[field_id] = std::move(index);
@@ -450,11 +512,66 @@ SegmentSealedImpl::bulk_subscript_impl(
 }
 
 std::unique_ptr<DataArray>
+SegmentSealedImpl::fill_with_empty(FieldId field_id, int64_t count) const {
+    auto& field_meta = schema_->operator[](field_id);
+    switch (field_meta.get_data_type()) {
+        case DataType::BOOL: {
+            FixedVector<bool> output(count);
+            return CreateScalarDataArrayFrom(output.data(), count, field_meta);
+        }
+        case DataType::INT8: {
+            FixedVector<int8_t> output(count);
+            return CreateScalarDataArrayFrom(output.data(), count, field_meta);
+        }
+        case DataType::INT16: {
+            FixedVector<int16_t> output(count);
+            return CreateScalarDataArrayFrom(output.data(), count, field_meta);
+        }
+        case DataType::INT32: {
+            FixedVector<int32_t> output(count);
+            return CreateScalarDataArrayFrom(output.data(), count, field_meta);
+        }
+        case DataType::INT64: {
+            FixedVector<int64_t> output(count);
+            return CreateScalarDataArrayFrom(output.data(), count, field_meta);
+        }
+        case DataType::FLOAT: {
+            FixedVector<float> output(count);
+            return CreateScalarDataArrayFrom(output.data(), count, field_meta);
+        }
+        case DataType::DOUBLE: {
+            FixedVector<double> output(count);
+            return CreateScalarDataArrayFrom(output.data(), count, field_meta);
+        }
+        case DataType::VarChar: {
+            FixedVector<std::string> output(count);
+            return CreateScalarDataArrayFrom(output.data(), count, field_meta);
+        }
+
+        case DataType::VECTOR_FLOAT:
+        case DataType::VECTOR_BINARY: {
+            aligned_vector<char> output(field_meta.get_sizeof() * count);
+            return CreateVectorDataArrayFrom(output.data(), count, field_meta);
+        }
+
+        default: {
+            PanicInfo("unsupported");
+        }
+    }
+}
+
+std::unique_ptr<DataArray>
 SegmentSealedImpl::bulk_subscript(FieldId field_id, const int64_t* seg_offsets, int64_t count) const {
+    if (!HasFieldData(field_id)) {
+        return fill_with_empty(field_id, count);
+    }
+
     Assert(get_bit(field_data_ready_bitset_, field_id));
+
     auto& field_meta = schema_->operator[](field_id);
     auto field_data = insert_record_.get_field_data_base(field_id);
-    AssertInfo(field_data->num_chunk() == 1, "num chunk not equal to 1 for sealed segment");
+    AssertInfo(field_data->num_chunk() == 1, std::string("num chunk not equal to 1 for sealed segment, num_chunk: ") +
+                                                 std::to_string(field_data->num_chunk()));
     auto src_vec = field_data->get_chunk_data(0);
     switch (field_meta.get_data_type()) {
         case DataType::BOOL: {

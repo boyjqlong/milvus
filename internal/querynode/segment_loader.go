@@ -26,6 +26,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/milvus-io/milvus/internal/proto/schemapb"
+
 	"go.uber.org/zap"
 
 	"github.com/milvus-io/milvus/internal/common"
@@ -57,6 +59,28 @@ type segmentLoader struct {
 	etcdKV *etcdkv.EtcdKV
 
 	factory msgstream.Factory
+}
+
+func (loader *segmentLoader) getFieldType(segment *Segment, fieldID FieldID) (schemapb.DataType, error) {
+	var coll *Collection
+	var err error
+
+	switch segment.getType() {
+	case segmentTypeGrowing:
+		coll, err = loader.streamingReplica.getCollectionByID(segment.collectionID)
+		if err != nil {
+			return schemapb.DataType_None, err
+		}
+	case segmentTypeSealed:
+		coll, err = loader.historicalReplica.getCollectionByID(segment.collectionID)
+		if err != nil {
+			return schemapb.DataType_None, err
+		}
+	default:
+		return schemapb.DataType_None, fmt.Errorf("invalid segment type: %s", segment.getType().String())
+	}
+
+	return coll.getFieldType(fieldID)
 }
 
 func (loader *segmentLoader) loadSegment(req *querypb.LoadSegmentsRequest, segmentType segmentType) error {
@@ -196,6 +220,7 @@ func (loader *segmentLoader) loadSegmentInternal(segment *Segment,
 	}
 
 	var nonIndexedFieldBinlogs []*datapb.FieldBinlog
+	var pkFieldBinlogs []*datapb.FieldBinlog
 	if segment.getType() == segmentTypeSealed {
 		fieldID2IndexInfo := make(map[int64]*querypb.FieldIndexInfo)
 		for _, indexInfo := range loadInfo.IndexInfos {
@@ -213,20 +238,27 @@ func (loader *segmentLoader) loadSegmentInternal(segment *Segment,
 					indexInfo:   indexInfo,
 				}
 				indexedFieldInfos[fieldID] = fieldInfo
+
+				if fieldBinlog.FieldID == pkFieldID {
+					// pk field data should always be loaded.
+					pkFieldBinlogs = append(pkFieldBinlogs, fieldBinlog)
+				}
 			} else {
 				nonIndexedFieldBinlogs = append(nonIndexedFieldBinlogs, fieldBinlog)
 			}
 		}
 
-		err = loader.loadIndexedFieldData(segment, indexedFieldInfos)
-		if err != nil {
+		if err := loader.loadIndexedFieldData(segment, indexedFieldInfos); err != nil {
 			return err
 		}
 	} else {
 		nonIndexedFieldBinlogs = loadInfo.BinlogPaths
 	}
-	err = loader.loadFiledBinlogData(segment, nonIndexedFieldBinlogs)
-	if err != nil {
+
+	if err := loader.loadFiledBinlogData(segment, pkFieldBinlogs); err != nil {
+		return err
+	}
+	if err := loader.loadFiledBinlogData(segment, nonIndexedFieldBinlogs); err != nil {
 		return err
 	}
 
@@ -259,6 +291,10 @@ func (loader *segmentLoader) filterPKStatsBinlogs(fieldBinlogs []*datapb.FieldBi
 }
 
 func (loader *segmentLoader) loadFiledBinlogData(segment *Segment, fieldBinlogs []*datapb.FieldBinlog) error {
+	if len(fieldBinlogs) <= 0 {
+		return nil
+	}
+
 	segmentType := segment.getType()
 	iCodec := storage.InsertCodec{}
 	blobs := make([]*storage.Blob, 0)
@@ -352,8 +388,11 @@ func (loader *segmentLoader) loadFieldIndexData(segment *Segment, indexInfo *que
 	}
 	// 2. use index bytes and index path to update segment
 	indexInfo.IndexFilePaths = filteredPaths
-	err := segment.segmentLoadIndexData(indexBuffer, indexInfo)
-	return err
+	fieldType, err := loader.getFieldType(segment, indexInfo.FieldID)
+	if err != nil {
+		return err
+	}
+	return segment.segmentLoadIndexData(indexBuffer, indexInfo, fieldType)
 }
 
 func (loader *segmentLoader) loadGrowingSegments(segment *Segment,

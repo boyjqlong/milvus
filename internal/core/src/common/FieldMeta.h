@@ -139,8 +139,8 @@ class FieldMeta {
         Assert(!is_vector());
     }
 
-    FieldMeta(const FieldName& name, FieldId id, DataType type, int64_t max_len_per_row)
-        : name_(name), id_(id), type_(type), string_info_(StringInfo{max_len_per_row}) {
+    FieldMeta(const FieldName& name, FieldId id, DataType type, int64_t max_length_per_row)
+        : name_(name), id_(id), type_(type), string_info_(StringInfo{max_length_per_row}) {
         Assert(is_string());
     }
 
@@ -172,7 +172,7 @@ class FieldMeta {
     get_max_len() const {
         Assert(is_string());
         Assert(string_info_.has_value());
-        return string_info_->max_len_per_row;
+        return string_info_->max_length_per_row;
     }
 
     std::optional<MetricType>
@@ -202,7 +202,7 @@ class FieldMeta {
         if (is_vector()) {
             return datatype_sizeof(type_, get_dim());
         } else if (is_string()) {
-            return string_info_->max_len_per_row;
+            return string_info_->max_length_per_row;
         } else {
             return datatype_sizeof(type_);
         }
@@ -214,7 +214,7 @@ class FieldMeta {
         std::optional<MetricType> metric_type_;
     };
     struct StringInfo {
-        int64_t max_len_per_row;
+        int64_t max_length_per_row;
     };
     FieldName name_;
     FieldId id_;
