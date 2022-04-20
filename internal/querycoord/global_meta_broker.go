@@ -339,6 +339,10 @@ func (broker *globalMetaBroker) getFullIndexInfos(ctx context.Context, collectio
 			return nil, fmt.Errorf("segment not found, collection: %d, segment: %d", collectionID, segmentID)
 		}
 
+		if _, ok := ret[segmentID]; !ok {
+			ret[segmentID] = make([]*querypb.FieldIndexInfo, 0, len(infos.IndexInfos))
+		}
+
 		for _, info := range infos.IndexInfos {
 			extraInfo, ok := infos.GetExtraIndexInfos()[info.IndexID]
 			indexInfo := &querypb.FieldIndexInfo{
@@ -389,10 +393,6 @@ func (broker *globalMetaBroker) getFullIndexInfos(ctx context.Context, collectio
 				}
 				indexInfo.IndexName = extra.indexName
 				indexInfo.IndexParams = extra.indexParams
-			}
-
-			if _, ok := ret[segmentID]; !ok {
-				ret[segmentID] = make([]*querypb.FieldIndexInfo, 0, len(infos.IndexInfos))
 			}
 			ret[segmentID] = append(ret[segmentID], indexInfo)
 		}
