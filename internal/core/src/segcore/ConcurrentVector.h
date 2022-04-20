@@ -107,14 +107,14 @@ class VectorBase {
                 return set_data_raw(element_offset, data->scalars().bool_data().data().data(), element_count);
             }
             case DataType::INT8: {
-                std::vector<int8_t> data_raw;
                 auto src_data = data->scalars().int_data().data();
+                std::vector<int8_t> data_raw(src_data.size());
                 std::copy_n(src_data.data(), src_data.size(), data_raw.data());
                 return set_data_raw(element_offset, data_raw.data(), element_count);
             }
             case DataType::INT16: {
-                std::vector<int16_t> data_raw;
                 auto src_data = data->scalars().int_data().data();
+                std::vector<int16_t> data_raw(src_data.size());
                 std::copy_n(src_data.data(), src_data.size(), data_raw.data());
                 return set_data_raw(element_offset, data_raw.data(), element_count);
             }
@@ -162,14 +162,14 @@ class VectorBase {
                 return fill_chunk_data(data->scalars().bool_data().data().data(), element_count);
             }
             case DataType::INT8: {
-                std::vector<int8_t> data_raw;
                 auto src_data = data->scalars().int_data().data();
+                std::vector<int8_t> data_raw(src_data.size());
                 std::copy_n(src_data.data(), src_data.size(), data_raw.data());
                 return fill_chunk_data(data_raw.data(), element_count);
             }
             case DataType::INT16: {
-                std::vector<int16_t> data_raw;
                 auto src_data = data->scalars().int_data().data();
+                std::vector<int16_t> data_raw(src_data.size());
                 std::copy_n(src_data.data(), src_data.size(), data_raw.data());
                 return fill_chunk_data(data_raw.data(), element_count);
             }
