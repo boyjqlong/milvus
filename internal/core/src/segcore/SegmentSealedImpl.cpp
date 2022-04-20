@@ -512,8 +512,62 @@ SegmentSealedImpl::bulk_subscript_impl(
 }
 
 std::unique_ptr<DataArray>
+SegmentSealedImpl::fill_with_empty(FieldId field_id, int64_t count) const {
+    auto& field_meta = schema_->operator[](field_id);
+    switch (field_meta.get_data_type()) {
+        case DataType::BOOL: {
+            FixedVector<bool> output(count);
+            return CreateScalarDataArrayFrom(output.data(), count, field_meta);
+        }
+        case DataType::INT8: {
+            FixedVector<int8_t> output(count);
+            return CreateScalarDataArrayFrom(output.data(), count, field_meta);
+        }
+        case DataType::INT16: {
+            FixedVector<int16_t> output(count);
+            return CreateScalarDataArrayFrom(output.data(), count, field_meta);
+        }
+        case DataType::INT32: {
+            FixedVector<int32_t> output(count);
+            return CreateScalarDataArrayFrom(output.data(), count, field_meta);
+        }
+        case DataType::INT64: {
+            FixedVector<int64_t> output(count);
+            return CreateScalarDataArrayFrom(output.data(), count, field_meta);
+        }
+        case DataType::FLOAT: {
+            FixedVector<float> output(count);
+            return CreateScalarDataArrayFrom(output.data(), count, field_meta);
+        }
+        case DataType::DOUBLE: {
+            FixedVector<double> output(count);
+            return CreateScalarDataArrayFrom(output.data(), count, field_meta);
+        }
+        case DataType::VarChar: {
+            FixedVector<std::string> output(count);
+            return CreateScalarDataArrayFrom(output.data(), count, field_meta);
+        }
+
+        case DataType::VECTOR_FLOAT:
+        case DataType::VECTOR_BINARY: {
+            aligned_vector<char> output(field_meta.get_sizeof() * count);
+            return CreateVectorDataArrayFrom(output.data(), count, field_meta);
+        }
+
+        default: {
+            PanicInfo("unsupported");
+        }
+    }
+}
+
+std::unique_ptr<DataArray>
 SegmentSealedImpl::bulk_subscript(FieldId field_id, const int64_t* seg_offsets, int64_t count) const {
+    if (!HasFieldData(field_id)) {
+        return fill_with_empty(field_id, count);
+    }
+
     Assert(get_bit(field_data_ready_bitset_, field_id));
+
     auto& field_meta = schema_->operator[](field_id);
     auto field_data = insert_record_.get_field_data_base(field_id);
     AssertInfo(field_data->num_chunk() == 1, std::string("num chunk not equal to 1 for sealed segment, num_chunk: ") +

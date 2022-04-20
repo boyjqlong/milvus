@@ -79,10 +79,6 @@ SegmentInternalInterface::Retrieve(const query::RetrievePlan* plan, Timestamp ti
     auto pk_field_id = plan->schema_.get_primary_field_id();
     for (auto field_id : plan->field_ids_) {
         auto& field_mata = plan->schema_[field_id];
-        // if load index, raw field data not exist, should be filled on query node using storage.ChunkManager
-        if (!HasFieldData(field_id)) {
-            continue;
-        }
 
         auto col =
             bulk_subscript(field_id, retrieve_results.result_offsets_.data(), retrieve_results.result_offsets_.size());
