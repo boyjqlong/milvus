@@ -176,6 +176,34 @@ ReorganizeSearchResults(std::vector<SearchResult*>& search_results,
     return final_search_result;
 }
 
+struct Int64PKVisitor {
+    template <typename T>
+    int64_t
+    operator()(T t) const {
+        return INVALID_ID;
+    }
+};
+
+template <>
+int64_t
+Int64PKVisitor::operator()<int64_t>(int64_t t) const {
+    return t;
+}
+
+struct StrPKVisitor {
+    template <typename T>
+    std::string
+    operator()(T t) const {
+        return INVALID_STRING;
+    }
+};
+
+template <>
+std::string
+StrPKVisitor::operator()<std::string>(std::string t) const {
+    return t;
+}
+
 std::vector<char>
 GetSearchResultDataSlice(SearchResult* final_search_result,
                          milvus::query::Plan* plan,
@@ -202,11 +230,12 @@ GetSearchResultDataSlice(SearchResult* final_search_result,
     AssertInfo(primary_field_id.get() != -1, "Primary key is -1");
     auto pk_type = plan->schema_[primary_field_id].get_data_type();
     auto proto_ids = std::make_unique<milvus::proto::schema::IDs>();
+
     switch (pk_type) {
         case milvus::DataType::INT64: {
             auto ids = std::make_unique<milvus::proto::schema::LongArray>();
             for (auto iter = offset_begin; iter < offset_end; iter++) {
-                ids->mutable_data()->Add(std::get<int64_t>(final_search_result->primary_keys_[iter]));
+                ids->mutable_data()->Add(std::visit(Int64PKVisitor{}, final_search_result->primary_keys_[iter]));
             }
 
             proto_ids->set_allocated_int_id(ids.release());
@@ -215,7 +244,7 @@ GetSearchResultDataSlice(SearchResult* final_search_result,
         case milvus::DataType::VarChar: {
             auto ids = std::make_unique<milvus::proto::schema::StringArray>();
             for (auto iter = offset_begin; iter < offset_end; iter++) {
-                *(ids->mutable_data()->Add()) = std::get<std::string>(final_search_result->primary_keys_[iter]);
+                *(ids->mutable_data()->Add()) = std::visit(StrPKVisitor{}, final_search_result->primary_keys_[iter]);
             }
 
             proto_ids->set_allocated_str_id(ids.release());
