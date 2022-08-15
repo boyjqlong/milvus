@@ -392,8 +392,12 @@ func (kc *Catalog) GetCollectionByID(ctx context.Context, collectionID typeutil.
 		return nil, err
 	}
 
+	log.Info("get collection by id", zap.String("collection", collMeta.String()))
 	collection := model.UnmarshalCollectionModel(collMeta)
 
+	pv := partitionVersionAfter210(collMeta)
+	fv := fieldVersionAfter210(collMeta)
+	log.Info("get collection by id", zap.Int64("collection", collectionID), zap.Bool("pv", pv), zap.Bool("fv", fv))
 	if !partitionVersionAfter210(collMeta) && !fieldVersionAfter210(collMeta) {
 		return collection, nil
 	}
@@ -402,6 +406,7 @@ func (kc *Catalog) GetCollectionByID(ctx context.Context, collectionID typeutil.
 	if err != nil {
 		return nil, err
 	}
+	log.Info("list partitions after 210", zap.Int64("collection", collectionID), zap.Any("partitions", partitions))
 	collection.Partitions = partitions
 
 	fields, err := kc.listFieldsAfter210(ctx, collectionID, ts)
@@ -409,6 +414,7 @@ func (kc *Catalog) GetCollectionByID(ctx context.Context, collectionID typeutil.
 		return nil, err
 	}
 	collection.Fields = fields
+	log.Info("list fields after 210", zap.Int64("collection", collectionID), zap.Any("fields", fields))
 
 	return collection, nil
 }
@@ -602,6 +608,7 @@ func (kc *Catalog) ListCollections(ctx context.Context, ts typeutil.Timestamp) (
 			log.Warn("unmarshal collection info failed", zap.Error(err))
 			continue
 		}
+		log.Info("list collections", zap.String("coll", collMeta.String()))
 		collection, err := kc.GetCollectionByID(ctx, collMeta.GetID(), ts)
 		if err != nil {
 			return nil, err

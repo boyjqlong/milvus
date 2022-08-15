@@ -274,9 +274,11 @@ func (mt *MetaTable) GetCollectionByID(collectionID typeutil.UniqueID, ts typeut
 		if !ok {
 			return nil, fmt.Errorf("can't find collection id : %d", collectionID)
 		}
+		log.Info("get collection by id from cache", zap.Int64("collection", collectionID), zap.Uint64("ts", ts), zap.Any("col", col.Clone()))
 		return col.Clone(), nil
 	}
 
+	log.Info("get collection by id from catalog", zap.Int64("collection", collectionID), zap.Uint64("ts", ts))
 	return mt.catalog.GetCollectionByID(mt.ctx, collectionID, ts)
 }
 
