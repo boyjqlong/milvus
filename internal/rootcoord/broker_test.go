@@ -86,6 +86,8 @@ func TestServerBroker_WatchChannels(t *testing.T) {
 	})
 
 	t.Run("failed to execute", func(t *testing.T) {
+		defer cleanTestEnv()
+
 		c := newTestCore(withInvalidDataCoord(), withRocksMqTtSynchronizer())
 		b := newServerBroker(c)
 		ctx := context.Background()
@@ -94,6 +96,8 @@ func TestServerBroker_WatchChannels(t *testing.T) {
 	})
 
 	t.Run("non success error code on execute", func(t *testing.T) {
+		defer cleanTestEnv()
+
 		c := newTestCore(withFailedDataCoord(), withRocksMqTtSynchronizer())
 		b := newServerBroker(c)
 		ctx := context.Background()
@@ -102,6 +106,8 @@ func TestServerBroker_WatchChannels(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
+		defer cleanTestEnv()
+
 		c := newTestCore(withValidDataCoord(), withRocksMqTtSynchronizer())
 		b := newServerBroker(c)
 		ctx := context.Background()
