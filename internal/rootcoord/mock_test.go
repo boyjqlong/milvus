@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"os"
 
+	"github.com/milvus-io/milvus/internal/util/metricsinfo"
+
 	"github.com/milvus-io/milvus/internal/util/typeutil"
 
 	"github.com/milvus-io/milvus/internal/proto/internalpb"
@@ -300,6 +302,9 @@ func withInvalidIdAllocator() Opt {
 	idAllocator.AllocOneF = func() (allocator.UniqueID, error) {
 		return -1, errors.New("error mock AllocOne")
 	}
+	idAllocator.AllocF = func(count uint32) (allocator.UniqueID, allocator.UniqueID, error) {
+		return -1, -1, errors.New("error mock Alloc")
+	}
 	return withIdAllocator(idAllocator)
 }
 
@@ -423,4 +428,25 @@ func withTaskFailScheduler() Opt {
 		return nil
 	}
 	return withScheduler(sched)
+}
+
+func withTsoAllocator(alloc tso.Allocator) Opt {
+	return func(c *RootCoord) {
+		c.tsoAllocator = alloc
+	}
+}
+
+func withInvalidTsoAllocator() Opt {
+	alloc := newTsoAllocator()
+	alloc.GenerateTSOF = func(count uint32) (uint64, error) {
+		return 0, errors.New("error mock GenerateTSO")
+	}
+	return withTsoAllocator(alloc)
+}
+
+func withMetricsCacheManager() Opt {
+	return func(c *RootCoord) {
+		m := metricsinfo.NewMetricsCacheManager()
+		c.metricsCacheManager = m
+	}
 }

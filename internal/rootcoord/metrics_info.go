@@ -106,3 +106,60 @@ func (c *Core) getSystemInfoMetrics(ctx context.Context, req *milvuspb.GetMetric
 		ComponentName: metricsinfo.ConstructComponentName(typeutil.RootCoordRole, c.session.ServerID),
 	}, nil
 }
+
+func (c *RootCoord) getSystemInfoMetrics(ctx context.Context, req *milvuspb.GetMetricsRequest) (*milvuspb.GetMetricsResponse, error) {
+	rootCoordTopology := metricsinfo.RootCoordTopology{
+		Self: metricsinfo.RootCoordInfos{
+			BaseComponentInfos: metricsinfo.BaseComponentInfos{
+				Name: metricsinfo.ConstructComponentName(typeutil.RootCoordRole, c.session.ServerID),
+				HardwareInfos: metricsinfo.HardwareMetrics{
+					IP:           c.session.Address,
+					CPUCoreCount: metricsinfo.GetCPUCoreCount(false),
+					CPUCoreUsage: metricsinfo.GetCPUUsage(),
+					Memory:       metricsinfo.GetMemoryCount(),
+					MemoryUsage:  metricsinfo.GetUsedMemoryCount(),
+					Disk:         metricsinfo.GetDiskCount(),
+					DiskUsage:    metricsinfo.GetDiskUsage(),
+				},
+				SystemInfo:  metricsinfo.DeployMetrics{},
+				CreatedTime: Params.RootCoordCfg.CreatedTime.String(),
+				UpdatedTime: Params.RootCoordCfg.UpdatedTime.String(),
+				Type:        typeutil.RootCoordRole,
+				ID:          c.session.ServerID,
+			},
+			SystemConfigurations: metricsinfo.RootCoordConfiguration{
+				MinSegmentSizeToEnableIndex: Params.RootCoordCfg.MinSegmentSizeToEnableIndex,
+			},
+		},
+		Connections: metricsinfo.ConnTopology{
+			Name: metricsinfo.ConstructComponentName(typeutil.RootCoordRole, c.session.ServerID),
+			// TODO(dragondriver): fill ConnectedComponents if necessary
+			ConnectedComponents: []metricsinfo.ConnectionInfo{},
+		},
+	}
+	metricsinfo.FillDeployMetricsWithEnv(&rootCoordTopology.Self.SystemInfo)
+
+	resp, err := metricsinfo.MarshalTopology(rootCoordTopology)
+	if err != nil {
+		log.Warn("Failed to marshal system info metrics of root coordinator",
+			zap.Error(err))
+
+		return &milvuspb.GetMetricsResponse{
+			Status: &commonpb.Status{
+				ErrorCode: commonpb.ErrorCode_UnexpectedError,
+				Reason:    err.Error(),
+			},
+			Response:      "",
+			ComponentName: metricsinfo.ConstructComponentName(typeutil.RootCoordRole, c.session.ServerID),
+		}, nil
+	}
+
+	return &milvuspb.GetMetricsResponse{
+		Status: &commonpb.Status{
+			ErrorCode: commonpb.ErrorCode_Success,
+			Reason:    "",
+		},
+		Response:      resp,
+		ComponentName: metricsinfo.ConstructComponentName(typeutil.RootCoordRole, c.session.ServerID),
+	}, nil
+}

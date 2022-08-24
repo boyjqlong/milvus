@@ -1313,22 +1313,25 @@ func (c *RootCoord) AllocTimestamp(ctx context.Context, in *rootcoordpb.AllocTim
 			Status: failStatus(commonpb.ErrorCode_UnexpectedError, "StateCode="+internalpb.StateCode_name[int32(code)]),
 		}, nil
 	}
+
 	ts, err := c.tsoAllocator.GenerateTSO(in.GetCount())
 	if err != nil {
-		log.Error("AllocTimestamp failed", zap.String("role", typeutil.RootCoordRole),
-			zap.Int64("msgID", in.Base.MsgID), zap.Error(err))
+		log.Error("failed to allocate timestamp", zap.String("role", typeutil.RootCoordRole),
+			zap.Error(err),
+			zap.Int64("msgID", in.GetBase().GetMsgID()))
+
 		return &rootcoordpb.AllocTimestampResponse{
 			Status: failStatus(commonpb.ErrorCode_UnexpectedError, "AllocTimestamp failed: "+err.Error()),
 		}, nil
 	}
 
-	//return first available  time stamp
-	ts = ts - uint64(in.Count) + 1
+	// return first available timestamp
+	ts = ts - uint64(in.GetCount()) + 1
 	metrics.RootCoordTimestamp.Set(float64(ts))
 	return &rootcoordpb.AllocTimestampResponse{
 		Status:    succStatus(),
 		Timestamp: ts,
-		Count:     in.Count,
+		Count:     in.GetCount(),
 	}, nil
 }
 
@@ -1340,13 +1343,16 @@ func (c *RootCoord) AllocID(ctx context.Context, in *rootcoordpb.AllocIDRequest)
 	}
 	start, _, err := c.idAllocator.Alloc(in.Count)
 	if err != nil {
-		log.Error("AllocID failed", zap.String("role", typeutil.RootCoordRole),
-			zap.Int64("msgID", in.Base.MsgID), zap.Error(err))
+		log.Error("failed to allocate id", zap.String("role", typeutil.RootCoordRole),
+			zap.Error(err),
+			zap.Int64("msgID", in.GetBase().GetMsgID()))
+
 		return &rootcoordpb.AllocIDResponse{
 			Status: failStatus(commonpb.ErrorCode_UnexpectedError, "AllocID failed: "+err.Error()),
 			Count:  in.Count,
 		}, nil
 	}
+
 	metrics.RootCoordIDAllocCounter.Add(float64(in.Count))
 	return &rootcoordpb.AllocIDResponse{
 		Status: succStatus(),
@@ -1374,17 +1380,6 @@ func (c *RootCoord) UpdateChannelTimeTick(ctx context.Context, in *internalpb.Ch
 	return succStatus(), nil
 }
 
-func (c *RootCoord) ReleaseDQLMessageStream(ctx context.Context, in *proxypb.ReleaseDQLMessageStreamRequest) (*commonpb.Status, error) {
-	if code, ok := c.checkHealthy(); !ok {
-		return failStatus(commonpb.ErrorCode_UnexpectedError, "StateCode="+internalpb.StateCode_name[int32(code)]), nil
-	}
-	err := c.proxyClientManager.ReleaseDQLMessageStream(ctx, in)
-	if err != nil {
-		return failStatus(commonpb.ErrorCode_UnexpectedError, err.Error()), nil
-	}
-	return succStatus(), nil
-}
-
 func (c *RootCoord) InvalidateCollectionMetaCache(ctx context.Context, in *proxypb.InvalidateCollMetaCacheRequest) (*commonpb.Status, error) {
 	if code, ok := c.checkHealthy(); !ok {
 		return failStatus(commonpb.ErrorCode_UnexpectedError, "StateCode="+internalpb.StateCode_name[int32(code)]), nil
@@ -1394,4 +1389,70 @@ func (c *RootCoord) InvalidateCollectionMetaCache(ctx context.Context, in *proxy
 		return failStatus(commonpb.ErrorCode_UnexpectedError, err.Error()), nil
 	}
 	return succStatus(), nil
+}
+
+//ShowConfigurations returns the configurations of RootCoord matching req.Pattern
+func (c *RootCoord) ShowConfigurations(ctx context.Context, req *internalpb.ShowConfigurationsRequest) (*internalpb.ShowConfigurationsResponse, error) {
+	if code, ok := c.checkHealthy(); !ok {
+		return &internalpb.ShowConfigurationsResponse{
+			Status:        failStatus(commonpb.ErrorCode_UnexpectedError, "StateCode="+internalpb.StateCode_name[int32(code)]),
+			Configuations: nil,
+		}, nil
+	}
+
+	return getComponentConfigurations(ctx, req), nil
+}
+
+// GetMetrics get metrics
+func (c *RootCoord) GetMetrics(ctx context.Context, in *milvuspb.GetMetricsRequest) (*milvuspb.GetMetricsResponse, error) {
+	if code, ok := c.checkHealthy(); !ok {
+		return &milvuspb.GetMetricsResponse{
+			Status:   failStatus(commonpb.ErrorCode_UnexpectedError, "StateCode="+internalpb.StateCode_name[int32(code)]),
+			Response: "",
+		}, nil
+	}
+
+	metricType, err := metricsinfo.ParseMetricType(in.Request)
+	if err != nil {
+		log.Warn("ParseMetricType failed", zap.String("role", typeutil.RootCoordRole),
+			zap.Int64("node_id", c.session.ServerID), zap.String("req", in.Request), zap.Error(err))
+		return &milvuspb.GetMetricsResponse{
+			Status:   failStatus(commonpb.ErrorCode_UnexpectedError, "ParseMetricType failed: "+err.Error()),
+			Response: "",
+		}, nil
+	}
+
+	log.Debug("GetMetrics success", zap.String("role", typeutil.RootCoordRole),
+		zap.String("metric_type", metricType), zap.Int64("msgID", in.GetBase().GetMsgID()))
+
+	if metricType == metricsinfo.SystemInfoMetrics {
+		ret, err := c.metricsCacheManager.GetSystemInfoMetrics()
+		if err == nil && ret != nil {
+			return ret, nil
+		}
+
+		log.Warn("GetSystemInfoMetrics from cache failed", zap.String("role", typeutil.RootCoordRole),
+			zap.Int64("msgID", in.GetBase().GetMsgID()), zap.Error(err))
+
+		systemInfoMetrics, err := c.getSystemInfoMetrics(ctx, in)
+		if err != nil {
+			log.Warn("GetSystemInfoMetrics failed", zap.String("role", typeutil.RootCoordRole),
+				zap.String("metric_type", metricType), zap.Int64("msgID", in.GetBase().GetMsgID()), zap.Error(err))
+			return &milvuspb.GetMetricsResponse{
+				Status:   failStatus(commonpb.ErrorCode_UnexpectedError, fmt.Sprintf("getSystemInfoMetrics failed: %s", err.Error())),
+				Response: "",
+			}, nil
+		}
+
+		c.metricsCacheManager.UpdateSystemInfoMetrics(systemInfoMetrics)
+		return systemInfoMetrics, err
+	}
+
+	log.Warn("GetMetrics failed, metric type not implemented", zap.String("role", typeutil.RootCoordRole),
+		zap.String("metric_type", metricType), zap.Int64("msgID", in.GetBase().GetMsgID()))
+
+	return &milvuspb.GetMetricsResponse{
+		Status:   failStatus(commonpb.ErrorCode_UnexpectedError, metricsinfo.MsgUnimplementedMetric),
+		Response: "",
+	}, nil
 }
