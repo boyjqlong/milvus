@@ -11,14 +11,11 @@ import (
 	pb "github.com/milvus-io/milvus/internal/proto/etcdpb"
 
 	"github.com/milvus-io/milvus/internal/common"
-
-	"github.com/milvus-io/milvus/internal/proto/milvuspb"
-
-	"github.com/milvus-io/milvus/internal/metastore"
 	"github.com/milvus-io/milvus/internal/metastore/db/dbmodel"
 	"github.com/milvus-io/milvus/internal/metastore/db/dbmodel/mocks"
 	"github.com/milvus-io/milvus/internal/metastore/model"
 	"github.com/milvus-io/milvus/internal/proto/commonpb"
+	"github.com/milvus-io/milvus/internal/proto/milvuspb"
 	"github.com/milvus-io/milvus/internal/proto/schemapb"
 	"github.com/milvus-io/milvus/internal/util/contextutil"
 	"github.com/milvus-io/milvus/internal/util/funcutil"
@@ -385,31 +382,6 @@ func TestTableCatalog_GetCollectionByID_SelectChannelError(t *testing.T) {
 	fieldDbMock.On("GetByCollectionID", tenantID, collID1, ts).Return(nil, nil).Once()
 	partitionDbMock.On("GetByCollectionID", tenantID, collID1, ts).Return(nil, nil).Once()
 	collChannelDbMock.On("GetByCollectionID", tenantID, collID1, ts).Return(nil, errTest).Once()
-
-	// actual
-	res, gotErr := mockCatalog.GetCollectionByID(ctx, collID1, ts)
-	require.Nil(t, res)
-	require.Error(t, gotErr)
-}
-
-func TestTableCatalog_GetCollectionByID_SelectIndexError(t *testing.T) {
-	coll := &dbmodel.Collection{
-		TenantID:       tenantID,
-		CollectionID:   collID1,
-		CollectionName: collName1,
-		AutoID:         false,
-		StartPosition:  "",
-		CreatedAt:      time.UnixMilli(10000),
-	}
-
-	// expectation
-	errTest := errors.New("select fields error")
-	collDbMock.On("GetCollectionIDTs", tenantID, collID1, ts).Return(&dbmodel.Collection{CollectionID: collID1, Ts: ts}, nil).Once()
-	collDbMock.On("Get", tenantID, collID1, ts).Return(coll, nil).Once()
-	fieldDbMock.On("GetByCollectionID", tenantID, collID1, ts).Return(nil, nil).Once()
-	partitionDbMock.On("GetByCollectionID", tenantID, collID1, ts).Return(nil, nil).Once()
-	collChannelDbMock.On("GetByCollectionID", tenantID, collID1, ts).Return(nil, nil).Once()
-	indexDbMock.On("Get", tenantID, collID1).Return(nil, errTest).Once()
 
 	// actual
 	res, gotErr := mockCatalog.GetCollectionByID(ctx, collID1, ts)
