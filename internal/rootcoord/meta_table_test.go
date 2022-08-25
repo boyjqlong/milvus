@@ -1057,11 +1057,27 @@ func TestMetaTable(t *testing.T) {
 	wg.Add(1)
 	t.Run("add credential failed", func(t *testing.T) {
 		defer wg.Done()
+		mockTxnKV.loadWithPrefix = func(key string) ([]string, []string, error) {
+			return []string{}, []string{}, nil
+		}
+		mockTxnKV.load = func(key string) (string, error) {
+			return "", errors.New("test error")
+		}
 		mockTxnKV.save = func(key, value string) error {
 			return fmt.Errorf("save error")
 		}
 		err = mt.AddCredential(&internalpb.CredentialInfo{Username: "x", EncryptedPassword: "a\xc5z"})
-		assert.NotNil(t, err)
+		assert.Error(t, err)
+	})
+
+	wg.Add(1)
+	t.Run("alter credential failed", func(t *testing.T) {
+		defer wg.Done()
+		mockTxnKV.save = func(key, value string) error {
+			return fmt.Errorf("save error")
+		}
+		err = mt.AlterCredential(&internalpb.CredentialInfo{Username: "", EncryptedPassword: "az"})
+		assert.Error(t, err)
 	})
 
 	wg.Add(1)
@@ -1090,6 +1106,9 @@ func TestRbacCreateRole(t *testing.T) {
 	mockTxnKV.load = func(key string) (string, error) {
 		return "", common.NewKeyNotExistError(key)
 	}
+	mockTxnKV.loadWithPrefix = func(key string) ([]string, []string, error) {
+		return []string{}, []string{}, nil
+	}
 	err = mt.CreateRole(util.DefaultTenant, &milvuspb.RoleEntity{Name: "role1"})
 	assert.Nil(t, err)
 
@@ -1105,11 +1124,32 @@ func TestRbacCreateRole(t *testing.T) {
 	err = mt.CreateRole(util.DefaultTenant, &milvuspb.RoleEntity{Name: "role1"})
 	assert.Equal(t, true, common.IsIgnorableError(err))
 
+	mockTxnKV.load = func(key string) (string, error) {
+		return "", common.NewKeyNotExistError(key)
+	}
 	mockTxnKV.save = func(key, value string) error {
 		return fmt.Errorf("save error")
 	}
 	err = mt.CreateRole(util.DefaultTenant, &milvuspb.RoleEntity{Name: "role2"})
 	assert.NotNil(t, err)
+
+	mockTxnKV.save = func(key, value string) error {
+		return nil
+	}
+	mockTxnKV.loadWithPrefix = func(key string) ([]string, []string, error) {
+		return []string{}, []string{}, fmt.Errorf("loadWithPrefix error")
+	}
+	err = mt.CreateRole(util.DefaultTenant, &milvuspb.RoleEntity{Name: "role2"})
+	assert.NotNil(t, err)
+
+	Params.ProxyCfg.MaxRoleNum = 2
+	mockTxnKV.loadWithPrefix = func(key string) ([]string, []string, error) {
+		return []string{key + "/a", key + "/b"}, []string{}, nil
+	}
+	err = mt.CreateRole(util.DefaultTenant, &milvuspb.RoleEntity{Name: "role2"})
+	assert.NotNil(t, err)
+	Params.ProxyCfg.MaxRoleNum = 10
+
 }
 
 func TestRbacDropRole(t *testing.T) {

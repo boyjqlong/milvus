@@ -1283,7 +1283,7 @@ func (c *Core) Init() error {
 }
 
 func (c *Core) initData() error {
-	credInfo, _ := c.MetaTable.getCredential(util.UserRoot)
+	credInfo, _ := c.MetaTable.GetCredential(util.UserRoot)
 	if credInfo == nil {
 		log.Debug("RootCoord init user root")
 		encryptedRootPassword, _ := crypto.PasswordEncrypt(util.DefaultRootPassword)
@@ -2819,21 +2819,8 @@ func (c *Core) CreateCredential(ctx context.Context, credInfo *internalpb.Creden
 	log.Debug("CreateCredential", zap.String("role", typeutil.RootCoordRole),
 		zap.String("username", credInfo.Username))
 
-	usersInfo, err := c.MetaTable.ListCredentialUsernames()
-	if err != nil {
-		log.Error("CreateCredential get credential username list failed", zap.String("role", typeutil.RootCoordRole),
-			zap.String("username", credInfo.Username), zap.Error(err))
-		return failStatus(commonpb.ErrorCode_CreateCredentialFailure, "CreateCredential failed, fail to get credential username list to check the user number, error: "+err.Error()), nil
-	}
-	if len(usersInfo.Usernames) >= Params.ProxyCfg.MaxUserNum {
-		return failStatus(commonpb.ErrorCode_CreateCredentialFailure, "unable to add user because the number of users has reached the limit"), nil
-	}
-
-	if cred, _ := c.MetaTable.getCredential(credInfo.Username); cred != nil {
-		return failStatus(commonpb.ErrorCode_CreateCredentialFailure, "user already exists:"+credInfo.Username), nil
-	}
 	// insert to db
-	err = c.MetaTable.AddCredential(credInfo)
+	err := c.MetaTable.AddCredential(credInfo)
 	if err != nil {
 		log.Error("CreateCredential save credential failed", zap.String("role", typeutil.RootCoordRole),
 			zap.String("username", credInfo.Username), zap.Error(err))
@@ -2864,7 +2851,7 @@ func (c *Core) GetCredential(ctx context.Context, in *rootcoordpb.GetCredentialR
 	log.Debug("GetCredential", zap.String("role", typeutil.RootCoordRole),
 		zap.String("username", in.Username))
 
-	credInfo, err := c.MetaTable.getCredential(in.Username)
+	credInfo, err := c.MetaTable.GetCredential(in.Username)
 	if err != nil {
 		log.Error("GetCredential query credential failed", zap.String("role", typeutil.RootCoordRole),
 			zap.String("username", in.Username), zap.Error(err))
@@ -2893,7 +2880,7 @@ func (c *Core) UpdateCredential(ctx context.Context, credInfo *internalpb.Creden
 	log.Debug("UpdateCredential", zap.String("role", typeutil.RootCoordRole),
 		zap.String("username", credInfo.Username))
 	// update data on storage
-	err := c.MetaTable.AddCredential(credInfo)
+	err := c.MetaTable.AlterCredential(credInfo)
 	if err != nil {
 		log.Error("UpdateCredential save credential failed", zap.String("role", typeutil.RootCoordRole),
 			zap.String("username", credInfo.Username), zap.Error(err))
@@ -2988,17 +2975,7 @@ func (c *Core) CreateRole(ctx context.Context, in *milvuspb.CreateRoleRequest) (
 	}
 	entity := in.Entity
 
-	results, err := c.MetaTable.SelectRole(util.DefaultTenant, nil, false)
-	if err != nil {
-		logger.Error("fail to select roles", zap.Error(err))
-		return failStatus(commonpb.ErrorCode_CreateRoleFailure, "fail to select roles to check the role number, error: "+err.Error()), err
-	}
-	if len(results) >= Params.ProxyCfg.MaxRoleNum {
-		errMsg := "unable to add role because the number of roles has reached the limit"
-		return failStatus(commonpb.ErrorCode_CreateRoleFailure, errMsg), errors.New(errMsg)
-	}
-
-	err = c.MetaTable.CreateRole(util.DefaultTenant, &milvuspb.RoleEntity{Name: entity.Name})
+	err := c.MetaTable.CreateRole(util.DefaultTenant, &milvuspb.RoleEntity{Name: entity.Name})
 	if err != nil {
 		logger.Error("fail to create role", zap.String("role_name", entity.Name), zap.Error(err))
 		return failStatus(commonpb.ErrorCode_CreateRoleFailure, "CreateCollection role failed: "+err.Error()), err
