@@ -686,3 +686,37 @@ func withMetricsCacheManager() Opt {
 		c.metricsCacheManager = m
 	}
 }
+
+type mockBroker struct {
+	Broker
+
+	ReleaseCollectionFunc   func(ctx context.Context, collectionID UniqueID) error
+	GetQuerySegmentInfoFunc func(ctx context.Context, collectionID int64, segIDs []int64) (retResp *querypb.GetSegmentInfoResponse, retErr error)
+
+	WatchChannelsFunc     func(ctx context.Context, info *watchInfo) error
+	UnwatchChannelsFunc   func(ctx context.Context, info *watchInfo) error
+	AddSegRefLockFunc     func(ctx context.Context, taskID int64, segIDs []int64) error
+	ReleaseSegRefLockFunc func(ctx context.Context, taskID int64, segIDs []int64) error
+	FlushFunc             func(ctx context.Context, cID int64, segIDs []int64) error
+	ImportFunc            func(ctx context.Context, req *datapb.ImportTaskRequest) (*datapb.ImportTaskResponse, error)
+
+	GetIndexStatesFunc func(ctx context.Context, IndexBuildIDs []int64) (idxInfo []*indexpb.IndexInfo, retErr error)
+}
+
+func newMockBroker() *mockBroker {
+	return &mockBroker{}
+}
+
+func (b mockBroker) WatchChannels(ctx context.Context, info *watchInfo) error {
+	return b.WatchChannelsFunc(ctx, info)
+}
+
+func (b mockBroker) UnwatchChannels(ctx context.Context, info *watchInfo) error {
+	return b.UnwatchChannelsFunc(ctx, info)
+}
+
+func withBroker(b Broker) Opt {
+	return func(c *RootCoord) {
+		c.broker = b
+	}
+}

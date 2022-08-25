@@ -92,6 +92,8 @@ var Params paramtable.ComponentParam
 
 // Core root coordinator core
 type Core struct {
+	types.RootCoord
+
 	MetaTable *MetaTable
 	//id allocator
 	IDAllocator       func(count uint32) (typeutil.UniqueID, typeutil.UniqueID, error)

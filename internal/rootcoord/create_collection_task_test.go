@@ -274,7 +274,45 @@ func Test_createCollectionTask_Execute(t *testing.T) {
 	})
 
 	t.Run("add duplicate collection", func(t *testing.T) {
-		// TODO
+		collectionName := funcutil.GenRandomStr()
+		field1 := funcutil.GenRandomStr()
+		collID := UniqueID(1)
+		schema := &schemapb.CollectionSchema{Name: collectionName, Fields: []*schemapb.FieldSchema{{Name: field1}}}
+		channels := collectionChannels{
+			virtualChannels:  []string{funcutil.GenRandomStr()},
+			physicalChannels: []string{funcutil.GenRandomStr()},
+		}
+		coll := &model.Collection{
+			CollectionID:         collID,
+			Name:                 schema.Name,
+			Description:          schema.Description,
+			AutoID:               schema.AutoID,
+			Fields:               model.UnmarshalFieldModels(schema.GetFields()),
+			VirtualChannelNames:  channels.virtualChannels,
+			PhysicalChannelNames: channels.physicalChannels,
+			Partitions:           []*model.Partition{{PartitionName: Params.CommonCfg.DefaultPartitionName}},
+		}
+
+		meta := newMockMetaTable()
+		meta.GetCollectionByNameFunc = func(ctx context.Context, collectionName string, ts Timestamp) (*model.Collection, error) {
+			return coll, nil
+		}
+
+		core := newTestCore(withMeta(meta))
+
+		task := &createCollectionTask{
+			baseTaskV2: baseTaskV2{core: core},
+			Req: &milvuspb.CreateCollectionRequest{
+				Base:           &commonpb.MsgBase{MsgType: commonpb.MsgType_CreateCollection},
+				CollectionName: collectionName,
+			},
+			collID:   collID,
+			schema:   schema,
+			channels: channels,
+		}
+
+		err := task.Execute(context.Background())
+		assert.NoError(t, err)
 	})
 
 	t.Run("normal case", func(t *testing.T) {
@@ -317,6 +355,7 @@ func Test_createCollectionTask_Execute(t *testing.T) {
 			withMeta(meta),
 			withTtSynchronizer(ticker),
 			withDataCoord(dc))
+		core.broker = newServerBroker(core)
 
 		schema := &schemapb.CollectionSchema{
 			Name:        collectionName,
@@ -346,5 +385,88 @@ func Test_createCollectionTask_Execute(t *testing.T) {
 	})
 
 	t.Run("partial error, check if undo worked", func(t *testing.T) {
+		defer cleanTestEnv()
+
+		collectionName := funcutil.GenRandomStr()
+		field1 := funcutil.GenRandomStr()
+		shardNum := 2
+
+		ticker := newRocksMqTtSynchronizer()
+		pchans := ticker.getDmlChannelNames(shardNum)
+
+		meta := newMockMetaTable()
+		meta.GetCollectionByNameFunc = func(ctx context.Context, collectionName string, ts Timestamp) (*model.Collection, error) {
+			return nil, errors.New("error mock GetCollectionByName")
+		}
+		meta.AddCollectionFunc = func(ctx context.Context, coll *model.Collection) error {
+			return nil
+		}
+		// inject error here.
+		meta.ChangeCollectionStateFunc = func(ctx context.Context, collectionID UniqueID, state etcdpb.CollectionState, ts Timestamp) error {
+			return errors.New("error mock ChangeCollectionState")
+		}
+		removeCollectionCalled := false
+		removeCollectionChan := make(chan struct{}, 1)
+		meta.RemoveCollectionFunc = func(ctx context.Context, collectionID UniqueID, ts Timestamp) error {
+			removeCollectionCalled = true
+			removeCollectionChan <- struct{}{}
+			return nil
+		}
+
+		broker := newMockBroker()
+		broker.WatchChannelsFunc = func(ctx context.Context, info *watchInfo) error {
+			return nil
+		}
+		unwatchChannelsCalled := false
+		unwatchChannelsChan := make(chan struct{}, 1)
+		broker.UnwatchChannelsFunc = func(ctx context.Context, info *watchInfo) error {
+			unwatchChannelsCalled = true
+			unwatchChannelsChan <- struct{}{}
+			return nil
+		}
+
+		core := newTestCore(withValidIdAllocator(),
+			withMeta(meta),
+			withTtSynchronizer(ticker),
+			withBroker(broker))
+
+		schema := &schemapb.CollectionSchema{
+			Name:        collectionName,
+			Description: "",
+			AutoID:      false,
+			Fields: []*schemapb.FieldSchema{
+				{Name: field1},
+			},
+		}
+		marshaledSchema, err := proto.Marshal(schema)
+		assert.NoError(t, err)
+
+		task := createCollectionTask{
+			baseTaskV2: baseTaskV2{core: core},
+			Req: &milvuspb.CreateCollectionRequest{
+				Base:           &commonpb.MsgBase{MsgType: commonpb.MsgType_CreateCollection},
+				CollectionName: collectionName,
+				Schema:         marshaledSchema,
+				ShardsNum:      int32(shardNum),
+			},
+			channels: collectionChannels{physicalChannels: pchans},
+			schema:   schema,
+		}
+
+		err = task.Execute(context.Background())
+		assert.Error(t, err)
+
+		// check if undo worked.
+
+		// undo watch.
+		<-unwatchChannelsChan
+		assert.True(t, unwatchChannelsCalled)
+
+		// undo add channels.
+		assert.Zero(t, len(ticker.listDmlChannels()))
+
+		// undo adding collection.
+		<-removeCollectionChan
+		assert.True(t, removeCollectionCalled)
 	})
 }
