@@ -40,9 +40,11 @@ func (t *createCollectionTask) validate() error {
 	if t.Req == nil {
 		return errors.New("empty requests")
 	}
+
 	if err := CheckMsgType(t.Req.GetBase().GetMsgType(), commonpb.MsgType_CreateCollection); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -188,17 +190,20 @@ func (t *createCollectionTask) Execute(ctx context.Context) error {
 		},
 	}
 
-	clonedCollInfoWithDefaultPartition := collInfo.Clone()
-	clonedCollInfoWithDefaultPartition.Partitions = []*model.Partition{{PartitionName: Params.CommonCfg.DefaultPartitionName}}
+	// We cannot check the idempotency inside meta table when adding collection, since we'll execute duplicate steps
+	// if add collection successfully due to idempotency check. Some steps may be risky to be duplicate executed if they
+	// are not promised idempotent.
+	clone := collInfo.Clone()
+	clone.Partitions = []*model.Partition{{PartitionName: Params.CommonCfg.DefaultPartitionName}}
 	// need double check in meta table if we can't promise the sequence execution.
 	existedCollInfo, err := t.core.meta.GetCollectionByName(ctx, t.Req.GetCollectionName(), typeutil.MaxTimestamp)
 	if err == nil {
-		equal := existedCollInfo.Equal(*clonedCollInfoWithDefaultPartition)
+		equal := existedCollInfo.Equal(*clone)
 		if !equal {
 			return fmt.Errorf("create duplicate collection with different parameters, collection: %s", t.Req.GetCollectionName())
 		}
 		// make creating collection idempotent.
-		log.Warn("add duplicate collection", zap.String("collection", t.Req.GetCollectionName()))
+		log.Warn("add duplicate collection", zap.String("collection", t.Req.GetCollectionName()), zap.Uint64("ts", t.GetTs()))
 		return nil
 	}
 

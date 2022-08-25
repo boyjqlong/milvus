@@ -483,7 +483,7 @@ func (kc *Catalog) DropCollection(ctx context.Context, collectionInfo *model.Col
 	delMetakeysSnap = append(delMetakeysSnap, buildFieldPrefix(collectionInfo.CollectionID))
 
 	// Though batchMultiSaveAndRemoveWithPrefix is not atomic enough, we can promise atomicity outside.
-	// If we found collection under dropping state, we know that gc is not completely on this collection.
+	// If we found collection under dropping state, we'll know that gc is not completely on this collection.
 	// However, if we remove collection first, we cannot remove other metas.
 	if err := batchMultiSaveAndRemoveWithPrefix(kc.Snapshot, maxTxnNum, nil, delMetakeysSnap, ts); err != nil {
 		return err

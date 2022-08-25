@@ -36,6 +36,10 @@ func (t *dropCollectionTask) Prepare(ctx context.Context) error {
 }
 
 func (t *dropCollectionTask) Execute(ctx context.Context) error {
+	// use max ts to check if latest collection exists.
+	// we cannot handle case that
+	// dropping collection with `ts1` but a collection exists in catalog with newer ts which is bigger than `ts1`.
+	// fortunately, if ddls are promised to execute in sequence, then everything is OK. The `ts1` will always be latest.
 	collMeta, err := t.core.meta.GetCollectionByName(ctx, t.Req.GetCollectionName(), typeutil.MaxTimestamp)
 	if err != nil {
 		// make dropping collection idempotent.
@@ -43,13 +47,16 @@ func (t *dropCollectionTask) Execute(ctx context.Context) error {
 		return nil
 	}
 
+	// meta cache of all aliases should also be cleaned.
+	aliases := t.core.meta.ListAliasesByID(collMeta.CollectionID)
+
 	ts := t.GetTs()
 
 	redoTask := newBaseRedoTask()
 
 	redoTask.AddSyncStep(&ExpireCacheStep{
 		baseStep:        baseStep{core: t.core},
-		collectionNames: []string{collMeta.Name},
+		collectionNames: append(aliases, collMeta.Name),
 		collectionId:    collMeta.CollectionID,
 		ts:              ts,
 	})

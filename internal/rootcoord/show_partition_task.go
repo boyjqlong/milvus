@@ -17,11 +17,6 @@ type showPartitionTask struct {
 	Rsp *milvuspb.ShowPartitionsResponse
 }
 
-// Type return msg type
-func (t *showPartitionTask) Type() commonpb.MsgType {
-	return t.Req.Base.MsgType
-}
-
 func (t *showPartitionTask) Prepare(ctx context.Context) error {
 	if err := CheckMsgType(t.Req.Base.MsgType, commonpb.MsgType_ShowPartitions); err != nil {
 		return err
@@ -41,7 +36,7 @@ func (t *showPartitionTask) Execute(ctx context.Context) error {
 	}
 	if err != nil {
 		t.Rsp.Status = failStatus(commonpb.ErrorCode_CollectionNotExists, err.Error())
-		return nil
+		return err
 	}
 
 	for _, part := range coll.Partitions {

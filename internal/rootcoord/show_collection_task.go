@@ -3,6 +3,8 @@ package rootcoord
 import (
 	"context"
 
+	"github.com/milvus-io/milvus/internal/util/typeutil"
+
 	"github.com/milvus-io/milvus/internal/proto/commonpb"
 	"github.com/milvus-io/milvus/internal/proto/milvuspb"
 	"github.com/milvus-io/milvus/internal/util/tsoutil"
@@ -13,11 +15,6 @@ type showCollectionTask struct {
 	baseTaskV2
 	Req *milvuspb.ShowCollectionsRequest
 	Rsp *milvuspb.ShowCollectionsResponse
-}
-
-// Type return msg type
-func (t *showCollectionTask) Type() commonpb.MsgType {
-	return t.Req.Base.MsgType
 }
 
 func (t *showCollectionTask) Prepare(ctx context.Context) error {
@@ -31,8 +28,12 @@ func (t *showCollectionTask) Prepare(ctx context.Context) error {
 func (t *showCollectionTask) Execute(ctx context.Context) error {
 	t.Rsp.Status = succStatus()
 	ts := t.Req.GetTimeStamp()
+	if ts == 0 {
+		ts = typeutil.MaxTimestamp
+	}
 	colls, err := t.core.meta.ListCollections(ctx, ts)
 	if err != nil {
+		t.Rsp.Status = failStatus(commonpb.ErrorCode_UnexpectedError, err.Error())
 		return err
 	}
 	for _, meta := range colls {

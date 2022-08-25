@@ -3,6 +3,8 @@ package rootcoord
 import (
 	"context"
 
+	"github.com/milvus-io/milvus/internal/util/typeutil"
+
 	"github.com/milvus-io/milvus/internal/proto/commonpb"
 	"github.com/milvus-io/milvus/internal/proto/milvuspb"
 )
@@ -12,11 +14,6 @@ type hasCollectionTask struct {
 	baseTaskV2
 	Req *milvuspb.HasCollectionRequest
 	Rsp *milvuspb.BoolResponse
-}
-
-// Type return msg type
-func (t *hasCollectionTask) Type() commonpb.MsgType {
-	return t.Req.Base.MsgType
 }
 
 func (t *hasCollectionTask) Prepare(ctx context.Context) error {
@@ -29,6 +26,9 @@ func (t *hasCollectionTask) Prepare(ctx context.Context) error {
 // Execute task execution
 func (t *hasCollectionTask) Execute(ctx context.Context) error {
 	t.Rsp.Status = succStatus()
+	if t.Req.GetTimeStamp() == 0 {
+		t.Req.TimeStamp = typeutil.MaxTimestamp
+	}
 	_, err := t.core.meta.GetCollectionByName(ctx, t.Req.GetCollectionName(), t.Req.GetTimeStamp())
 	t.Rsp.Value = err == nil
 	return nil
