@@ -65,14 +65,15 @@ type Broker interface {
 	Flush(ctx context.Context, cID int64, segIDs []int64) error
 	Import(ctx context.Context, req *datapb.ImportTaskRequest) (*datapb.ImportTaskResponse, error)
 
-	GetIndexStates(ctx context.Context, IndexBuildIDs []int64) (idxInfo []*indexpb.IndexInfo, retErr error)
+	DropCollectionIndex(ctx context.Context, collID UniqueID) error
+	GetSegmentIndexState(ctx context.Context, collID UniqueID, indexName string, segIDs []UniqueID) ([]*indexpb.SegmentIndexState, error)
 }
 
 type ServerBroker struct {
-	s *RootCoord
+	s *Core
 }
 
-func newServerBroker(s *RootCoord) *ServerBroker {
+func newServerBroker(s *Core) *ServerBroker {
 	return &ServerBroker{s: s}
 }
 
@@ -226,20 +227,32 @@ func (b *ServerBroker) Import(ctx context.Context, req *datapb.ImportTaskRequest
 	return b.s.dataCoord.Import(ctx, req)
 }
 
-func (b *ServerBroker) GetIndexStates(ctx context.Context, IndexBuildIDs []int64) (idxInfo []*indexpb.IndexInfo, retErr error) {
-	res, err := b.s.indexCoord.GetIndexStates(ctx, &indexpb.GetIndexStatesRequest{
-		IndexBuildIDs: IndexBuildIDs,
+func (b *ServerBroker) DropCollectionIndex(ctx context.Context, collID UniqueID) error {
+	rsp, err := b.s.indexCoord.DropIndex(ctx, &indexpb.DropIndexRequest{
+		CollectionID: collID,
+		IndexName:    "",
 	})
 	if err != nil {
-		log.Error("RootCoord failed to get index states from IndexCoord.", zap.Error(err))
+		return err
+	}
+	if rsp.ErrorCode != commonpb.ErrorCode_Success {
+		return fmt.Errorf(rsp.Reason)
+	}
+	return nil
+}
+
+func (b *ServerBroker) GetSegmentIndexState(ctx context.Context, collID UniqueID, indexName string, segIDs []UniqueID) ([]*indexpb.SegmentIndexState, error) {
+	resp, err := b.s.indexCoord.GetSegmentIndexState(ctx, &indexpb.GetSegmentIndexStateRequest{
+		CollectionID: collID,
+		IndexName:    indexName,
+		SegmentIDs:   segIDs,
+	})
+	if err != nil {
 		return nil, err
 	}
-	log.Debug("got index states", zap.String("get index state result", res.String()))
-	if res.GetStatus().GetErrorCode() != commonpb.ErrorCode_Success {
-		log.Error("Get index states failed.",
-			zap.String("error_code", res.GetStatus().GetErrorCode().String()),
-			zap.String("reason", res.GetStatus().GetReason()))
-		return nil, fmt.Errorf(res.GetStatus().GetErrorCode().String())
+	if resp.Status.ErrorCode != commonpb.ErrorCode_Success {
+		return nil, errors.New(resp.Status.Reason)
 	}
-	return res.GetStates(), nil
+
+	return resp.GetStates(), nil
 }

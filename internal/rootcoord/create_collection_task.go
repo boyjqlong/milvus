@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/milvus-io/milvus/internal/util/funcutil"
+
 	"github.com/milvus-io/milvus/internal/proto/commonpb"
 
 	pb "github.com/milvus-io/milvus/internal/proto/etcdpb"
@@ -46,6 +48,15 @@ func (t *createCollectionTask) validate() error {
 	}
 
 	return nil
+}
+
+func hasSystemFields(schema *schemapb.CollectionSchema, systemFields []string) bool {
+	for _, f := range schema.GetFields() {
+		if funcutil.SliceContain(systemFields, f.GetName()) {
+			return true
+		}
+	}
+	return false
 }
 
 func (t *createCollectionTask) validateSchema(schema *schemapb.CollectionSchema) error {

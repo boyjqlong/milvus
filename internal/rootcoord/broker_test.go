@@ -229,30 +229,3 @@ func TestServerBroker_Import(t *testing.T) {
 		assert.Equal(t, commonpb.ErrorCode_Success, resp.GetStatus().GetErrorCode())
 	})
 }
-
-func TestServerBroker_GetIndexStates(t *testing.T) {
-	t.Run("failed to execute", func(t *testing.T) {
-		c := newTestCore(withInvalidIndexCoord())
-		b := newServerBroker(c)
-		ctx := context.Background()
-		resp, err := b.GetIndexStates(ctx, []int64{1, 2})
-		assert.Error(t, err)
-		assert.Nil(t, resp)
-	})
-
-	t.Run("non success error code on execute", func(t *testing.T) {
-		c := newTestCore(withFailedIndexCoord())
-		b := newServerBroker(c)
-		ctx := context.Background()
-		_, err := b.GetIndexStates(ctx, []int64{1, 2})
-		assert.Error(t, err)
-	})
-
-	t.Run("success", func(t *testing.T) {
-		c := newTestCore(withValidIndexCoord())
-		b := newServerBroker(c)
-		ctx := context.Background()
-		_, err := b.GetIndexStates(ctx, []int64{1, 2})
-		assert.NoError(t, err)
-	})
-}

@@ -17,7 +17,7 @@ type taskV2 interface {
 
 type baseTaskV2 struct {
 	ctx  context.Context
-	core *RootCoord
+	core *Core
 	done chan error
 	ts   Timestamp
 	id   UniqueID

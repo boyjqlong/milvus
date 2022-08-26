@@ -13,7 +13,7 @@ type Step interface {
 }
 
 type baseStep struct {
-	core *RootCoord
+	core *Core
 }
 
 type AddCollectionMetaStep struct {

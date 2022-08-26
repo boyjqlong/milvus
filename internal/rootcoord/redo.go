@@ -35,8 +35,11 @@ func (b *baseRedoTask) redoAsyncSteps() {
 	for i := 0; i < len(b.asyncTodoStep); i++ {
 		todo := b.asyncTodoStep[i]
 		if err := todo.Execute(ctx); err != nil {
-			// just logging here, trying to execute other redo steps.
+			// You depend on the collection meta to do other gc.
+			// TODO: add ddl logger after other service can be idempotent enough, then you can do separate steps
+			//		independently.
 			log.Error("failed to execute step, garbage may be generated", zap.Error(err))
+			return
 		}
 	}
 }

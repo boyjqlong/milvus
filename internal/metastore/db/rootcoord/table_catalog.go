@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"runtime"
 
+	"github.com/milvus-io/milvus/internal/metastore"
+
 	"github.com/milvus-io/milvus/internal/common"
 
 	"github.com/milvus-io/milvus/internal/util"
@@ -431,7 +433,6 @@ func (tc *Catalog) AlterCollection(ctx context.Context, oldColl *model.Collectio
 	if alterType == metastore.MODIFY {
 		return tc.alterModifyCollection(ctx, oldColl, newColl, ts)
 	}
-	// TODO
 	return fmt.Errorf("altering collection doesn't support %s", alterType.String())
 }
 

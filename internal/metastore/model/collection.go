@@ -22,7 +22,7 @@ type Collection struct {
 	CreateTime           uint64
 	ConsistencyLevel     commonpb.ConsistencyLevel
 	Aliases              []string          // TODO: deprecate this.
-	Extra                map[string]string // extra kvs
+	Extra                map[string]string // deprecated.
 	State                pb.CollectionState
 }
 
@@ -38,15 +38,15 @@ func (c Collection) Clone() *Collection {
 		Description:          c.Description,
 		AutoID:               c.AutoID,
 		Fields:               c.Fields,
-		Partitions:           c.Partitions,
-		VirtualChannelNames:  c.VirtualChannelNames,
-		PhysicalChannelNames: c.PhysicalChannelNames,
+		Partitions:           ClonePartitions(c.Partitions),
+		VirtualChannelNames:  common.CloneStringList(c.VirtualChannelNames),
+		PhysicalChannelNames: common.CloneStringList(c.PhysicalChannelNames),
 		ShardsNum:            c.ShardsNum,
 		ConsistencyLevel:     c.ConsistencyLevel,
 		CreateTime:           c.CreateTime,
-		StartPositions:       c.StartPositions,
-		Aliases:              c.Aliases,
-		Extra:                c.Extra,
+		StartPositions:       common.CloneKeyDataPairs(c.StartPositions),
+		Aliases:              common.CloneStringList(c.Aliases),
+		Extra:                common.CloneS2S(c.Extra),
 		State:                c.State,
 	}
 }

@@ -59,6 +59,8 @@ class ApiPartitionWrapper:
 
         func_name = sys._getframe().f_code.co_name
         res, succ = api_request([self.partition.load, replica_number, timeout], **kwargs)
+        print(res)
+        print(succ)
         check_result = ResponseChecker(res, func_name, check_task,
                                        check_items, is_succ=succ,
                                        **kwargs).run()

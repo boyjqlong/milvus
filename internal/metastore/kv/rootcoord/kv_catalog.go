@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/milvus-io/milvus/internal/metastore"
+
 	"github.com/golang/protobuf/proto"
 	"go.uber.org/zap"
 

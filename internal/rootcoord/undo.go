@@ -33,8 +33,11 @@ func (b *baseUndoTask) undoUntilLastFinished(lastFinished int) {
 	for i := lastFinished; i >= 0; i-- {
 		undo := b.undoStep[i]
 		if err := undo.Execute(ctx); err != nil {
-			// just logging here, trying to execute other undo steps.
+			// You depend on the collection meta to do other gc.
+			// TODO: add ddl logger after other service can be idempotent enough, then you can do separate steps
+			//		independently.
 			log.Error("failed to execute step, garbage may be generated", zap.Error(err))
+			return
 		}
 	}
 }

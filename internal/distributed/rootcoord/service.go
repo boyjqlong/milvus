@@ -104,7 +104,7 @@ func NewServer(ctx context.Context, factory dependency.Factory) (*Server, error)
 	}
 	s.setClient()
 	var err error
-	s.rootCoord, err = rootcoord.NewRootCoord(s.ctx, factory)
+	s.rootCoord, err = rootcoord.NewCore(s.ctx, factory)
 	if err != nil {
 		return nil, err
 	}
@@ -403,11 +403,6 @@ func (s *Server) UpdateChannelTimeTick(ctx context.Context, in *internalpb.Chann
 // ShowSegments gets all segments
 func (s *Server) ShowSegments(ctx context.Context, in *milvuspb.ShowSegmentsRequest) (*milvuspb.ShowSegmentsResponse, error) {
 	return s.rootCoord.ShowSegments(ctx, in)
-}
-
-// ReleaseDQLMessageStream notifies RootCoord to release and close the search message stream of specific collection.
-func (s *Server) ReleaseDQLMessageStream(ctx context.Context, in *proxypb.ReleaseDQLMessageStreamRequest) (*commonpb.Status, error) {
-	return s.rootCoord.ReleaseDQLMessageStream(ctx, in)
 }
 
 // InvalidateCollectionMetaCache notifies RootCoord to release the collection cache in Proxies.

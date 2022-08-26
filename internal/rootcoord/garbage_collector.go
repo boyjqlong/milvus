@@ -24,10 +24,10 @@ type GarbageCollector interface {
 }
 
 type GarbageCollectorCtx struct {
-	s *RootCoord
+	s *Core
 }
 
-func newGarbageCollectorCtx(s *RootCoord) *GarbageCollectorCtx {
+func newGarbageCollectorCtx(s *Core) *GarbageCollectorCtx {
 	return &GarbageCollectorCtx{s: s}
 }
 
@@ -111,7 +111,13 @@ func (c *GarbageCollectorCtx) GcCollectionData(ctx context.Context, coll *model.
 		},
 	}
 	msgPack.Msgs = append(msgPack.Msgs, msg)
-	return c.s.chanTimeTick.broadcastDmlChannels(coll.PhysicalChannelNames, &msgPack)
+	if err := c.s.chanTimeTick.broadcastDmlChannels(coll.PhysicalChannelNames, &msgPack); err != nil {
+		return err
+	}
+
+	// TODO: remove this after gc can be notified by rpc. Without this tt, DropCollectionMsg cannot be seen by
+	// 		datanodes.
+	return c.s.chanTimeTick.sendTimeTickToChannel(coll.PhysicalChannelNames, ts)
 }
 
 func (c *GarbageCollectorCtx) GcPartitionData(ctx context.Context, pChannels []string, partition *model.Partition, ts typeutil.Timestamp) error {
@@ -136,5 +142,11 @@ func (c *GarbageCollectorCtx) GcPartitionData(ctx context.Context, pChannels []s
 		},
 	}
 	msgPack.Msgs = append(msgPack.Msgs, msg)
-	return c.s.chanTimeTick.broadcastDmlChannels(pChannels, &msgPack)
+	if err := c.s.chanTimeTick.broadcastDmlChannels(pChannels, &msgPack); err != nil {
+		return err
+	}
+
+	// TODO: remove this after gc can be notified by rpc. Without this tt, DropCollectionMsg cannot be seen by
+	// 		datanodes.
+	return c.s.chanTimeTick.sendTimeTickToChannel(pChannels, ts)
 }

@@ -109,7 +109,6 @@ func newMockMetaTable() *mockMetaTable {
 type mockIndexCoord struct {
 	types.IndexCoord
 	GetComponentStatesFunc func(ctx context.Context) (*internalpb.ComponentStates, error)
-	GetIndexStatesFunc     func(ctx context.Context, req *indexpb.GetIndexStatesRequest) (*indexpb.GetIndexStatesResponse, error)
 }
 
 func newMockIndexCoord() *mockIndexCoord {
@@ -118,10 +117,6 @@ func newMockIndexCoord() *mockIndexCoord {
 
 func (m *mockIndexCoord) GetComponentStates(ctx context.Context) (*internalpb.ComponentStates, error) {
 	return m.GetComponentStatesFunc(ctx)
-}
-
-func (m *mockIndexCoord) GetIndexStates(ctx context.Context, req *indexpb.GetIndexStatesRequest) (*indexpb.GetIndexStatesResponse, error) {
-	return m.GetIndexStatesFunc(ctx, req)
 }
 
 type mockDataCoord struct {
@@ -232,8 +227,8 @@ func newMockProxy() *mockProxy {
 	return r
 }
 
-func newTestCore(opts ...Opt) *RootCoord {
-	c := &RootCoord{
+func newTestCore(opts ...Opt) *Core {
+	c := &Core{
 		session: &sessionutil.Session{ServerID: TestRootCoordID},
 	}
 	for _, opt := range opts {
@@ -243,7 +238,7 @@ func newTestCore(opts ...Opt) *RootCoord {
 }
 
 func withValidProxyManager() Opt {
-	return func(c *RootCoord) {
+	return func(c *Core) {
 		c.proxyClientManager = &proxyClientManager{
 			proxyClient: make(map[UniqueID]types.Proxy),
 		}
@@ -255,7 +250,7 @@ func withValidProxyManager() Opt {
 }
 
 func withInvalidProxyManager() Opt {
-	return func(c *RootCoord) {
+	return func(c *Core) {
 		c.proxyClientManager = &proxyClientManager{
 			proxyClient: make(map[UniqueID]types.Proxy),
 		}
@@ -268,7 +263,7 @@ func withInvalidProxyManager() Opt {
 }
 
 func withMeta(meta IMetaTableV2) Opt {
-	return func(c *RootCoord) {
+	return func(c *Core) {
 		c.meta = meta
 	}
 }
@@ -303,7 +298,7 @@ func withInvalidMeta() Opt {
 }
 
 func withIdAllocator(idAllocator allocator.GIDAllocator) Opt {
-	return func(c *RootCoord) {
+	return func(c *Core) {
 		c.idAllocator = idAllocator
 	}
 }
@@ -328,7 +323,7 @@ func withInvalidIdAllocator() Opt {
 }
 
 func withQueryCoord(qc types.QueryCoord) Opt {
-	return func(c *RootCoord) {
+	return func(c *Core) {
 		c.queryCoord = qc
 	}
 }
@@ -400,7 +395,7 @@ func withValidQueryCoord() Opt {
 }
 
 func withIndexCoord(ic types.IndexCoord) Opt {
-	return func(c *RootCoord) {
+	return func(c *Core) {
 		c.indexCoord = ic
 	}
 }
@@ -424,9 +419,6 @@ func withInvalidIndexCoord() Opt {
 			Status: succStatus(),
 		}, nil
 	}
-	ic.GetIndexStatesFunc = func(ctx context.Context, req *indexpb.GetIndexStatesRequest) (*indexpb.GetIndexStatesResponse, error) {
-		return nil, errors.New("error mock GetIndexStates")
-	}
 	return withIndexCoord(ic)
 }
 
@@ -438,11 +430,6 @@ func withFailedIndexCoord() Opt {
 			Status: succStatus(),
 		}, nil
 	}
-	ic.GetIndexStatesFunc = func(ctx context.Context, req *indexpb.GetIndexStatesRequest) (*indexpb.GetIndexStatesResponse, error) {
-		return &indexpb.GetIndexStatesResponse{
-			Status: failStatus(commonpb.ErrorCode_UnexpectedError, "mock get index states error"),
-		}, nil
-	}
 	return withIndexCoord(ic)
 }
 
@@ -451,11 +438,6 @@ func withValidIndexCoord() Opt {
 	ic.GetComponentStatesFunc = func(ctx context.Context) (*internalpb.ComponentStates, error) {
 		return &internalpb.ComponentStates{
 			State:  &internalpb.ComponentInfo{StateCode: internalpb.StateCode_Healthy},
-			Status: succStatus(),
-		}, nil
-	}
-	ic.GetIndexStatesFunc = func(ctx context.Context, req *indexpb.GetIndexStatesRequest) (*indexpb.GetIndexStatesResponse, error) {
-		return &indexpb.GetIndexStatesResponse{
 			Status: succStatus(),
 		}, nil
 	}
@@ -472,7 +454,7 @@ func cleanTestEnv() {
 }
 
 func withTtSynchronizer(ticker *timetickSync) Opt {
-	return func(c *RootCoord) {
+	return func(c *Core) {
 		c.chanTimeTick = ticker
 	}
 }
@@ -494,7 +476,7 @@ func withRocksMqTtSynchronizer() Opt {
 }
 
 func withDataCoord(dc types.DataCoord) Opt {
-	return func(c *RootCoord) {
+	return func(c *Core) {
 		c.dataCoord = dc
 	}
 }
@@ -604,7 +586,7 @@ func withValidDataCoord() Opt {
 }
 
 func withStateCode(code internalpb.StateCode) Opt {
-	return func(c *RootCoord) {
+	return func(c *Core) {
 		c.UpdateStateCode(code)
 	}
 }
@@ -634,7 +616,7 @@ func (m mockScheduler) AddTask(t taskV2) error {
 }
 
 func withScheduler(sched IScheduler) Opt {
-	return func(c *RootCoord) {
+	return func(c *Core) {
 		c.scheduler = sched
 	}
 }
@@ -667,7 +649,7 @@ func withTaskFailScheduler() Opt {
 }
 
 func withTsoAllocator(alloc tso.Allocator) Opt {
-	return func(c *RootCoord) {
+	return func(c *Core) {
 		c.tsoAllocator = alloc
 	}
 }
@@ -681,7 +663,7 @@ func withInvalidTsoAllocator() Opt {
 }
 
 func withMetricsCacheManager() Opt {
-	return func(c *RootCoord) {
+	return func(c *Core) {
 		m := metricsinfo.NewMetricsCacheManager()
 		c.metricsCacheManager = m
 	}
@@ -716,7 +698,7 @@ func (b mockBroker) UnwatchChannels(ctx context.Context, info *watchInfo) error 
 }
 
 func withBroker(b Broker) Opt {
-	return func(c *RootCoord) {
+	return func(c *Core) {
 		c.broker = b
 	}
 }

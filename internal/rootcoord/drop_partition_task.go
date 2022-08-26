@@ -2,6 +2,7 @@ package rootcoord
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/milvus-io/milvus/internal/log"
 	"go.uber.org/zap"
@@ -25,6 +26,9 @@ type dropPartitionTask struct {
 func (t *dropPartitionTask) Prepare(ctx context.Context) error {
 	if err := CheckMsgType(t.Req.GetBase().GetMsgType(), commonpb.MsgType_DropPartition); err != nil {
 		return err
+	}
+	if t.Req.GetPartitionName() == Params.CommonCfg.DefaultPartitionName {
+		return fmt.Errorf("default partition cannot be deleted")
 	}
 	collMeta, err := t.core.meta.GetCollectionByName(ctx, t.Req.GetCollectionName(), t.GetTs())
 	if err != nil {

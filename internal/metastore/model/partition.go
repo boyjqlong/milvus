@@ -1,12 +1,15 @@
 package model
 
-import pb "github.com/milvus-io/milvus/internal/proto/etcdpb"
+import (
+	"github.com/milvus-io/milvus/internal/common"
+	pb "github.com/milvus-io/milvus/internal/proto/etcdpb"
+)
 
 type Partition struct {
 	PartitionID               int64
 	PartitionName             string
 	PartitionCreatedTimestamp uint64
-	Extra                     map[string]string
+	Extra                     map[string]string // deprecated.
 	CollectionID              int64
 	State                     pb.PartitionState
 }
@@ -20,10 +23,18 @@ func (p Partition) Clone() *Partition {
 		PartitionID:               p.PartitionID,
 		PartitionName:             p.PartitionName,
 		PartitionCreatedTimestamp: p.PartitionCreatedTimestamp,
-		Extra:                     p.Extra,
+		Extra:                     common.CloneS2S(p.Extra),
 		CollectionID:              p.CollectionID,
 		State:                     p.State,
 	}
+}
+
+func ClonePartitions(partitions []*Partition) []*Partition {
+	clone := make([]*Partition, 0, len(partitions))
+	for _, partition := range partitions {
+		clone = append(clone, partition.Clone())
+	}
+	return clone
 }
 
 func (p Partition) Equal(other Partition) bool {

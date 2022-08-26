@@ -3,6 +3,8 @@ package model
 import (
 	"reflect"
 
+	"github.com/milvus-io/milvus/internal/common"
+
 	"github.com/milvus-io/milvus/internal/proto/commonpb"
 	"github.com/milvus-io/milvus/internal/proto/schemapb"
 )
@@ -24,25 +26,25 @@ func (f Field) Available() bool {
 }
 
 func (f Field) Clone() *Field {
-	tps := make([]*commonpb.KeyValuePair, len(f.TypeParams))
-	ips := make([]*commonpb.KeyValuePair, len(f.IndexParams))
-	for i, tp := range f.TypeParams {
-		tps[i] = &commonpb.KeyValuePair{Key: tp.GetKey(), Value: tp.GetValue()}
-	}
-	for i, ip := range f.IndexParams {
-		ips[i] = &commonpb.KeyValuePair{Key: ip.GetKey(), Value: ip.GetValue()}
-	}
 	return &Field{
 		FieldID:      f.FieldID,
 		Name:         f.Name,
 		IsPrimaryKey: f.IsPrimaryKey,
 		Description:  f.Description,
 		DataType:     f.DataType,
-		TypeParams:   tps,
-		IndexParams:  ips,
+		TypeParams:   common.CloneKeyValuePairs(f.TypeParams),
+		IndexParams:  common.CloneKeyValuePairs(f.IndexParams),
 		AutoID:       f.AutoID,
 		State:        f.State,
 	}
+}
+
+func CloneFields(fields []*Field) []*Field {
+	clone := make([]*Field, 0, len(fields))
+	for _, field := range fields {
+		clone = append(clone, field.Clone())
+	}
+	return clone
 }
 
 func toMap(params []*commonpb.KeyValuePair) map[string]string {

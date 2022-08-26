@@ -784,14 +784,6 @@ func (m *MockProxy) GetFlushState(ctx context.Context, req *milvuspb.GetFlushSta
 	return nil, nil
 }
 
-func (m *MockProxy) SendSearchResult(ctx context.Context, req *internalpb.SearchResults) (*commonpb.Status, error) {
-	return nil, nil
-}
-
-func (m *MockProxy) SendRetrieveResult(ctx context.Context, req *internalpb.RetrieveResults) (*commonpb.Status, error) {
-	return nil, nil
-}
-
 func (m *MockProxy) Import(ctx context.Context, req *milvuspb.ImportRequest) (*milvuspb.ImportResponse, error) {
 	return nil, nil
 }
