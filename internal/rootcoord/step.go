@@ -71,7 +71,7 @@ type UnwatchChannelsStep struct {
 }
 
 func (s *UnwatchChannelsStep) Execute(ctx context.Context) error {
-	return s.core.broker.UnwatchChannels(ctx, &watchInfo{collectionID: s.collectionId, pChannels: s.channels.physicalChannels, vChannels: s.channels.virtualChannels})
+	return s.core.broker.UnwatchChannels(ctx, &watchInfo{collectionID: s.collectionId, vChannels: s.channels.virtualChannels})
 }
 
 type ChangeCollectionStateStep struct {

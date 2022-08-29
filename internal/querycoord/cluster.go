@@ -219,6 +219,8 @@ func (c *queryNodeCluster) LoadSegments(ctx context.Context, nodeID int64, in *q
 		for _, info := range deltaChannelInfos {
 			deltaChannel2Info[info.ChannelName] = info
 		}
+		log.Debug("please don't forget to delete me, load segments, getDeltaChannelsByCollectionID",
+			zap.Any("deltaChannelInfos", deltaChannelInfos), zap.Any("deltaChannel2Info", deltaChannel2Info))
 
 		// check delta channel which should be reloaded
 		reloadDeltaChannels := make(map[string]struct{})
@@ -228,6 +230,8 @@ func (c *queryNodeCluster) LoadSegments(ctx context.Context, nodeID int64, in *q
 			if err != nil {
 				return err
 			}
+			log.Debug("please don't forget to delete me, ConvertChannelName",
+				zap.Any("insert channel", segment.InsertChannel), zap.Any("deltaChannelName", deltaChannelName))
 
 			reloadDeltaChannels[deltaChannelName] = struct{}{}
 		}
@@ -244,6 +248,7 @@ func (c *queryNodeCluster) LoadSegments(ctx context.Context, nodeID int64, in *q
 			}
 		}
 
+		log.Debug("please don't forget to delete me, ready to load segments", zap.Any("req", in))
 		err = targetNode.loadSegments(ctx, in)
 		if err != nil {
 			log.Warn("loadSegments: queryNode load segments error", zap.Int64("nodeID", nodeID), zap.String("error info", err.Error()))

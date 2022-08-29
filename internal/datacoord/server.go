@@ -925,6 +925,8 @@ func (s *Server) loadCollectionFromRootCoord(ctx context.Context, collectionID i
 	if err = VerifyResponse(resp, err); err != nil {
 		return err
 	}
+	log.Debug("please don't forget to delete me, loadCollectionFromRootCoord",
+		zap.Any("resp", resp))
 	presp, err := s.rootCoordClient.ShowPartitions(ctx, &milvuspb.ShowPartitionsRequest{
 		Base: &commonpb.MsgBase{
 			MsgType:   commonpb.MsgType_ShowPartitions,
@@ -947,6 +949,8 @@ func (s *Server) loadCollectionFromRootCoord(ctx context.Context, collectionID i
 		Partitions:     presp.PartitionIDs,
 		StartPositions: resp.GetStartPositions(),
 	}
+	log.Debug("please don't forget to delete me, loadCollectionFromRootCoord",
+		zap.Any("presp", presp))
 	s.meta.AddCollection(collInfo)
 	return nil
 }

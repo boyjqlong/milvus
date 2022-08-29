@@ -241,38 +241,8 @@ func (mt *MetaTableV2) RemoveCollection(ctx context.Context, collectionID Unique
 	return nil
 }
 
-func (mt *MetaTableV2) GetCollectionByName(ctx context.Context, collectionName string, ts Timestamp) (*model.Collection, error) {
-	mt.ddLock.RLock()
-	defer mt.ddLock.RUnlock()
-
-	var collectionID UniqueID
-
-	collectionID, ok := mt.collAlias2ID[collectionName]
-	if ok {
-		return mt.GetCollectionByID(ctx, collectionID, ts)
-	}
-
-	collectionID, ok = mt.collName2ID[collectionName]
-	if ok {
-		return mt.GetCollectionByID(ctx, collectionID, ts)
-	}
-
-	// travel meta information from catalog. No need to check time travel logic again, since catalog already did.
-	ctx1 := contextutil.WithTenantID(ctx, Params.CommonCfg.ClusterName)
-	coll, err := mt.catalog.GetCollectionByName(ctx1, collectionName, ts)
-	if err != nil {
-		return nil, err
-	}
-	if !coll.Available() {
-		return nil, fmt.Errorf("collection not exist: %s", collectionName)
-	}
-	return coll, nil
-}
-
-func (mt *MetaTableV2) GetCollectionByID(ctx context.Context, collectionID UniqueID, ts Timestamp) (*model.Collection, error) {
-	mt.ddLock.RLock()
-	defer mt.ddLock.RUnlock()
-
+// getCollectionByIDInternal get collection by collection id without lock.
+func (mt *MetaTableV2) getCollectionByIDInternal(ctx context.Context, collectionID UniqueID, ts Timestamp) (*model.Collection, error) {
 	var coll *model.Collection
 
 	coll, ok := mt.collID2Meta[collectionID]
@@ -284,7 +254,7 @@ func (mt *MetaTableV2) GetCollectionByID(ctx context.Context, collectionID Uniqu
 			return nil, err
 		}
 		if !coll.Available() {
-			return nil, fmt.Errorf("collection not exist: %d", collectionID)
+			return nil, fmt.Errorf("can't find collection: %d", collectionID)
 		}
 	}
 
@@ -297,6 +267,41 @@ func (mt *MetaTableV2) GetCollectionByID(ctx context.Context, collectionID Uniqu
 		}
 	}
 	return clone, nil
+}
+
+func (mt *MetaTableV2) GetCollectionByName(ctx context.Context, collectionName string, ts Timestamp) (*model.Collection, error) {
+	mt.ddLock.RLock()
+	defer mt.ddLock.RUnlock()
+
+	var collectionID UniqueID
+
+	collectionID, ok := mt.collAlias2ID[collectionName]
+	if ok {
+		return mt.getCollectionByIDInternal(ctx, collectionID, ts)
+	}
+
+	collectionID, ok = mt.collName2ID[collectionName]
+	if ok {
+		return mt.getCollectionByIDInternal(ctx, collectionID, ts)
+	}
+
+	// travel meta information from catalog. No need to check time travel logic again, since catalog already did.
+	ctx1 := contextutil.WithTenantID(ctx, Params.CommonCfg.ClusterName)
+	coll, err := mt.catalog.GetCollectionByName(ctx1, collectionName, ts)
+	if err != nil {
+		return nil, err
+	}
+	if !coll.Available() {
+		return nil, fmt.Errorf("can't find collection: %s", collectionName)
+	}
+	return coll, nil
+}
+
+func (mt *MetaTableV2) GetCollectionByID(ctx context.Context, collectionID UniqueID, ts Timestamp) (*model.Collection, error) {
+	mt.ddLock.RLock()
+	defer mt.ddLock.RUnlock()
+
+	return mt.getCollectionByIDInternal(ctx, collectionID, ts)
 }
 
 func (mt *MetaTableV2) ListCollections(ctx context.Context, ts Timestamp) ([]*model.Collection, error) {
@@ -508,7 +513,12 @@ func (mt *MetaTableV2) AlterAlias(ctx context.Context, alias string, collectionN
 		return fmt.Errorf("collection not exists: %s", collectionName)
 	}
 
-	// no need to check if alias exists, since we can switch alias anyway.
+	// check if alias exists.
+	_, ok = mt.collAlias2ID[alias]
+	if !ok {
+		//
+		return fmt.Errorf("failed to alter alias, alias does not exist: %s", alias)
+	}
 
 	ctx1 := contextutil.WithTenantID(ctx, Params.CommonCfg.ClusterName)
 	if err := mt.catalog.AlterAlias(ctx1, &model.Alias{

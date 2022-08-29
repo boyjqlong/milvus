@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 
+	ms "github.com/milvus-io/milvus/internal/mq/msgstream"
+	"github.com/milvus-io/milvus/internal/proto/internalpb"
+
 	"github.com/milvus-io/milvus/internal/util/funcutil"
 
 	"github.com/milvus-io/milvus/internal/proto/commonpb"
@@ -165,18 +168,57 @@ func (t *createCollectionTask) Prepare(ctx context.Context) error {
 	return nil
 }
 
-func (t *createCollectionTask) Execute(ctx context.Context) error {
-	marshaledSchema, err := proto.Marshal(t.schema)
-	if err != nil {
-		return err
-	}
+func (t *createCollectionTask) genCreateCollectionMsg(ctx context.Context) *ms.MsgPack {
+	ts := t.GetTs()
+	collectionId := t.collID
+	partitionId := t.partID
+	// error won't happen here.
+	marshaledSchema, _ := proto.Marshal(t.schema)
+	pChannels := t.channels.physicalChannels
+	vChannels := t.channels.virtualChannels
 
+	msgPack := ms.MsgPack{}
+	baseMsg := ms.BaseMsg{
+		Ctx:            ctx,
+		BeginTimestamp: ts,
+		EndTimestamp:   ts,
+		HashValues:     []uint32{0},
+	}
+	msg := &ms.CreateCollectionMsg{
+		BaseMsg: baseMsg,
+		CreateCollectionRequest: internalpb.CreateCollectionRequest{
+			Base:                 &commonpb.MsgBase{MsgType: commonpb.MsgType_CreateCollection, Timestamp: ts},
+			CollectionID:         collectionId,
+			PartitionID:          partitionId,
+			Schema:               marshaledSchema,
+			VirtualChannelNames:  vChannels,
+			PhysicalChannelNames: pChannels,
+		},
+	}
+	msgPack.Msgs = append(msgPack.Msgs, msg)
+	return &msgPack
+}
+
+func (t *createCollectionTask) addChannelsAndGetStartPositions(ctx context.Context) (map[string][]byte, error) {
+	t.core.chanTimeTick.addDmlChannels(t.channels.physicalChannels...)
+	msg := t.genCreateCollectionMsg(ctx)
+	return t.core.chanTimeTick.broadcastMarkDmlChannels(t.channels.physicalChannels, msg)
+}
+
+func (t *createCollectionTask) Execute(ctx context.Context) error {
 	collID := t.collID
 	partID := t.partID
 	ts := t.GetTs()
 
 	vchanNames := t.channels.virtualChannels
 	chanNames := t.channels.physicalChannels
+
+	startPositions, err := t.addChannelsAndGetStartPositions(ctx)
+	if err != nil {
+		// ugly here, since we must get start positions first.
+		t.core.chanTimeTick.removeDmlChannels(t.channels.physicalChannels...)
+		return err
+	}
 
 	collInfo := model.Collection{
 		CollectionID:         collID,
@@ -188,6 +230,7 @@ func (t *createCollectionTask) Execute(ctx context.Context) error {
 		PhysicalChannelNames: chanNames,
 		ShardsNum:            t.Req.ShardsNum,
 		ConsistencyLevel:     t.Req.ConsistencyLevel,
+		StartPositions:       toKeyDataPairs(startPositions),
 		CreateTime:           ts,
 		State:                pb.CollectionState_CollectionCreating,
 		Partitions: []*model.Partition{
@@ -219,6 +262,10 @@ func (t *createCollectionTask) Execute(ctx context.Context) error {
 	}
 
 	undoTask := newBaseUndoTask()
+	undoTask.AddStep(&NullStep{}, &RemoveDmlChannelsStep{
+		baseStep:  baseStep{core: t.core},
+		pchannels: chanNames,
+	}) // remove dml channels if any error occurs.
 	undoTask.AddStep(&AddCollectionMetaStep{
 		baseStep: baseStep{core: t.core},
 		coll:     &collInfo,
@@ -227,22 +274,13 @@ func (t *createCollectionTask) Execute(ctx context.Context) error {
 		collectionId: collID,
 		ts:           ts,
 	})
-	undoTask.AddStep(&AddDmlChannelsStep{
-		baseStep:  baseStep{core: t.core},
-		pchannels: chanNames,
-	}, &RemoveDmlChannelsStep{
-		baseStep:  baseStep{core: t.core},
-		pchannels: chanNames,
-	})
 	undoTask.AddStep(&WatchChannelsStep{
 		baseStep: baseStep{core: t.core},
 		info: &watchInfo{
-			ts:           ts,
-			collectionID: collID,
-			partitionID:  partID,
-			schema:       marshaledSchema,
-			vChannels:    t.channels.virtualChannels,
-			pChannels:    t.channels.physicalChannels,
+			ts:             ts,
+			collectionID:   collID,
+			vChannels:      t.channels.virtualChannels,
+			startPositions: toKeyDataPairs(startPositions),
 		},
 	}, &UnwatchChannelsStep{
 		baseStep:     baseStep{core: t.core},
