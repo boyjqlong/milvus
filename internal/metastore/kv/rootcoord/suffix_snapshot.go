@@ -92,6 +92,10 @@ func NewSuffixSnapshot(txnKV kv.TxnKV, sep, root, snapshot string) (*SuffixSnaps
 	tk = path.Join(root, "k")
 	rootLen := len(tk) - 1
 
+	log.Debug("please don't forget to delete me, NewSuffixSnapshot",
+		zap.Any("sep", sep), zap.Any("root", root), zap.Any("snapshot", snapshot),
+		zap.Any("tk", tk), zap.Any("snapshotLen", snapshotLen), zap.Any("rootLen", rootLen))
+
 	return &SuffixSnapshot{
 		TxnKV:          txnKV,
 		lastestTS:      make(map[string]typeutil.Timestamp),
@@ -255,6 +259,7 @@ func (ss *SuffixSnapshot) Save(key string, value string, ts typeutil.Timestamp) 
 	defer ss.Unlock()
 
 	tsKey := ss.composeTSKey(key, ts)
+	log.Debug("please don't forget to delete me, snapshot.Save", zap.Any("tsKey", tsKey))
 
 	// provided key value is latest
 	// stores both tsKey and orignal key
@@ -365,6 +370,8 @@ func (ss *SuffixSnapshot) MultiSave(kvs map[string]string, ts typeutil.Timestamp
 	if err != nil {
 		return err
 	}
+	log.Debug("please don't forget to delete me, snapshot.MultiSave.generateSaveExecute",
+		zap.Any("kvs", kvs), zap.Any("execute", execute), zap.Any("updateList", updateList), zap.Any("ts", ts))
 
 	// multi save execute map; if succeeds, update ts in the update list
 	err = ss.TxnKV.MultiSave(execute)
@@ -498,6 +505,8 @@ func (ss *SuffixSnapshot) MultiSaveAndRemoveWithPrefix(saves map[string]string, 
 	if err != nil {
 		return err
 	}
+	log.Debug("please don't forget to delete me, snapshot.MultiSaveAndRemoveWithPrefix",
+		zap.Any("execute", execute), zap.Any("updateList", updateList))
 
 	// load each removal, change execution to adding tombstones
 	for _, removal := range removals {
@@ -507,16 +516,23 @@ func (ss *SuffixSnapshot) MultiSaveAndRemoveWithPrefix(saves map[string]string, 
 			return err
 		}
 
+		log.Debug("please don't forget to delete me, snapshot.MultiSaveAndRemoveWithPrefix, LoadWithPrefix",
+			zap.Any("removals", removals), zap.Any("keys", keys))
+
 		// add tombstone to orignal key and add ts entry
 		for _, key := range keys {
 			key = ss.hideRootPrefix(key)
 			execute[key] = string(SuffixSnapshotTombstone)
 			execute[ss.composeTSKey(key, ts)] = string(SuffixSnapshotTombstone)
+			log.Debug("please don't forget to delete me, snapshot.MultiSaveAndRemoveWithPrefix",
+				zap.Any("key", key), zap.Any("ss.composeTSKey(key, ts)", ss.composeTSKey(key, ts)))
 			updateList = append(updateList, key)
 		}
 	}
 
 	// multi save execute map; if succeeds, update ts in the update list
+	log.Debug("please don't forget to delete me, snapshot.MultiSaveAndRemoveWithPrefix",
+		zap.Any("execute", execute), zap.Any("updateList", updateList))
 	err = ss.TxnKV.MultiSave(execute)
 	if err == nil {
 		for _, key := range updateList {

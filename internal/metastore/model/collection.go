@@ -37,7 +37,7 @@ func (c Collection) Clone() *Collection {
 		Name:                 c.Name,
 		Description:          c.Description,
 		AutoID:               c.AutoID,
-		Fields:               c.Fields,
+		Fields:               CloneFields(c.Fields),
 		Partitions:           ClonePartitions(c.Partitions),
 		VirtualChannelNames:  common.CloneStringList(c.VirtualChannelNames),
 		PhysicalChannelNames: common.CloneStringList(c.PhysicalChannelNames),

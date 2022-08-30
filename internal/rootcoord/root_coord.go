@@ -82,6 +82,8 @@ var Params paramtable.ComponentParam
 
 type Opt func(*Core)
 
+type metaKVCreator func(root string) (kv.MetaKv, error)
+
 func defaultMetaKVCreator(etcdCli *clientv3.Client) metaKVCreator {
 	return func(root string) (kv.MetaKv, error) {
 		return etcdkv.NewEtcdKV(etcdCli, root), nil
@@ -337,7 +339,7 @@ func (c *Core) initmeta() error {
 			var ss *kvmetestore.SuffixSnapshot
 			var err error
 
-			if metaKV, err = c.metaKVCreator(Params.EtcdCfg.KvRootPath); err != nil {
+			if metaKV, err = c.metaKVCreator(Params.EtcdCfg.MetaRootPath); err != nil {
 				return err
 			}
 

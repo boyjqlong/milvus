@@ -185,9 +185,10 @@ func (mt *MetaTableV2) AddCollection(ctx context.Context, coll *model.Collection
 		return err
 	}
 	mt.collName2ID[coll.Name] = coll.CollectionID
-	mt.collID2Meta[coll.CollectionID] = coll
+	mt.collID2Meta[coll.CollectionID] = coll.Clone()
 	log.Info("add collection to meta table", zap.String("collection", coll.Name),
 		zap.Int64("id", coll.CollectionID), zap.Uint64("ts", coll.CreateTime))
+	log.Debug("please don't forget to delete me, add collection", zap.Any("mt.collID2Meta[coll.CollectionID]", mt.collID2Meta[coll.CollectionID]))
 	return nil
 }
 
@@ -244,19 +245,27 @@ func (mt *MetaTableV2) RemoveCollection(ctx context.Context, collectionID Unique
 // getCollectionByIDInternal get collection by collection id without lock.
 func (mt *MetaTableV2) getCollectionByIDInternal(ctx context.Context, collectionID UniqueID, ts Timestamp) (*model.Collection, error) {
 	var coll *model.Collection
+	var err error
 
 	coll, ok := mt.collID2Meta[collectionID]
 	if !ok || !coll.Available() || coll.CreateTime > ts {
 		// travel meta information from catalog.
 		ctx1 := contextutil.WithTenantID(ctx, Params.CommonCfg.ClusterName)
-		coll, err := mt.catalog.GetCollectionByID(ctx1, collectionID, ts)
+		coll, err = mt.catalog.GetCollectionByID(ctx1, collectionID, ts)
 		if err != nil {
 			return nil, err
 		}
-		if !coll.Available() {
-			return nil, fmt.Errorf("can't find collection: %d", collectionID)
-		}
+		log.Debug("please don't forget to delete me, getCollectionByIDInternal, catalog.GetCollectionByID",
+			zap.Any("coll", coll))
 	}
+
+	if !coll.Available() {
+		// use coll.Name to match error message of regression. TODO: remove this after error code is ready.
+		return nil, fmt.Errorf("can't find collection: %s", coll.Name)
+	}
+
+	log.Debug("please don't forget to delete me, getCollectionByIDInternal",
+		zap.Any("ok", ok), zap.Any("coll", coll))
 
 	clone := coll.Clone()
 	// pick available partitions.

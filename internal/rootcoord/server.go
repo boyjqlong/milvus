@@ -16,11 +16,7 @@ import (
 
 	"github.com/milvus-io/milvus/internal/allocator"
 	"github.com/milvus-io/milvus/internal/tso"
-
-	"github.com/milvus-io/milvus/internal/kv"
 )
-
-type metaKVCreator func(root string) (kv.MetaKv, error)
 
 type RootCoord struct {
 	types.RootCoord // TODO: remove me after everything is ready.

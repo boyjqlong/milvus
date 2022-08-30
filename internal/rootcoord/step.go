@@ -126,6 +126,15 @@ func (s *ReleaseCollectionStep) Execute(ctx context.Context) error {
 	return s.core.broker.ReleaseCollection(ctx, s.collectionId)
 }
 
+type DropIndexStep struct {
+	baseStep
+	collID UniqueID
+}
+
+func (s *DropIndexStep) Execute(ctx context.Context) error {
+	return s.core.broker.DropCollectionIndex(ctx, s.collID)
+}
+
 type AddPartitionMetaStep struct {
 	baseStep
 	partition *model.Partition

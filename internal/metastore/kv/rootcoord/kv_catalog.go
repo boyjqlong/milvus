@@ -109,6 +109,8 @@ func batchMultiSaveAndRemoveWithPrefix(snapshot kv.SnapShotKV, maxTxnNum int, sa
 	for i := 0; i < len(removals); i = i + maxTxnNum {
 		end := min(i+maxTxnNum, len(removals))
 		batch := removals[i:end]
+		log.Debug("please don't forget to delete me, batchMultiSaveAndRemoveWithPrefix",
+			zap.Any("saves", saves), zap.Any("removals", removals), zap.Any("batch", batch), zap.Any("ts", ts))
 		if err := snapshot.MultiSaveAndRemoveWithPrefix(nil, batch, ts); err != nil {
 			return err
 		}
@@ -133,8 +135,9 @@ func (kc *Catalog) CreateCollection(ctx context.Context, coll *model.Collection,
 	// Save collection key first, and the state of collection is creating.
 	// If we save collection key with error, then no garbage will be generated and error will be raised.
 	// If we succeeded to save collection but failed to save other related keys, the garbage meta can be removed
-	// outside and the collection won't be seen by any others (since it's of creating state ^*^).
+	// outside and the collection won't be seen by any others (since it's of creating state).
 	// However, if we save other keys first, there is no chance to remove the intermediate meta.
+	log.Debug("please don't forget to delete me, create collection", zap.String("k1", k1), zap.Uint64("ts", ts))
 	if err := kc.Snapshot.Save(k1, string(v1), ts); err != nil {
 		return err
 	}
@@ -175,7 +178,7 @@ func (kc *Catalog) loadCollection(ctx context.Context, collectionID typeutil.Uni
 	collVal, err := kc.Snapshot.Load(collKey, ts)
 	if err != nil {
 		log.Error("get collection meta fail", zap.String("key", collKey), zap.Error(err))
-		return nil, err
+		return nil, fmt.Errorf("can't find collection: %d", collectionID)
 	}
 
 	collMeta := &pb.CollectionInfo{}
@@ -381,6 +384,8 @@ func (kc *Catalog) DropCollection(ctx context.Context, collectionInfo *model.Col
 	if err := batchMultiSaveAndRemoveWithPrefix(kc.Snapshot, maxTxnNum, nil, delMetakeysSnap, ts); err != nil {
 		return err
 	}
+	log.Debug("please don't forget to delete me, DropCollection, batchMultiSaveAndRemoveWithPrefix",
+		zap.Any("delMetakeysSnap", delMetakeysSnap), zap.Any("ts", ts), zap.Any("collectionKey", collectionKey))
 
 	// if we found collection dropping, we should try removing related resources.
 	return kc.Snapshot.MultiSaveAndRemoveWithPrefix(nil, []string{collectionKey}, ts)

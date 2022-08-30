@@ -1,6 +1,10 @@
 package common
 
-import "github.com/milvus-io/milvus/internal/proto/commonpb"
+import (
+	"reflect"
+
+	"github.com/milvus-io/milvus/internal/proto/commonpb"
+)
 
 type KeyDataPairs []*commonpb.KeyDataPair
 
@@ -13,6 +17,18 @@ func (pairs KeyDataPairs) Clone() KeyDataPairs {
 		})
 	}
 	return clone
+}
+
+func (pairs KeyDataPairs) ToMap() map[string][]byte {
+	ret := make(map[string][]byte)
+	for _, pair := range pairs {
+		ret[pair.GetKey()] = CloneByteSlice(pair.GetData())
+	}
+	return ret
+}
+
+func (pairs KeyDataPairs) Equal(other KeyDataPairs) bool {
+	return reflect.DeepEqual(pairs.ToMap(), other.ToMap())
 }
 
 func CloneKeyDataPairs(pairs KeyDataPairs) KeyDataPairs {
