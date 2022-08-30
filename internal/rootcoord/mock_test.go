@@ -34,7 +34,7 @@ const (
 )
 
 type mockMetaTable struct {
-	IMetaTableV2
+	IMetaTable
 	ListCollectionsFunc       func(ctx context.Context, ts Timestamp) ([]*model.Collection, error)
 	AddCollectionFunc         func(ctx context.Context, coll *model.Collection) error
 	GetCollectionByNameFunc   func(ctx context.Context, collectionName string, ts Timestamp) (*model.Collection, error)
@@ -262,7 +262,7 @@ func withInvalidProxyManager() Opt {
 	}
 }
 
-func withMeta(meta IMetaTableV2) Opt {
+func withMeta(meta IMetaTable) Opt {
 	return func(c *Core) {
 		c.meta = meta
 	}

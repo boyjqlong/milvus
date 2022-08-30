@@ -92,21 +92,12 @@ func (h *ServerHandler) GetVChanPositions(channel *channel, partitionID UniqueID
 	if seekPosition == nil {
 		if channel.StartPositions == nil {
 			collection := h.GetCollection(h.s.ctx, channel.CollectionID)
-			log.Debug("please don't forget to delete me, get positions from meta",
-				zap.Any("name", channel.Name), zap.Any("start positions", channel.StartPositions),
-				zap.Any("seek position", seekPosition), zap.Any("collection", collection))
 			if collection != nil {
 				seekPosition = getCollectionStartPosition(channel.Name, collection)
-				log.Debug("please don't forget to delete me, get positions from meta",
-					zap.Any("name", channel.Name), zap.Any("start positions", channel.StartPositions),
-					zap.Any("seek position", seekPosition), zap.Any("collection", collection))
 			}
 		} else {
 			// use passed start positions, skip to ask rootcoord.
 			seekPosition = toMsgPosition(channel.Name, channel.StartPositions)
-			log.Debug("please don't forget to delete me, use start positions from rootcoord as seek positions",
-				zap.Any("name", channel.Name), zap.Any("start positions", channel.StartPositions),
-				zap.Any("seek position", seekPosition))
 		}
 	}
 
@@ -157,16 +148,12 @@ func trimSegmentInfo(info *datapb.SegmentInfo) *datapb.SegmentInfo {
 func (h *ServerHandler) GetCollection(ctx context.Context, collectionID UniqueID) *datapb.CollectionInfo {
 	coll := h.s.meta.GetCollection(collectionID)
 	if coll != nil {
-		log.Debug("please don't forget to delete me, get collection from meta",
-			zap.Any("collection_id", collectionID), zap.Any("collection", coll))
 		return coll
 	}
 	err := h.s.loadCollectionFromRootCoord(ctx, collectionID)
 	if err != nil {
 		log.Warn("failed to load collection from rootcoord", zap.Int64("collectionID", collectionID), zap.Error(err))
 	}
-	log.Debug("please don't forget to delete me, load collection from rootcoord",
-		zap.Any("collection_id", collectionID), zap.Any("collection", coll))
 
 	return h.s.meta.GetCollection(collectionID)
 }

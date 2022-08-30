@@ -220,9 +220,6 @@ func (t *createCollectionTask) Execute(ctx context.Context) error {
 		return err
 	}
 
-	log.Debug("please don't forget to delete me, get start positions",
-		zap.Any("start_positions", toKeyDataPairs(startPositions)))
-
 	collInfo := model.Collection{
 		CollectionID:         collID,
 		Name:                 t.schema.Name,

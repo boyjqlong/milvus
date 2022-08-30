@@ -68,7 +68,7 @@ const (
 	DefaultStringIndexType = "Trie"
 )
 
-type IMetaTableV2 interface {
+type IMetaTable interface {
 	AddCollection(ctx context.Context, coll *model.Collection) error
 	ChangeCollectionState(ctx context.Context, collectionID UniqueID, state pb.CollectionState, ts Timestamp) error
 	RemoveCollection(ctx context.Context, collectionID UniqueID, ts Timestamp) error
@@ -110,12 +110,13 @@ type IMetaTableV2 interface {
 	SelectUser(tenant string, entity *milvuspb.UserEntity, includeRoleInfo bool) ([]*milvuspb.UserResult, error)
 	OperatePrivilege(tenant string, entity *milvuspb.GrantEntity, operateType milvuspb.OperatePrivilegeType) error
 	SelectGrant(tenant string, entity *milvuspb.GrantEntity) ([]*milvuspb.GrantEntity, error)
+	DropGrant(tenant string, role *milvuspb.RoleEntity) error
 	ListPolicy(tenant string) ([]string, error)
 	ListUserRole(tenant string) ([]string, error)
 }
 
-type MetaTableV2 struct {
-	IMetaTableV2
+type MetaTable struct {
+	IMetaTable
 
 	ctx     context.Context
 	catalog metastore.RootCoordCatalog
@@ -128,8 +129,8 @@ type MetaTableV2 struct {
 	permissionLock sync.RWMutex
 }
 
-func NewMetaTable(ctx context.Context, catalog metastore.RootCoordCatalog) (*MetaTableV2, error) {
-	m := &MetaTableV2{
+func NewMetaTable(ctx context.Context, catalog metastore.RootCoordCatalog) (*MetaTable, error) {
+	m := &MetaTable{
 		ctx:     contextutil.WithTenantID(ctx, Params.CommonCfg.ClusterName),
 		catalog: catalog,
 	}
@@ -139,7 +140,7 @@ func NewMetaTable(ctx context.Context, catalog metastore.RootCoordCatalog) (*Met
 	return m, nil
 }
 
-func (mt *MetaTableV2) reload() error {
+func (mt *MetaTable) reload() error {
 	mt.ddLock.Lock()
 	defer mt.ddLock.Unlock()
 
@@ -169,7 +170,7 @@ func (mt *MetaTableV2) reload() error {
 	return nil
 }
 
-func (mt *MetaTableV2) AddCollection(ctx context.Context, coll *model.Collection) error {
+func (mt *MetaTable) AddCollection(ctx context.Context, coll *model.Collection) error {
 	mt.ddLock.Lock()
 	defer mt.ddLock.Unlock()
 
@@ -188,11 +189,10 @@ func (mt *MetaTableV2) AddCollection(ctx context.Context, coll *model.Collection
 	mt.collID2Meta[coll.CollectionID] = coll.Clone()
 	log.Info("add collection to meta table", zap.String("collection", coll.Name),
 		zap.Int64("id", coll.CollectionID), zap.Uint64("ts", coll.CreateTime))
-	log.Debug("please don't forget to delete me, add collection", zap.Any("mt.collID2Meta[coll.CollectionID]", mt.collID2Meta[coll.CollectionID]))
 	return nil
 }
 
-func (mt *MetaTableV2) ChangeCollectionState(ctx context.Context, collectionID UniqueID, state pb.CollectionState, ts Timestamp) error {
+func (mt *MetaTable) ChangeCollectionState(ctx context.Context, collectionID UniqueID, state pb.CollectionState, ts Timestamp) error {
 	mt.ddLock.Lock()
 	defer mt.ddLock.Unlock()
 
@@ -213,7 +213,7 @@ func (mt *MetaTableV2) ChangeCollectionState(ctx context.Context, collectionID U
 	return nil
 }
 
-func (mt *MetaTableV2) RemoveCollection(ctx context.Context, collectionID UniqueID, ts Timestamp) error {
+func (mt *MetaTable) RemoveCollection(ctx context.Context, collectionID UniqueID, ts Timestamp) error {
 	mt.ddLock.Lock()
 	defer mt.ddLock.Unlock()
 
@@ -243,7 +243,7 @@ func (mt *MetaTableV2) RemoveCollection(ctx context.Context, collectionID Unique
 }
 
 // getCollectionByIDInternal get collection by collection id without lock.
-func (mt *MetaTableV2) getCollectionByIDInternal(ctx context.Context, collectionID UniqueID, ts Timestamp) (*model.Collection, error) {
+func (mt *MetaTable) getCollectionByIDInternal(ctx context.Context, collectionID UniqueID, ts Timestamp) (*model.Collection, error) {
 	var coll *model.Collection
 	var err error
 
@@ -255,17 +255,12 @@ func (mt *MetaTableV2) getCollectionByIDInternal(ctx context.Context, collection
 		if err != nil {
 			return nil, err
 		}
-		log.Debug("please don't forget to delete me, getCollectionByIDInternal, catalog.GetCollectionByID",
-			zap.Any("coll", coll))
 	}
 
 	if !coll.Available() {
 		// use coll.Name to match error message of regression. TODO: remove this after error code is ready.
 		return nil, fmt.Errorf("can't find collection: %s", coll.Name)
 	}
-
-	log.Debug("please don't forget to delete me, getCollectionByIDInternal",
-		zap.Any("ok", ok), zap.Any("coll", coll))
 
 	clone := coll.Clone()
 	// pick available partitions.
@@ -278,7 +273,7 @@ func (mt *MetaTableV2) getCollectionByIDInternal(ctx context.Context, collection
 	return clone, nil
 }
 
-func (mt *MetaTableV2) GetCollectionByName(ctx context.Context, collectionName string, ts Timestamp) (*model.Collection, error) {
+func (mt *MetaTable) GetCollectionByName(ctx context.Context, collectionName string, ts Timestamp) (*model.Collection, error) {
 	mt.ddLock.RLock()
 	defer mt.ddLock.RUnlock()
 
@@ -306,14 +301,14 @@ func (mt *MetaTableV2) GetCollectionByName(ctx context.Context, collectionName s
 	return coll, nil
 }
 
-func (mt *MetaTableV2) GetCollectionByID(ctx context.Context, collectionID UniqueID, ts Timestamp) (*model.Collection, error) {
+func (mt *MetaTable) GetCollectionByID(ctx context.Context, collectionID UniqueID, ts Timestamp) (*model.Collection, error) {
 	mt.ddLock.RLock()
 	defer mt.ddLock.RUnlock()
 
 	return mt.getCollectionByIDInternal(ctx, collectionID, ts)
 }
 
-func (mt *MetaTableV2) ListCollections(ctx context.Context, ts Timestamp) ([]*model.Collection, error) {
+func (mt *MetaTable) ListCollections(ctx context.Context, ts Timestamp) ([]*model.Collection, error) {
 	mt.ddLock.RLock()
 	defer mt.ddLock.RUnlock()
 
@@ -332,7 +327,7 @@ func (mt *MetaTableV2) ListCollections(ctx context.Context, ts Timestamp) ([]*mo
 	return onlineCollections, nil
 }
 
-func (mt *MetaTableV2) ListAbnormalCollections(ctx context.Context, ts Timestamp) ([]*model.Collection, error) {
+func (mt *MetaTable) ListAbnormalCollections(ctx context.Context, ts Timestamp) ([]*model.Collection, error) {
 	mt.ddLock.RLock()
 	defer mt.ddLock.RUnlock()
 
@@ -351,7 +346,7 @@ func (mt *MetaTableV2) ListAbnormalCollections(ctx context.Context, ts Timestamp
 	return abnormalCollections, nil
 }
 
-func (mt *MetaTableV2) ListCollectionPhysicalChannels() map[typeutil.UniqueID][]string {
+func (mt *MetaTable) ListCollectionPhysicalChannels() map[typeutil.UniqueID][]string {
 	mt.ddLock.RLock()
 	defer mt.ddLock.RUnlock()
 
@@ -364,7 +359,7 @@ func (mt *MetaTableV2) ListCollectionPhysicalChannels() map[typeutil.UniqueID][]
 	return chanMap
 }
 
-func (mt *MetaTableV2) AddPartition(ctx context.Context, partition *model.Partition) error {
+func (mt *MetaTable) AddPartition(ctx context.Context, partition *model.Partition) error {
 	mt.ddLock.Lock()
 	defer mt.ddLock.Unlock()
 
@@ -385,7 +380,7 @@ func (mt *MetaTableV2) AddPartition(ctx context.Context, partition *model.Partit
 	return nil
 }
 
-func (mt *MetaTableV2) ChangePartitionState(ctx context.Context, collectionID UniqueID, partitionID UniqueID, state pb.PartitionState, ts Timestamp) error {
+func (mt *MetaTable) ChangePartitionState(ctx context.Context, collectionID UniqueID, partitionID UniqueID, state pb.PartitionState, ts Timestamp) error {
 	mt.ddLock.Lock()
 	defer mt.ddLock.Unlock()
 
@@ -411,7 +406,7 @@ func (mt *MetaTableV2) ChangePartitionState(ctx context.Context, collectionID Un
 	return fmt.Errorf("partition not exist, collection: %d, partition: %d", collectionID, partitionID)
 }
 
-func (mt *MetaTableV2) RemovePartition(ctx context.Context, collectionID UniqueID, partitionID UniqueID, ts Timestamp) error {
+func (mt *MetaTable) RemovePartition(ctx context.Context, collectionID UniqueID, partitionID UniqueID, ts Timestamp) error {
 	mt.ddLock.Lock()
 	defer mt.ddLock.Unlock()
 
@@ -437,7 +432,7 @@ func (mt *MetaTableV2) RemovePartition(ctx context.Context, collectionID UniqueI
 	return nil
 }
 
-func (mt *MetaTableV2) CreateAlias(ctx context.Context, alias string, collectionName string, ts Timestamp) error {
+func (mt *MetaTable) CreateAlias(ctx context.Context, alias string, collectionName string, ts Timestamp) error {
 	mt.ddLock.Lock()
 	defer mt.ddLock.Unlock()
 
@@ -486,7 +481,7 @@ func (mt *MetaTableV2) CreateAlias(ctx context.Context, alias string, collection
 	return nil
 }
 
-func (mt *MetaTableV2) DropAlias(ctx context.Context, alias string, ts Timestamp) error {
+func (mt *MetaTable) DropAlias(ctx context.Context, alias string, ts Timestamp) error {
 	mt.ddLock.Lock()
 	defer mt.ddLock.Unlock()
 
@@ -499,7 +494,7 @@ func (mt *MetaTableV2) DropAlias(ctx context.Context, alias string, ts Timestamp
 	return nil
 }
 
-func (mt *MetaTableV2) AlterAlias(ctx context.Context, alias string, collectionName string, ts Timestamp) error {
+func (mt *MetaTable) AlterAlias(ctx context.Context, alias string, collectionName string, ts Timestamp) error {
 	mt.ddLock.Lock()
 	defer mt.ddLock.Unlock()
 
@@ -545,7 +540,7 @@ func (mt *MetaTableV2) AlterAlias(ctx context.Context, alias string, collectionN
 	return nil
 }
 
-func (mt *MetaTableV2) IsAlias(name string) bool {
+func (mt *MetaTable) IsAlias(name string) bool {
 	mt.ddLock.RLock()
 	defer mt.ddLock.RUnlock()
 
@@ -553,7 +548,7 @@ func (mt *MetaTableV2) IsAlias(name string) bool {
 	return ok
 }
 
-func (mt *MetaTableV2) listAliasesByID(collID UniqueID) []string {
+func (mt *MetaTable) listAliasesByID(collID UniqueID) []string {
 	ret := make([]string, 0)
 	for alias, id := range mt.collAlias2ID {
 		if id == collID {
@@ -563,14 +558,14 @@ func (mt *MetaTableV2) listAliasesByID(collID UniqueID) []string {
 	return ret
 }
 
-func (mt *MetaTableV2) ListAliasesByID(collID UniqueID) []string {
+func (mt *MetaTable) ListAliasesByID(collID UniqueID) []string {
 	mt.ddLock.RLock()
 	defer mt.ddLock.RUnlock()
 
 	return mt.listAliasesByID(collID)
 }
 
-func (mt *MetaTableV2) GetCollectionNameByID(collID UniqueID) (string, error) {
+func (mt *MetaTable) GetCollectionNameByID(collID UniqueID) (string, error) {
 	mt.ddLock.RUnlock()
 	defer mt.ddLock.RUnlock()
 
@@ -582,7 +577,7 @@ func (mt *MetaTableV2) GetCollectionNameByID(collID UniqueID) (string, error) {
 	return coll.Name, nil
 }
 
-func (mt *MetaTableV2) GetPartitionNameByID(collID UniqueID, partitionID UniqueID, ts Timestamp) (string, error) {
+func (mt *MetaTable) GetPartitionNameByID(collID UniqueID, partitionID UniqueID, ts Timestamp) (string, error) {
 	mt.ddLock.RUnlock()
 	defer mt.ddLock.RUnlock()
 
@@ -613,7 +608,7 @@ func (mt *MetaTableV2) GetPartitionNameByID(collID UniqueID, partitionID UniqueI
 	return "", fmt.Errorf("partition not exist: %d", partitionID)
 }
 
-func (mt *MetaTableV2) GetCollectionIDByName(name string) (UniqueID, error) {
+func (mt *MetaTable) GetCollectionIDByName(name string) (UniqueID, error) {
 	mt.ddLock.RLock()
 	defer mt.ddLock.RUnlock()
 
@@ -624,7 +619,7 @@ func (mt *MetaTableV2) GetCollectionIDByName(name string) (UniqueID, error) {
 	return id, nil
 }
 
-func (mt *MetaTableV2) GetPartitionByName(collID UniqueID, partitionName string, ts Timestamp) (UniqueID, error) {
+func (mt *MetaTable) GetPartitionByName(collID UniqueID, partitionName string, ts Timestamp) (UniqueID, error) {
 	mt.ddLock.RLock()
 	defer mt.ddLock.RUnlock()
 
@@ -657,7 +652,7 @@ func (mt *MetaTableV2) GetPartitionByName(collID UniqueID, partitionName string,
 }
 
 // AddCredential add credential
-func (mt *MetaTableV2) AddCredential(credInfo *internalpb.CredentialInfo) error {
+func (mt *MetaTable) AddCredential(credInfo *internalpb.CredentialInfo) error {
 	if credInfo.Username == "" {
 		return fmt.Errorf("username is empty")
 	}
@@ -669,7 +664,9 @@ func (mt *MetaTableV2) AddCredential(credInfo *internalpb.CredentialInfo) error 
 		return err
 	}
 	if len(usernames) >= Params.ProxyCfg.MaxUserNum {
-		return errors.New("unable to add user because the number of users has reached the limit")
+		errMsg := "unable to add user because the number of users has reached the limit"
+		log.Error(errMsg, zap.Int("max_user_num", Params.ProxyCfg.MaxUserNum))
+		return errors.New(errMsg)
 	}
 
 	if origin, _ := mt.catalog.GetCredential(mt.ctx, credInfo.Username); origin != nil {
@@ -684,10 +681,13 @@ func (mt *MetaTableV2) AddCredential(credInfo *internalpb.CredentialInfo) error 
 }
 
 // AlterCredential update credential
-func (mt *MetaTableV2) AlterCredential(credInfo *internalpb.CredentialInfo) error {
+func (mt *MetaTable) AlterCredential(credInfo *internalpb.CredentialInfo) error {
 	if credInfo.Username == "" {
 		return fmt.Errorf("username is empty")
 	}
+
+	mt.permissionLock.Lock()
+	defer mt.permissionLock.Unlock()
 
 	credential := &model.Credential{
 		Username:          credInfo.Username,
@@ -697,13 +697,16 @@ func (mt *MetaTableV2) AlterCredential(credInfo *internalpb.CredentialInfo) erro
 }
 
 // GetCredential get credential by username
-func (mt *MetaTableV2) GetCredential(username string) (*internalpb.CredentialInfo, error) {
+func (mt *MetaTable) GetCredential(username string) (*internalpb.CredentialInfo, error) {
+	mt.permissionLock.RLock()
+	defer mt.permissionLock.RUnlock()
+
 	credential, err := mt.catalog.GetCredential(mt.ctx, username)
 	return model.MarshalCredentialModel(credential), err
 }
 
 // DeleteCredential delete credential
-func (mt *MetaTableV2) DeleteCredential(username string) error {
+func (mt *MetaTable) DeleteCredential(username string) error {
 	mt.permissionLock.Lock()
 	defer mt.permissionLock.Unlock()
 
@@ -711,7 +714,7 @@ func (mt *MetaTableV2) DeleteCredential(username string) error {
 }
 
 // ListCredentialUsernames list credential usernames
-func (mt *MetaTableV2) ListCredentialUsernames() (*milvuspb.ListCredUsersResponse, error) {
+func (mt *MetaTable) ListCredentialUsernames() (*milvuspb.ListCredUsersResponse, error) {
 	mt.permissionLock.RLock()
 	defer mt.permissionLock.RUnlock()
 
@@ -723,7 +726,7 @@ func (mt *MetaTableV2) ListCredentialUsernames() (*milvuspb.ListCredUsersRespons
 }
 
 // CreateRole create role
-func (mt *MetaTableV2) CreateRole(tenant string, entity *milvuspb.RoleEntity) error {
+func (mt *MetaTable) CreateRole(tenant string, entity *milvuspb.RoleEntity) error {
 	if funcutil.IsEmptyString(entity.Name) {
 		return fmt.Errorf("the role name in the role info is empty")
 	}
@@ -736,14 +739,16 @@ func (mt *MetaTableV2) CreateRole(tenant string, entity *milvuspb.RoleEntity) er
 		return err
 	}
 	if len(results) >= Params.ProxyCfg.MaxRoleNum {
-		return errors.New("unable to add role because the number of roles has reached the limit")
+		errMsg := "unable to add role because the number of roles has reached the limit"
+		log.Error(errMsg, zap.Int("max_role_num", Params.ProxyCfg.MaxRoleNum))
+		return errors.New(errMsg)
 	}
 
 	return mt.catalog.CreateRole(mt.ctx, tenant, entity)
 }
 
 // DropRole drop role info
-func (mt *MetaTableV2) DropRole(tenant string, roleName string) error {
+func (mt *MetaTable) DropRole(tenant string, roleName string) error {
 	mt.permissionLock.Lock()
 	defer mt.permissionLock.Unlock()
 
@@ -751,7 +756,7 @@ func (mt *MetaTableV2) DropRole(tenant string, roleName string) error {
 }
 
 // OperateUserRole operate the relationship between a user and a role, including adding a user to a role and removing a user from a role
-func (mt *MetaTableV2) OperateUserRole(tenant string, userEntity *milvuspb.UserEntity, roleEntity *milvuspb.RoleEntity, operateType milvuspb.OperateUserRoleType) error {
+func (mt *MetaTable) OperateUserRole(tenant string, userEntity *milvuspb.UserEntity, roleEntity *milvuspb.RoleEntity, operateType milvuspb.OperateUserRoleType) error {
 	if funcutil.IsEmptyString(userEntity.Name) {
 		return fmt.Errorf("username in the user entity is empty")
 	}
@@ -768,7 +773,7 @@ func (mt *MetaTableV2) OperateUserRole(tenant string, userEntity *milvuspb.UserE
 // SelectRole select role.
 // Enter the role condition by the entity param. And this param is nil, which means selecting all roles.
 // Get all users that are added to the role by setting the includeUserInfo param to true.
-func (mt *MetaTableV2) SelectRole(tenant string, entity *milvuspb.RoleEntity, includeUserInfo bool) ([]*milvuspb.RoleResult, error) {
+func (mt *MetaTable) SelectRole(tenant string, entity *milvuspb.RoleEntity, includeUserInfo bool) ([]*milvuspb.RoleResult, error) {
 	mt.permissionLock.RLock()
 	defer mt.permissionLock.RUnlock()
 
@@ -778,7 +783,7 @@ func (mt *MetaTableV2) SelectRole(tenant string, entity *milvuspb.RoleEntity, in
 // SelectUser select user.
 // Enter the user condition by the entity param. And this param is nil, which means selecting all users.
 // Get all roles that are added the user to by setting the includeRoleInfo param to true.
-func (mt *MetaTableV2) SelectUser(tenant string, entity *milvuspb.UserEntity, includeRoleInfo bool) ([]*milvuspb.UserResult, error) {
+func (mt *MetaTable) SelectUser(tenant string, entity *milvuspb.UserEntity, includeRoleInfo bool) ([]*milvuspb.UserResult, error) {
 	mt.permissionLock.RLock()
 	defer mt.permissionLock.RUnlock()
 
@@ -786,7 +791,7 @@ func (mt *MetaTableV2) SelectUser(tenant string, entity *milvuspb.UserEntity, in
 }
 
 // OperatePrivilege grant or revoke privilege by setting the operateType param
-func (mt *MetaTableV2) OperatePrivilege(tenant string, entity *milvuspb.GrantEntity, operateType milvuspb.OperatePrivilegeType) error {
+func (mt *MetaTable) OperatePrivilege(tenant string, entity *milvuspb.GrantEntity, operateType milvuspb.OperatePrivilegeType) error {
 	if funcutil.IsEmptyString(entity.ObjectName) {
 		return fmt.Errorf("the object name in the grant entity is empty")
 	}
@@ -818,7 +823,7 @@ func (mt *MetaTableV2) OperatePrivilege(tenant string, entity *milvuspb.GrantEnt
 // SelectGrant select grant
 // The principal entity MUST be not empty in the grant entity
 // The resource entity and the resource name are optional, and the two params should be not empty together when you select some grants about the resource kind.
-func (mt *MetaTableV2) SelectGrant(tenant string, entity *milvuspb.GrantEntity) ([]*milvuspb.GrantEntity, error) {
+func (mt *MetaTable) SelectGrant(tenant string, entity *milvuspb.GrantEntity) ([]*milvuspb.GrantEntity, error) {
 	var entities []*milvuspb.GrantEntity
 	if entity.Role == nil || funcutil.IsEmptyString(entity.Role.Name) {
 		return entities, fmt.Errorf("the role entity in the grant entity is invalid")
@@ -830,14 +835,24 @@ func (mt *MetaTableV2) SelectGrant(tenant string, entity *milvuspb.GrantEntity) 
 	return mt.catalog.ListGrant(mt.ctx, tenant, entity)
 }
 
-func (mt *MetaTableV2) ListPolicy(tenant string) ([]string, error) {
+func (mt *MetaTable) DropGrant(tenant string, role *milvuspb.RoleEntity) error {
+	if role == nil || funcutil.IsEmptyString(role.Name) {
+		return fmt.Errorf("the role entity is invalid when dropping the grant")
+	}
+	mt.permissionLock.Lock()
+	defer mt.permissionLock.Unlock()
+
+	return mt.catalog.DeleteGrant(mt.ctx, tenant, role)
+}
+
+func (mt *MetaTable) ListPolicy(tenant string) ([]string, error) {
 	mt.permissionLock.RLock()
 	defer mt.permissionLock.RUnlock()
 
 	return mt.catalog.ListPolicy(mt.ctx, tenant)
 }
 
-func (mt *MetaTableV2) ListUserRole(tenant string) ([]string, error) {
+func (mt *MetaTable) ListUserRole(tenant string) ([]string, error) {
 	mt.permissionLock.RLock()
 	defer mt.permissionLock.RUnlock()
 

@@ -320,7 +320,6 @@ func (kv *EtcdKV) LoadBytesWithRevision(key string) ([]string, [][]byte, int64, 
 func (kv *EtcdKV) Save(key, value string) error {
 	start := time.Now()
 	key = path.Join(kv.rootPath, key)
-	log.Debug("please don't forget to delete me, EtcdKV.Save", zap.Any("key", key), zap.Any("rootPath", kv.rootPath))
 	ctx, cancel := context.WithTimeout(context.TODO(), RequestTimeout)
 	defer cancel()
 	_, err := kv.client.Put(ctx, key, value)
@@ -381,8 +380,6 @@ func (kv *EtcdKV) MultiSave(kvs map[string]string) error {
 	var keys []string
 	for key, value := range kvs {
 		keys = append(keys, key)
-		log.Debug("please don't forget to delete me, EtcdKV.MultiSave",
-			zap.Any("rootPath", kv.rootPath), zap.Any("key", key), zap.Any("path", path.Join(kv.rootPath, key)))
 		ops = append(ops, clientv3.OpPut(path.Join(kv.rootPath, key), value))
 	}
 

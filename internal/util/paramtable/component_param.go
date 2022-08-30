@@ -13,7 +13,7 @@ package paramtable
 
 import (
 	"math"
-	"path"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -871,9 +871,13 @@ func (p *queryNodeConfig) initCPURatio() {
 }
 
 func (p *queryNodeConfig) initMaxReadConcurrency() {
-	p.MaxReadConcurrency = p.Base.ParseInt32WithDefault("queryNode.scheduler.maxReadConcurrency", 0)
-	if p.MaxReadConcurrency <= 0 {
-		p.MaxReadConcurrency = math.MaxInt32
+	readConcurrencyRatio := p.Base.ParseFloatWithDefault("queryNode.scheduler.maxReadConcurrentRatio", 2.0)
+	cpuNum := int32(runtime.GOMAXPROCS(0))
+	p.MaxReadConcurrency = int32(float64(cpuNum) * readConcurrencyRatio)
+	if p.MaxReadConcurrency < 1 {
+		p.MaxReadConcurrency = 1 // MaxReadConcurrency must >= 1
+	} else if p.MaxReadConcurrency > cpuNum*100 {
+		p.MaxReadConcurrency = cpuNum * 100 // MaxReadConcurrency must <= 100*cpuNum
 	}
 }
 
@@ -1104,10 +1108,8 @@ type dataNodeConfig struct {
 	FlowGraphMaxQueueLength int32
 	FlowGraphMaxParallelism int32
 	FlushInsertBufferSize   int64
-	InsertBinlogRootPath    string
-	StatsBinlogRootPath     string
-	DeleteBinlogRootPath    string
-	Alias                   string // Different datanode in one machine
+
+	Alias string // Different datanode in one machine
 
 	// etcd
 	ChannelWatchSubPath string
@@ -1125,9 +1127,6 @@ func (p *dataNodeConfig) init(base *BaseTable) {
 	p.initFlowGraphMaxQueueLength()
 	p.initFlowGraphMaxParallelism()
 	p.initFlushInsertBufferSize()
-	p.initInsertBinlogRootPath()
-	p.initStatsBinlogRootPath()
-	p.initDeleteBinlogRootPath()
 	p.initIOConcurrency()
 
 	p.initChannelWatchPath()
@@ -1153,31 +1152,6 @@ func (p *dataNodeConfig) initFlushInsertBufferSize() {
 		panic(err)
 	}
 	p.FlushInsertBufferSize = bs
-}
-
-func (p *dataNodeConfig) initInsertBinlogRootPath() {
-	// GOOSE TODO: rootPath change to TenentID
-	rootPath, err := p.Base.Load("minio.rootPath")
-	if err != nil {
-		panic(err)
-	}
-	p.InsertBinlogRootPath = path.Join(rootPath, "insert_log")
-}
-
-func (p *dataNodeConfig) initStatsBinlogRootPath() {
-	rootPath, err := p.Base.Load("minio.rootPath")
-	if err != nil {
-		panic(err)
-	}
-	p.StatsBinlogRootPath = path.Join(rootPath, "stats_log")
-}
-
-func (p *dataNodeConfig) initDeleteBinlogRootPath() {
-	rootPath, err := p.Base.Load("minio.rootPath")
-	if err != nil {
-		panic(err)
-	}
-	p.DeleteBinlogRootPath = path.Join(rootPath, "delta_log")
 }
 
 func (p *dataNodeConfig) initChannelWatchPath() {
@@ -1208,7 +1182,6 @@ type indexCoordConfig struct {
 	Address string
 	Port    int
 
-	IndexStorageRootPath           string
 	MinSegmentNumRowsToEnableIndex int64
 
 	GCInterval time.Duration
@@ -1220,18 +1193,8 @@ type indexCoordConfig struct {
 func (p *indexCoordConfig) init(base *BaseTable) {
 	p.Base = base
 
-	p.initIndexStorageRootPath()
 	p.initGCInterval()
 	p.initMinSegmentNumRowsToEnableIndex()
-}
-
-// initIndexStorageRootPath initializes the root path of index files.
-func (p *indexCoordConfig) initIndexStorageRootPath() {
-	rootPath, err := p.Base.Load("minio.rootPath")
-	if err != nil {
-		panic(err)
-	}
-	p.IndexStorageRootPath = path.Join(rootPath, "index_files")
 }
 
 func (p *indexCoordConfig) initMinSegmentNumRowsToEnableIndex() {
@@ -1255,8 +1218,7 @@ type indexNodeConfig struct {
 
 	Alias string
 
-	IndexStorageRootPath string
-	BuildParallel        int
+	BuildParallel int
 
 	CreatedTime time.Time
 	UpdatedTime time.Time
@@ -1265,21 +1227,12 @@ type indexNodeConfig struct {
 func (p *indexNodeConfig) init(base *BaseTable) {
 	p.Base = base
 	p.NodeID.Store(UniqueID(0))
-	p.initIndexStorageRootPath()
 	p.initBuildParallel()
 }
 
 // InitAlias initializes an alias for the IndexNode role.
 func (p *indexNodeConfig) InitAlias(alias string) {
 	p.Alias = alias
-}
-
-func (p *indexNodeConfig) initIndexStorageRootPath() {
-	rootPath, err := p.Base.Load("minio.rootPath")
-	if err != nil {
-		panic(err)
-	}
-	p.IndexStorageRootPath = path.Join(rootPath, "index_files")
 }
 
 func (p *indexNodeConfig) initBuildParallel() {

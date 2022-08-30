@@ -12,8 +12,7 @@
 package paramtable
 
 import (
-	"math"
-	"path"
+	"runtime"
 	"testing"
 	"time"
 
@@ -246,7 +245,7 @@ func TestComponentParam(t *testing.T) {
 		assert.Equal(t, true, Params.GroupEnabled)
 		assert.Equal(t, int32(10240), Params.MaxReceiveChanSize)
 		assert.Equal(t, int32(10240), Params.MaxUnsolvedQueueSize)
-		assert.Equal(t, int32(math.MaxInt32), Params.MaxReadConcurrency)
+		assert.Equal(t, int32(runtime.GOMAXPROCS(0)*2), Params.MaxReadConcurrency)
 		assert.Equal(t, int64(1000), Params.MaxGroupNQ)
 		assert.Equal(t, 10.0, Params.TopKMergeRatio)
 		assert.Equal(t, 10.0, Params.CPURatio)
@@ -306,18 +305,11 @@ func TestComponentParam(t *testing.T) {
 		size := Params.FlushInsertBufferSize
 		t.Logf("FlushInsertBufferSize: %d", size)
 
-		path1 := Params.InsertBinlogRootPath
-		t.Logf("InsertBinlogRootPath: %s", path1)
-
 		Params.CreatedTime = time.Now()
 		t.Logf("CreatedTime: %v", Params.CreatedTime)
 
 		Params.UpdatedTime = time.Now()
 		t.Logf("UpdatedTime: %v", Params.UpdatedTime)
-
-		assert.Equal(t, path.Join("files", "insert_log"), Params.InsertBinlogRootPath)
-
-		assert.Equal(t, path.Join("files", "stats_log"), Params.StatsBinlogRootPath)
 	})
 
 	t.Run("test indexCoordConfig", func(t *testing.T) {
@@ -332,8 +324,6 @@ func TestComponentParam(t *testing.T) {
 
 		Params.UpdatedTime = time.Now()
 		t.Logf("UpdatedTime: %v", Params.UpdatedTime)
-
-		t.Logf("IndexStorageRootPath: %v", Params.IndexStorageRootPath)
 	})
 
 	t.Run("test indexNodeConfig", func(t *testing.T) {
@@ -354,7 +344,5 @@ func TestComponentParam(t *testing.T) {
 
 		Params.UpdatedTime = time.Now()
 		t.Logf("UpdatedTime: %v", Params.UpdatedTime)
-
-		t.Logf("IndexStorageRootPath: %v", Params.IndexStorageRootPath)
 	})
 }

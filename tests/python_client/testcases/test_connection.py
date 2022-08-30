@@ -544,7 +544,6 @@ class TestConnectionOperation(TestcaseBase):
 
     @pytest.mark.tags(ct.CaseLabel.L1)
     @pytest.mark.parametrize("connect_name", [DefaultConfig.DEFAULT_USING, "test_alias_nme"])
-    @pytest.mark.skip(reason="please don't forget to delete me")
     def test_connection_connect_wrong_params(self, host, port, connect_name):
         """
         target: connect directly via invalid parameters and raise error
@@ -895,7 +894,6 @@ class TestConnectPortInvalid(TestcaseBase):
                                      check_items={ct.err_code: -1, ct.err_msg: err_msg})
 
 
-@pytest.mark.skip(reason="please don't forget to delete me")
 class TestConnectUriInvalid(TestcaseBase):
     """
     Test connect server with invalid uri , the result should be failed
@@ -961,7 +959,6 @@ class TestConnectUriInvalid(TestcaseBase):
                                      check_items={ct.err_code: 2})
 
 
-@pytest.mark.skip(reason="please don't forget to delete me")
 class TestConnectAddressInvalid(TestcaseBase):
     """
     Test connect server with invalid address
@@ -993,7 +990,6 @@ class TestConnectAddressInvalid(TestcaseBase):
                                      check_items={ct.err_code: 2})
 
 
-@pytest.mark.skip(reason="please don't forget to delete me")
 class TestConnectUserPasswordInvalid(TestcaseBase):
     """
     Test connect server with user and password , the result should be failed
@@ -1041,6 +1037,7 @@ class TestConnectUserPasswordInvalid(TestcaseBase):
         self.utility_wrap.create_user(user=user, password="qwaszx0")
 
         # 3.connect with the created user and wrong password
+        self.connection_wrap.disconnect(alias=connect_name)
         self.connection_wrap.connect(host=host, port=port, user=user, password=ct.default_password)
         self.utility_wrap.list_collections(check_task=ct.CheckTasks.err_res,
                                            check_items={ct.err_code: 1})

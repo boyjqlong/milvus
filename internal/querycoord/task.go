@@ -417,8 +417,6 @@ func (lct *loadCollectionTask) execute(ctx context.Context) error {
 			lct.setResultInfo(err)
 			return err
 		}
-		log.Debug("please don't forget to delete me, get recovery info from datacoord",
-			zap.Any("vChannelInfos", vChannelInfos), zap.Any("binlogs", binlogs))
 
 		for _, segmentBinlog := range binlogs {
 			segmentLoadInfo := lct.broker.generateSegmentLoadInfo(ctx, collectionID, partitionID, segmentBinlog, true, lct.Schema)
@@ -433,8 +431,6 @@ func (lct *loadCollectionTask) execute(ctx context.Context) error {
 				lct.setResultInfo(err)
 				return err
 			}
-			log.Info("please don't forget to delete me, generateWatchDeltaChannelInfo",
-				zap.Any("deltaChannelInfo", deltaChannelInfo))
 			deltaChannelInfos = append(deltaChannelInfos, deltaChannelInfo)
 			dmChannelInfos = append(dmChannelInfos, info)
 		}
@@ -450,10 +446,6 @@ func (lct *loadCollectionTask) execute(ctx context.Context) error {
 	}
 
 	mergedDmChannel := mergeDmChannelInfo(dmChannelInfos)
-
-	log.Debug("please don't forget to delete me, merge channel info done",
-		zap.Any("dmChannelInfos", dmChannelInfos), zap.Any("mergedDmChannel", mergedDmChannel),
-		zap.Any("deltaChannelInfos", deltaChannelInfos), zap.Any("mergedDeltaChannels", mergedDeltaChannels))
 
 	for i := range replicas {
 		replica, err := lct.meta.generateReplica(lct.CollectionID, partitionIds)
@@ -1592,7 +1584,8 @@ func (wdt *watchDmChannelTask) reschedule(ctx context.Context) ([]task, error) {
 				CollectionID: collectionID,
 				PartitionIDs: wdt.GetLoadMeta().GetPartitionIDs(),
 			},
-			ReplicaID: wdt.GetReplicaID(),
+			ReplicaID:     wdt.GetReplicaID(),
+			OfflineNodeID: wdt.OfflineNodeID,
 		}
 		watchDmChannelReqs = append(watchDmChannelReqs, req)
 	}
@@ -2060,7 +2053,8 @@ func (lbt *loadBalanceTask) processNodeDownLoadBalance(ctx context.Context) erro
 							CollectionID: collectionID,
 							PartitionIDs: toRecoverPartitionIDs,
 						},
-						ReplicaID: replica.ReplicaID,
+						ReplicaID:     replica.ReplicaID,
+						OfflineNodeID: nodeID,
 					}
 
 					if collectionInfo.LoadType == querypb.LoadType_LoadPartition {
@@ -2455,11 +2449,6 @@ func assignInternalTask(ctx context.Context,
 	watchDmChannelRequests []*querypb.WatchDmChannelsRequest,
 	wait bool, excludeNodeIDs []int64, includeNodeIDs []int64, replicaID int64,
 	broker *globalMetaBroker) ([]task, error) {
-
-	log.Debug("please don't forget to delete me, assign internal task",
-		zap.Any("loadSegmentRequests", loadSegmentRequests),
-		zap.Any("watchDmChannelRequests", watchDmChannelRequests))
-
 	internalTasks := make([]task, 0)
 	err := cluster.AllocateSegmentsToQueryNode(ctx, loadSegmentRequests, wait, excludeNodeIDs, includeNodeIDs, replicaID)
 	if err != nil {
@@ -2489,7 +2478,6 @@ func assignInternalTask(ctx context.Context,
 				batchSize+proto.Size(req) > MaxSendSizeToEtcd {
 				baseTask := newBaseTask(ctx, parentTask.getTriggerCondition())
 				baseTask.setParentTask(parentTask)
-				log.Info("please don't forget to delete me, got batch req", zap.Any("batchReq", batchReq))
 				loadSegmentTask := &loadSegmentTask{
 					baseTask:            baseTask,
 					LoadSegmentsRequest: batchReq,
@@ -2552,12 +2540,6 @@ func generateWatchDeltaChannelInfo(info *datapb.VchannelInfo) (*datapb.VchannelI
 }
 
 func mergeWatchDeltaChannelInfo(infos []*datapb.VchannelInfo) []*datapb.VchannelInfo {
-	log.Debug("please don't forget to delete me, mergeWatchDeltaChannelInfo",
-		zap.Any("in", infos))
-	for index := range infos {
-		log.Debug("please don't forget to delete me, mergeWatchDeltaChannelInfo",
-			zap.Any("index", index), zap.Any("info", infos[index]))
-	}
 	minPositions := make(map[string]int)
 	for index, info := range infos {
 		_, ok := minPositions[info.ChannelName]
@@ -2573,16 +2555,9 @@ func mergeWatchDeltaChannelInfo(infos []*datapb.VchannelInfo) []*datapb.Vchannel
 	for channel, index := range minPositions {
 		result = append(result, infos[index])
 		log.Info("merge delta channels finished", zap.String("channel", channel),
-			zap.Any("index", index),
 			zap.Any("merged info", infos[index]),
 		)
 	}
-	for index := range infos {
-		log.Debug("please don't forget to delete me, mergeWatchDeltaChannelInfo",
-			zap.Any("index", index), zap.Any("info", infos[index]))
-	}
-	log.Debug("please don't forget to delete me, mergeWatchDeltaChannelInfo",
-		zap.Any("in", infos), zap.Any("out", result))
 	return result
 }
 

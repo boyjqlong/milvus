@@ -25,7 +25,7 @@ type RootCoord struct {
 	cancel           context.CancelFunc
 	wg               sync.WaitGroup
 	etcdCli          *clientv3.Client
-	meta             IMetaTableV2
+	meta             IMetaTable
 	scheduler        IScheduler
 	broker           Broker
 	garbageCollector GarbageCollector

@@ -2,10 +2,6 @@ package rootcoord
 
 import (
 	"context"
-	"go.uber.org/zap"
-
-	"github.com/milvus-io/milvus/internal/log"
-
 	"github.com/milvus-io/milvus/internal/util/typeutil"
 
 	"github.com/milvus-io/milvus/internal/metastore/model"
@@ -51,9 +47,6 @@ func (t *describeCollectionTask) Execute(ctx context.Context) (err error) {
 			return err
 		}
 	}
-
-	log.Debug("please don't forget to delete me, executing describe collection",
-		zap.Any("collection", collInfo))
 
 	t.Rsp.Schema = &schemapb.CollectionSchema{
 		Name:        collInfo.Name,
