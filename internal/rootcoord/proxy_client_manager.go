@@ -31,8 +31,10 @@ import (
 	"github.com/milvus-io/milvus/internal/util/sessionutil"
 )
 
+type proxyCreator func(sess *sessionutil.Session) (types.Proxy, error)
+
 type proxyClientManager struct {
-	core        *Core
+	creator     proxyCreator
 	lock        sync.RWMutex
 	proxyClient map[int64]types.Proxy
 	helper      proxyClientManagerHelper
@@ -46,9 +48,9 @@ var defaultClientManagerHelper = proxyClientManagerHelper{
 	afterConnect: func() {},
 }
 
-func newProxyClientManager(c *Core) *proxyClientManager {
+func newProxyClientManager(creator proxyCreator) *proxyClientManager {
 	return &proxyClientManager{
-		core:        c,
+		creator:     creator,
 		proxyClient: make(map[int64]types.Proxy),
 		helper:      defaultClientManagerHelper,
 	}
@@ -72,7 +74,7 @@ func (p *proxyClientManager) AddProxyClient(session *sessionutil.Session) {
 }
 
 func (p *proxyClientManager) connect(session *sessionutil.Session) {
-	pc, err := p.core.NewProxyClient(session)
+	pc, err := p.creator(session)
 	if err != nil {
 		log.Warn("failed to create proxy client", zap.String("address", session.Address), zap.Int64("serverID", session.ServerID), zap.Error(err))
 		return
@@ -123,32 +125,6 @@ func (p *proxyClientManager) InvalidateCollectionMetaCache(ctx context.Context, 
 			}
 			if sta.ErrorCode != commonpb.ErrorCode_Success {
 				return fmt.Errorf("InvalidateCollectionMetaCache failed, proxyID = %d, err = %s", k, sta.Reason)
-			}
-			return nil
-		})
-	}
-	return group.Wait()
-}
-
-func (p *proxyClientManager) ReleaseDQLMessageStream(ctx context.Context, in *proxypb.ReleaseDQLMessageStreamRequest) error {
-	p.lock.Lock()
-	defer p.lock.Unlock()
-
-	if len(p.proxyClient) == 0 {
-		log.Warn("proxy client is empty, ReleaseDQLMessageStream will not send to any client")
-		return nil
-	}
-
-	group := &errgroup.Group{}
-	for k, v := range p.proxyClient {
-		k, v := k, v
-		group.Go(func() error {
-			sta, err := v.ReleaseDQLMessageStream(ctx, in)
-			if err != nil {
-				return fmt.Errorf("ReleaseDQLMessageStream failed, proxyID = %d, err = %s", k, err)
-			}
-			if sta.ErrorCode != commonpb.ErrorCode_Success {
-				return fmt.Errorf("ReleaseDQLMessageStream failed, proxyID = %d, err = %s", k, sta.Reason)
 			}
 			return nil
 		})

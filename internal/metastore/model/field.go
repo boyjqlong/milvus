@@ -1,6 +1,10 @@
 package model
 
 import (
+	"reflect"
+
+	"github.com/milvus-io/milvus/internal/common"
+
 	"github.com/milvus-io/milvus/internal/proto/commonpb"
 	"github.com/milvus-io/milvus/internal/proto/schemapb"
 )
@@ -14,6 +18,69 @@ type Field struct {
 	TypeParams   []*commonpb.KeyValuePair
 	IndexParams  []*commonpb.KeyValuePair
 	AutoID       bool
+	State        schemapb.FieldState
+}
+
+func (f Field) Available() bool {
+	return f.State == schemapb.FieldState_FieldCreated
+}
+
+func (f Field) Clone() *Field {
+	return &Field{
+		FieldID:      f.FieldID,
+		Name:         f.Name,
+		IsPrimaryKey: f.IsPrimaryKey,
+		Description:  f.Description,
+		DataType:     f.DataType,
+		TypeParams:   common.CloneKeyValuePairs(f.TypeParams),
+		IndexParams:  common.CloneKeyValuePairs(f.IndexParams),
+		AutoID:       f.AutoID,
+		State:        f.State,
+	}
+}
+
+func CloneFields(fields []*Field) []*Field {
+	clone := make([]*Field, 0, len(fields))
+	for _, field := range fields {
+		clone = append(clone, field.Clone())
+	}
+	return clone
+}
+
+func toMap(params []*commonpb.KeyValuePair) map[string]string {
+	ret := make(map[string]string)
+	for _, pair := range params {
+		ret[pair.GetKey()] = pair.GetValue()
+	}
+	return ret
+}
+
+func checkParamsEqual(paramsA, paramsB []*commonpb.KeyValuePair) bool {
+	return reflect.DeepEqual(toMap(paramsA), toMap(paramsB))
+}
+
+func (f Field) Equal(other Field) bool {
+	return f.FieldID == other.FieldID &&
+		f.Name == other.Name &&
+		f.IsPrimaryKey == other.IsPrimaryKey &&
+		f.Description == other.Description &&
+		f.DataType == other.DataType &&
+		checkParamsEqual(f.TypeParams, f.TypeParams) &&
+		checkParamsEqual(f.IndexParams, other.IndexParams) &&
+		f.AutoID == other.AutoID
+}
+
+func CheckFieldsEqual(fieldsA, fieldsB []*Field) bool {
+	if len(fieldsA) != len(fieldsB) {
+		return false
+	}
+	l := len(fieldsA)
+	for i := 0; i < l; i++ {
+		if !fieldsA[i].Equal(*fieldsB[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func MarshalFieldModel(field *Field) *schemapb.FieldSchema {

@@ -2449,7 +2449,6 @@ func assignInternalTask(ctx context.Context,
 	watchDmChannelRequests []*querypb.WatchDmChannelsRequest,
 	wait bool, excludeNodeIDs []int64, includeNodeIDs []int64, replicaID int64,
 	broker *globalMetaBroker) ([]task, error) {
-
 	internalTasks := make([]task, 0)
 	err := cluster.AllocateSegmentsToQueryNode(ctx, loadSegmentRequests, wait, excludeNodeIDs, includeNodeIDs, replicaID)
 	if err != nil {
@@ -2559,7 +2558,6 @@ func mergeWatchDeltaChannelInfo(infos []*datapb.VchannelInfo) []*datapb.Vchannel
 			zap.Any("merged info", infos[index]),
 		)
 	}
-
 	return result
 }
 

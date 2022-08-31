@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"runtime"
 
+	"github.com/milvus-io/milvus/internal/metastore"
+
 	"github.com/milvus-io/milvus/internal/util"
 
 	"github.com/milvus-io/milvus/internal/common"
@@ -21,6 +23,7 @@ import (
 )
 
 type Catalog struct {
+	metastore.RootCoordCatalog
 	metaDomain dbmodel.IMetaDomain
 	txImpl     dbmodel.ITransaction
 }
@@ -56,6 +59,7 @@ func (tc *Catalog) CreateCollection(ctx context.Context, collection *model.Colle
 			ShardsNum:        collection.ShardsNum,
 			StartPosition:    startPositionsStr,
 			ConsistencyLevel: int32(collection.ConsistencyLevel),
+			Status:           int32(collection.State),
 			Ts:               ts,
 		})
 		if err != nil {
@@ -375,6 +379,63 @@ func (tc *Catalog) DropCollection(ctx context.Context, collection *model.Collect
 	})
 }
 
+func (tc *Catalog) alterModifyCollection(ctx context.Context, oldColl *model.Collection, newColl *model.Collection, ts typeutil.Timestamp) error {
+	if oldColl.TenantID != newColl.TenantID || oldColl.CollectionID != newColl.CollectionID {
+		return fmt.Errorf("altering tenant id or collection id is forbidden")
+	}
+	oldCollClone := oldColl.Clone()
+	newCollClone := newColl.Clone()
+	oldCollClone.Name = newCollClone.Name
+	oldCollClone.Description = newCollClone.Description
+	oldCollClone.AutoID = newCollClone.AutoID
+	oldCollClone.VirtualChannelNames = newCollClone.VirtualChannelNames
+	oldCollClone.PhysicalChannelNames = newCollClone.PhysicalChannelNames
+	oldCollClone.StartPositions = newCollClone.StartPositions
+	oldCollClone.ShardsNum = newCollClone.ShardsNum
+	oldCollClone.CreateTime = newCollClone.CreateTime
+	oldCollClone.ConsistencyLevel = newCollClone.ConsistencyLevel
+	oldCollClone.State = newCollClone.State
+
+	var startPositionsStr string
+	if oldCollClone.StartPositions != nil {
+		startPositionsBytes, err := json.Marshal(oldCollClone.StartPositions)
+		if err != nil {
+			log.Error("marshal collection start positions error", zap.Int64("collID", oldCollClone.CollectionID), zap.Uint64("ts", ts), zap.Error(err))
+			return err
+		}
+		startPositionsStr = string(startPositionsBytes)
+	}
+
+	tenantID := contextutil.TenantID(ctx)
+	coll := &dbmodel.Collection{
+		TenantID:         tenantID,
+		CollectionID:     oldCollClone.CollectionID,
+		CollectionName:   oldCollClone.Name,
+		Description:      oldCollClone.Description,
+		AutoID:           oldCollClone.AutoID,
+		ShardsNum:        oldCollClone.ShardsNum,
+		StartPosition:    startPositionsStr,
+		ConsistencyLevel: int32(oldCollClone.ConsistencyLevel),
+		Status:           int32(oldCollClone.State),
+		Ts:               ts,
+	}
+
+	err := tc.metaDomain.CollectionDb(ctx).Upsert(coll)
+	if err != nil {
+		log.Error("insert collection failed", zap.String("tenant", tenantID), zap.Int64("collID", oldCollClone.CollectionID), zap.Uint64("ts", ts), zap.Error(err))
+		return err
+	}
+
+	return nil
+}
+
+func (tc *Catalog) AlterCollection(ctx context.Context, oldColl *model.Collection, newColl *model.Collection, alterType metastore.AlterType, ts typeutil.Timestamp) error {
+	if alterType == metastore.MODIFY {
+		return tc.alterModifyCollection(ctx, oldColl, newColl, ts)
+	}
+	return fmt.Errorf("altering collection doesn't support %s", alterType.String())
+}
+
 func (tc *Catalog) CreatePartition(ctx context.Context, partition *model.Partition, ts typeutil.Timestamp) error {
 	tenantID := contextutil.TenantID(ctx)
 
@@ -384,6 +445,7 @@ func (tc *Catalog) CreatePartition(ctx context.Context, partition *model.Partiti
 		PartitionName:             partition.PartitionName,
 		PartitionCreatedTimestamp: partition.PartitionCreatedTimestamp,
 		CollectionID:              partition.CollectionID,
+		Status:                    int32(partition.State),
 		Ts:                        ts,
 	}
 	err := tc.metaDomain.PartitionDb(ctx).Insert([]*dbmodel.Partition{p})
