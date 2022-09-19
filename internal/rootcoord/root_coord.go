@@ -101,6 +101,7 @@ type Core struct {
 	broker           Broker
 	ddlTsLockManager DdlTsLockManager
 	garbageCollector GarbageCollector
+	stepExecutor     StepExecutor
 
 	metaKVCreator metaKVCreator
 
@@ -445,6 +446,7 @@ func (c *Core) initInternal() error {
 	c.broker = newServerBroker(c)
 	c.ddlTsLockManager = newDdlTsLockManager(c)
 	c.garbageCollector = newGarbageCollectorCtx(c)
+	c.stepExecutor = newBgStepExecutor(c.ctx)
 
 	c.proxyManager = newProxyManager(
 		c.ctx,
@@ -611,6 +613,7 @@ func (c *Core) startInternal() error {
 	go c.importManager.sendOutTasksLoop(&c.wg)
 
 	c.scheduler.Start()
+	c.stepExecutor.Start()
 
 	Params.RootCoordCfg.CreatedTime = time.Now()
 	Params.RootCoordCfg.UpdatedTime = time.Now()
@@ -630,6 +633,9 @@ func (c *Core) Start() error {
 // Stop stops rootCoord.
 func (c *Core) Stop() error {
 	c.UpdateStateCode(internalpb.StateCode_Abnormal)
+
+	c.stepExecutor.Stop()
+	c.scheduler.Stop()
 
 	c.cancel()
 	c.wg.Wait()

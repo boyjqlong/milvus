@@ -41,7 +41,7 @@ func (m *mockNormalStep) Execute(ctx context.Context) error {
 func Test_baseRedoTask_redoAsyncSteps(t *testing.T) {
 	t.Run("partial error", func(t *testing.T) {
 		redo := newBaseRedoTask()
-		steps := []Step{newMockNormalStep(), newMockFailStep(), newMockNormalStep()}
+		steps := []nestedStep{newMockNormalStep(), newMockFailStep(), newMockNormalStep()}
 		for _, step := range steps {
 			redo.AddAsyncStep(step)
 		}
@@ -53,7 +53,7 @@ func Test_baseRedoTask_redoAsyncSteps(t *testing.T) {
 	t.Run("normal case", func(t *testing.T) {
 		redo := newBaseRedoTask()
 		n := 10
-		steps := make([]Step, 0, n)
+		steps := make([]nestedStep, 0, n)
 		for i := 0; i < n; i++ {
 			steps = append(steps, newMockNormalStep())
 		}
@@ -70,9 +70,9 @@ func Test_baseRedoTask_redoAsyncSteps(t *testing.T) {
 func Test_baseRedoTask_Execute(t *testing.T) {
 	t.Run("sync not finished, no async task", func(t *testing.T) {
 		redo := newBaseRedoTask()
-		syncSteps := []Step{newMockFailStep()}
+		syncSteps := []nestedStep{newMockFailStep()}
 		asyncNum := 10
-		asyncSteps := make([]Step, 0, asyncNum)
+		asyncSteps := make([]nestedStep, 0, asyncNum)
 		for i := 0; i < asyncNum; i++ {
 			asyncSteps = append(asyncSteps, newMockNormalStep())
 		}
@@ -94,9 +94,9 @@ func Test_baseRedoTask_Execute(t *testing.T) {
 	t.Run("normal case", func(t *testing.T) {
 		redo := newBaseRedoTask()
 		syncNum := 10
-		syncSteps := make([]Step, 0, syncNum)
+		syncSteps := make([]nestedStep, 0, syncNum)
 		asyncNum := 10
-		asyncSteps := make([]Step, 0, asyncNum)
+		asyncSteps := make([]nestedStep, 0, asyncNum)
 		for i := 0; i < syncNum; i++ {
 			syncSteps = append(syncSteps, newMockNormalStep())
 		}

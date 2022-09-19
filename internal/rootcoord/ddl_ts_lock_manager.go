@@ -15,8 +15,8 @@ import (
 
 type DdlTsLockManager interface {
 	GetMinDdlTs() Timestamp
-	NotifyCollectionGc(ctx context.Context, coll *model.Collection) error
-	NotifyPartitionGc(ctx context.Context, pChannels []string, partition *model.Partition) error
+	NotifyCollectionGc(ctx context.Context, coll *model.Collection) (ddlTs Timestamp, err error)
+	NotifyPartitionGc(ctx context.Context, pChannels []string, partition *model.Partition) (ddlTs Timestamp, err error)
 }
 
 type ddlTsLockManager struct {
@@ -45,7 +45,7 @@ func (c *ddlTsLockManager) GetMinDdlTs() Timestamp {
 	return ts
 }
 
-func (c *ddlTsLockManager) NotifyCollectionGc(ctx context.Context, coll *model.Collection) error {
+func (c *ddlTsLockManager) NotifyCollectionGc(ctx context.Context, coll *model.Collection) (ddlTs Timestamp, err error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -54,7 +54,7 @@ func (c *ddlTsLockManager) NotifyCollectionGc(ctx context.Context, coll *model.C
 
 	ts, err := c.s.tsoAllocator.GenerateTSO(1)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	msgPack := ms.MsgPack{}
@@ -78,16 +78,19 @@ func (c *ddlTsLockManager) NotifyCollectionGc(ctx context.Context, coll *model.C
 	}
 	msgPack.Msgs = append(msgPack.Msgs, msg)
 	if err := c.s.chanTimeTick.broadcastDmlChannels(coll.PhysicalChannelNames, &msgPack); err != nil {
-		return err
+		return 0, err
 	}
 
 	// TODO: remove this after gc can be notified by rpc. Without this tt, DropCollectionMsg cannot be seen by
 	// 		datanodes.
 	c.updateLastTs(ts)
-	return c.s.chanTimeTick.sendTimeTickToChannel(coll.PhysicalChannelNames, ts)
+	if err := c.s.chanTimeTick.sendTimeTickToChannel(coll.PhysicalChannelNames, ts); err != nil {
+		return 0, err
+	}
+	return ts, nil
 }
 
-func (c *ddlTsLockManager) NotifyPartitionGc(ctx context.Context, pChannels []string, partition *model.Partition) error {
+func (c *ddlTsLockManager) NotifyPartitionGc(ctx context.Context, pChannels []string, partition *model.Partition) (ddlTs Timestamp, err error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -96,7 +99,7 @@ func (c *ddlTsLockManager) NotifyPartitionGc(ctx context.Context, pChannels []st
 
 	ts, err := c.s.tsoAllocator.GenerateTSO(1)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	msgPack := ms.MsgPack{}
@@ -121,13 +124,16 @@ func (c *ddlTsLockManager) NotifyPartitionGc(ctx context.Context, pChannels []st
 	}
 	msgPack.Msgs = append(msgPack.Msgs, msg)
 	if err := c.s.chanTimeTick.broadcastDmlChannels(pChannels, &msgPack); err != nil {
-		return err
+		return 0, err
 	}
 
 	// TODO: remove this after gc can be notified by rpc. Without this tt, DropCollectionMsg cannot be seen by
 	// 		datanodes.
 	c.updateLastTs(ts)
-	return c.s.chanTimeTick.sendTimeTickToChannel(pChannels, ts)
+	if err := c.s.chanTimeTick.sendTimeTickToChannel(pChannels, ts); err != nil {
+		return 0, err
+	}
+	return ts, nil
 }
 
 func newDdlTsLockManager(s *Core) *ddlTsLockManager {
