@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/milvus-io/milvus/internal/util/typeutil"
+
 	"github.com/milvus-io/milvus/internal/log"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zapcore"
@@ -61,4 +63,15 @@ func withMetaData(ctx context.Context, level zapcore.Level) context.Context {
 		logLevelRPCMetaKey: level.String(),
 	})
 	return metadata.NewIncomingContext(context.TODO(), md)
+}
+
+func Test_withProxyModule(t *testing.T) {
+	ctx := context.Background()
+	log.Ctx(ctx).Info("info")
+	newCtx := withLevel(ctx)
+	log.Ctx(newCtx).Info("info")
+	newCtx = log.WithModule(newCtx, typeutil.QueryCoordRole)
+	log.Ctx(newCtx).Info("info")
+	newCtx = log.WithTraceID(newCtx, "trace id")
+	log.Ctx(newCtx).Info("info")
 }

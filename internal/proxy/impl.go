@@ -134,9 +134,6 @@ func (node *Proxy) CreateCollection(ctx context.Context, request *milvuspb.Creat
 		return unhealthyStatus(), nil
 	}
 
-	sp, ctx := trace.StartSpanFromContextWithOperationName(ctx, "Proxy-CreateCollection")
-	defer sp.Finish()
-	traceID, _, _ := trace.InfoFromSpan(sp)
 	method := "CreateCollection"
 	tr := timerecord.NewTimeRecorder(method)
 
@@ -152,10 +149,8 @@ func (node *Proxy) CreateCollection(ctx context.Context, request *milvuspb.Creat
 	// avoid data race
 	lenOfSchema := len(request.Schema)
 
-	log.Info(
+	log.Ctx(ctx).Info(
 		rpcReceived(method),
-		zap.String("traceID", traceID),
-		zap.String("role", typeutil.ProxyRole),
 		zap.String("db", request.DbName),
 		zap.String("collection", request.CollectionName),
 		zap.Int("len(schema)", lenOfSchema),
@@ -163,10 +158,9 @@ func (node *Proxy) CreateCollection(ctx context.Context, request *milvuspb.Creat
 		zap.String("consistency_level", request.ConsistencyLevel.String()))
 
 	if err := node.sched.ddQueue.Enqueue(cct); err != nil {
-		log.Warn(
+		log.Ctx(ctx).Warn(
 			rpcFailedToEnqueue(method),
 			zap.Error(err),
-			zap.String("traceID", traceID),
 			zap.String("role", typeutil.ProxyRole),
 			zap.String("db", request.DbName),
 			zap.String("collection", request.CollectionName),
@@ -182,10 +176,9 @@ func (node *Proxy) CreateCollection(ctx context.Context, request *milvuspb.Creat
 	}
 
 	if err := cct.WaitToFinish(); err != nil {
-		log.Warn(
+		log.Ctx(ctx).Warn(
 			rpcFailedToWaitToFinish(method),
 			zap.Error(err),
-			zap.String("traceID", traceID),
 			zap.String("role", typeutil.ProxyRole),
 			zap.Int64("MsgID", cct.ID()),
 			zap.Uint64("BeginTs", cct.BeginTs()),
@@ -203,9 +196,8 @@ func (node *Proxy) CreateCollection(ctx context.Context, request *milvuspb.Creat
 		}, nil
 	}
 
-	log.Info(
+	log.Ctx(ctx).Info(
 		rpcDone(method),
-		zap.String("traceID", traceID),
 		zap.String("role", typeutil.ProxyRole),
 		zap.Int64("MsgID", cct.ID()),
 		zap.Uint64("BeginTs", cct.BeginTs()),

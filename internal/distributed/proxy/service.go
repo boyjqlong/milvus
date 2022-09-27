@@ -180,7 +180,7 @@ func (s *Server) startExternalGrpc(grpcPort int, errChan chan error) {
 			ot.UnaryServerInterceptor(opts...),
 			grpc_auth.UnaryServerInterceptor(proxy.AuthenticationInterceptor),
 			proxy.UnaryServerInterceptor(proxy.PrivilegeInterceptor),
-			logutil.UnaryTraceLoggerInterceptor,
+			logutil.ProxyUnaryTraceLoggerInterceptor,
 			proxy.RateLimitInterceptor(limiter),
 		)),
 	}
@@ -268,7 +268,7 @@ func (s *Server) startInternalGrpc(grpcPort int, errChan chan error) {
 		grpc.MaxSendMsgSize(Params.ServerMaxSendSize),
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 			ot.UnaryServerInterceptor(opts...),
-			logutil.UnaryTraceLoggerInterceptor,
+			logutil.ProxyUnaryTraceLoggerInterceptor,
 		)),
 	)
 	proxypb.RegisterProxyServer(s.grpcInternalServer, s)

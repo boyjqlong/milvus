@@ -27,4 +27,6 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
 fi
 
 echo "Starting standalone..."
+export JAEGER_SAMPLER_PARAM=1.0
+export JAEGER_SAMPLER_TYPE=const
 nohup ./bin/milvus run standalone > /tmp/standalone.log 2>&1 &
