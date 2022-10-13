@@ -413,7 +413,7 @@ ProtoParser::ParseBinaryArithOpEvalRangeExpr(const proto::plan::BinaryArithOpEva
 }
 
 ExprPtr
-ProtoParser::ParseUdfExpr(const proto::plan::UdfExpr &expr_pb) {
+ProtoParser::ParseUdfExpr(const proto::plan::UdfExpr& expr_pb) {
     using param = boost::variant<bool, int8_t, int16_t, int32_t, int64_t, float, double, FieldId>;
 
     auto func_name = expr_pb.udf_func_name();
@@ -437,8 +437,7 @@ ProtoParser::ParseUdfExpr(const proto::plan::UdfExpr &expr_pb) {
             auto field_id = FieldId(column_info.field_id());
             auto data_type = schema[field_id].get_data_type();
             Assert(data_type == static_cast<DataType>(column_info.data_type()));
-            AssertInfo(arg_types[i] == data_type,
-                       "[ExecExprVisitor]Column data type not equal to argument type");
+            AssertInfo(arg_types[i] == data_type, "[ExecExprVisitor]Column data type not equal to argument type");
             values.emplace_back(field_id);
             is_field.emplace_back(true);
         } else if (udf_params[i].has_value()) {

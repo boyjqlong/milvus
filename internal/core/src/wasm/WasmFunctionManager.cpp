@@ -9,11 +9,9 @@
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 // or implied. See the License for the specific language governing permissions and limitations under the License
 
-
 //
 // Created by wzy on 22-8-6.
 //
-
 
 #include <fstream>
 #include <iostream>
@@ -22,9 +20,10 @@
 
 namespace milvus {
 
-bool WasmFunctionManager::RegisterFunction(std::string functionName,
-                                           std::string functionHandler,
-                                           const std::string &base64OrOtherString) {
+bool
+WasmFunctionManager::RegisterFunction(std::string functionName,
+                                      std::string functionHandler,
+                                      const std::string& base64OrOtherString) {
     auto funcBody = funcMap.find(functionName);
     if (funcBody != funcMap.end()) {
         return false;
@@ -36,22 +35,24 @@ bool WasmFunctionManager::RegisterFunction(std::string functionName,
     return true;
 }
 
-WasmtimeRunInstance WasmFunctionManager::createInstanceAndFunction(const std::string &watString,
-                                                                   const std::string &functionHandler) {
+WasmtimeRunInstance
+WasmFunctionManager::createInstanceAndFunction(const std::string& watString, const std::string& functionHandler) {
     auto module = wasmtime::Module::compile(*engine, watString).unwrap();
     auto instance = wasmtime::Instance::create(store, module, {}).unwrap();
     auto function_obj = instance.get(store, functionHandler);
-    wasmtime::Func *func = std::get_if<wasmtime::Func>(&*function_obj);
+    wasmtime::Func* func = std::get_if<wasmtime::Func>(&*function_obj);
     return WasmtimeRunInstance(*func, instance);
 }
 
-bool WasmFunctionManager::runElemFunc(const std::string functionName, std::vector<wasmtime::Val> args) {
+bool
+WasmFunctionManager::runElemFunc(const std::string functionName, std::vector<wasmtime::Val> args) {
     auto module = modules.at(functionName);
     auto results = module.func.call(store, args).unwrap();
     return results[0].i32();
 }
 
-bool WasmFunctionManager::DeleteFunction(std::string functionName) {
+bool
+WasmFunctionManager::DeleteFunction(std::string functionName) {
     auto funcBody = funcMap.find(functionName);
     if (funcBody == funcMap.end()) {
         return false;

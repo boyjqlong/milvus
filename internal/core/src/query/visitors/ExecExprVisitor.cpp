@@ -1048,7 +1048,7 @@ ExecExprVisitor::visit(UdfExpr& expr) {
     for (int i = 0; i < size; ++i) {
         if (is_field[i]) {
             auto field_id = boost::get<FieldId>(values[i]);
-            auto &field_meta = schema[field_id];
+            auto& field_meta = schema[field_id];
             AssertInfo(arg_types[i] == field_meta.get_data_type(),
                        "[ExecExprVisitor]field Data type not equal to field mata type");
         }

@@ -223,11 +223,7 @@ struct UdfExpr : Expr {
             const std::vector<bool>& is_field,
             const std::string wasm_body,
             const std::vector<DataType>& arg_types)
-            : func_name_(func_name),
-            values_(values),
-            is_field_(is_field),
-            wasm_body_(wasm_body),
-            arg_types_(arg_types) {
+        : func_name_(func_name), values_(values), is_field_(is_field), wasm_body_(wasm_body), arg_types_(arg_types) {
     }
 
  public:

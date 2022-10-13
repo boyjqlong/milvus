@@ -297,7 +297,6 @@ ShowExprVisitor::visit(BinaryArithOpEvalRangeExpr& expr) {
     }
 }
 
-
 void
 ShowExprVisitor::visit(UdfExpr& expr) {
     // TODO

@@ -9,7 +9,6 @@
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 // or implied. See the License for the specific language governing permissions and limitations under the License
 
-
 //
 // Created by wzy on 22-8-6.
 //
@@ -37,15 +36,16 @@ enum class WasmFunctionParamType {
 struct WasmtimeRunInstance {
     wasmtime::Func func;
     wasmtime::Instance instance;
-    WasmtimeRunInstance(const wasmtime::Func &func, const wasmtime::Instance &instance)
-            : func(func), instance(instance) {}
+    WasmtimeRunInstance(const wasmtime::Func& func, const wasmtime::Instance& instance)
+        : func(func), instance(instance) {
+    }
 };
 
 class WasmFunctionManager {
  private:
     // wasmtime
-    wasmtime::Engine *engine;
-    wasmtime::Store *store;
+    wasmtime::Engine* engine;
+    wasmtime::Store* store;
     std::unordered_map<std::string, std::string> funcMap;
     std::unordered_map<std::string, WasmtimeRunInstance> modules;
 
@@ -60,43 +60,43 @@ class WasmFunctionManager {
     }
 
     WasmFunctionManager(const WasmFunctionManager&);
-    WasmFunctionManager& operator=(const WasmFunctionManager&);
+    WasmFunctionManager&
+    operator=(const WasmFunctionManager&);
 
     // base64 tool
     constexpr static const char b64_table[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
     constexpr static const char reverse_table[128] = {
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 62, 64, 64, 64, 63,
-            52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 64, 64, 64, 64, 64, 64,
-            64,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14,
-            15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 64, 64, 64, 64, 64,
-            64, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
-            41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 64, 64, 64, 64, 64
-    };
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 62, 64, 64, 64, 63, 52, 53, 54, 55,
+        56, 57, 58, 59, 60, 61, 64, 64, 64, 64, 64, 64, 64, 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+        13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 64, 64, 64, 64, 64, 64, 26, 27, 28, 29, 30, 31, 32,
+        33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 64, 64, 64, 64, 64};
 
  public:
-    static WasmFunctionManager& getInstance() {
+    static WasmFunctionManager&
+    getInstance() {
         static WasmFunctionManager instance;
         return instance;
     }
 
-    WasmtimeRunInstance createInstanceAndFunction(const std::string &watString,
-                                                  const std::string &functionHandler);
+    WasmtimeRunInstance
+    createInstanceAndFunction(const std::string& watString, const std::string& functionHandler);
 
-    bool RegisterFunction(std::string functionName,
-                          std::string functionHandler,
-                          const std::string &base64OrOtherString);
+    bool
+    RegisterFunction(std::string functionName, std::string functionHandler, const std::string& base64OrOtherString);
 
-    bool runElemFunc(const std::string functionName, std::vector<wasmtime::Val> args);
+    bool
+    runElemFunc(const std::string functionName, std::vector<wasmtime::Val> args);
 
-    bool DeleteFunction(std::string functionName);
+    bool
+    DeleteFunction(std::string functionName);
 
     // base64 tool
-    static std::string myBase64Encode(const ::std::string &bindata) {
-        using ::std::string;
+    static std::string
+    myBase64Encode(const ::std::string& bindata) {
         using ::std::numeric_limits;
+        using ::std::string;
 
         if (bindata.size() > (numeric_limits<string::size_type>::max() / 4u) * 3u) {
             throw ::std::length_error("Converting too large a string to base64.");
@@ -118,7 +118,7 @@ class WasmFunctionManager {
                 retval[outpos++] = b64_table[(accumulator >> bits_collected) & 0x3fu];
             }
         }
-        if (bits_collected > 0) { // Any trailing bits that are missing.
+        if (bits_collected > 0) {  // Any trailing bits that are missing.
             assert(bits_collected < 6);
             accumulator <<= 6 - bits_collected;
             retval[outpos++] = b64_table[accumulator & 0x3fu];
@@ -128,7 +128,8 @@ class WasmFunctionManager {
         return retval;
     }
 
-    static std::string myBase64Decode(const ::std::string &ascdata) {
+    static std::string
+    myBase64Decode(const ::std::string& ascdata) {
         using ::std::string;
         string retval;
         const string::const_iterator last = ascdata.end();
@@ -156,5 +157,4 @@ class WasmFunctionManager {
 };
 
 }  // namespace milvus
-#endif //MILVUS_WASMFUNCTION_H
-
+#endif  // MILVUS_WASMFUNCTION_H

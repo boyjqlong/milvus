@@ -107,7 +107,7 @@ vector_anns: <
     auto proto_text = fmt1.str();
     planpb::PlanNode node_proto;
     google::protobuf::TextFormat::ParseFromString(proto_text, &node_proto);
-//     std::cout << node_proto.DebugString();
+    //     std::cout << node_proto.DebugString();
     auto plan = ProtoParser(*schema).CreatePlan(node_proto);
 
     ShowPlanNodeVisitor visitor;

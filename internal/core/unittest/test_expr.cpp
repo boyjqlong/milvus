@@ -1443,8 +1443,8 @@ TEST(Expr, TestUdfExpr) {
     using namespace milvus::query;
     using namespace milvus::segcore;
     // Add test cases for UdfExpr EQ of various data types
-    std::tuple<std::string, std::function<bool(int64_t, int64_t)>, std::string> testcase1 =
-        {R"(
+    std::tuple<std::string, std::function<bool(int64_t, int64_t)>, std::string> testcase1 = {
+        R"(
 udf_func_name: "less_than"
 udf_params: <
 column_info: <
@@ -1460,9 +1460,10 @@ value: <
 wasm_body: "KG1vZHVsZQogICh0eXBlICg7MDspIChmdW5jIChwYXJhbSBpNjQgaTY0KSAocmVzdWx0IGkzMikpKQogIChmdW5jICRsZXNzX3RoYW4gKHR5cGUgMCkgKHBhcmFtIGk2NCBpNjQpIChyZXN1bHQgaTMyKQogICAgKGxvY2FsIGkzMiBpMzIgaTMyIGk2NCBpNjQgaTMyIGkzMiBpMzIpCiAgICBnbG9iYWwuZ2V0ICRfX3N0YWNrX3BvaW50ZXIKICAgIGxvY2FsLnNldCAyCiAgICBpMzIuY29uc3QgMTYKICAgIGxvY2FsLnNldCAzCiAgICBsb2NhbC5nZXQgMgogICAgbG9jYWwuZ2V0IDMKICAgIGkzMi5zdWIKICAgIGxvY2FsLnNldCA0CiAgICBsb2NhbC5nZXQgNAogICAgbG9jYWwuZ2V0IDAKICAgIGk2NC5zdG9yZQogICAgbG9jYWwuZ2V0IDQKICAgIGxvY2FsLmdldCAxCiAgICBpNjQuc3RvcmUgb2Zmc2V0PTgKICAgIGxvY2FsLmdldCAwCiAgICBsb2NhbC5zZXQgNQogICAgbG9jYWwuZ2V0IDEKICAgIGxvY2FsLnNldCA2CiAgICBsb2NhbC5nZXQgNQogICAgbG9jYWwuZ2V0IDYKICAgIGk2NC5sdF9zCiAgICBsb2NhbC5zZXQgNwogICAgaTMyLmNvbnN0IDEKICAgIGxvY2FsLnNldCA4CiAgICBsb2NhbC5nZXQgNwogICAgbG9jYWwuZ2V0IDgKICAgIGkzMi5hbmQKICAgIGxvY2FsLnNldCA5CiAgICBsb2NhbC5nZXQgOQogICAgcmV0dXJuKQogICh0YWJsZSAoOzA7KSAxIDEgZnVuY3JlZikKICAobWVtb3J5ICg7MDspIDE2KQogIChnbG9iYWwgJF9fc3RhY2tfcG9pbnRlciAobXV0IGkzMikgKGkzMi5jb25zdCAxMDQ4NTc2KSkKICAoZ2xvYmFsICg7MTspIGkzMiAoaTMyLmNvbnN0IDEwNDg1NzYpKQogIChnbG9iYWwgKDsyOykgaTMyIChpMzIuY29uc3QgMTA0ODU3NikpCiAgKGV4cG9ydCAibWVtb3J5IiAobWVtb3J5IDApKQogIChleHBvcnQgImxlc3NfdGhhbiIgKGZ1bmMgJGxlc3NfdGhhbikpCiAgKGV4cG9ydCAiX19kYXRhX2VuZCIgKGdsb2JhbCAxKSkKICAoZXhwb3J0ICJfX2hlYXBfYmFzZSIgKGdsb2JhbCAyKSkpCg=="
 arg_types: Int64
 arg_types: Int64
-        )", [](int64_t a, int64_t b) { return a < b; }, "less_than"};
-    std::tuple<std::string, std::function<bool(int8_t, int16_t, int32_t, int64_t, int64_t)>, std::string> testcase2 =
-            {R"(
+        )",
+        [](int64_t a, int64_t b) { return a < b; }, "less_than"};
+    std::tuple<std::string, std::function<bool(int8_t, int16_t, int32_t, int64_t, int64_t)>, std::string> testcase2 = {
+        R"(
   udf_func_name: "multiple_columns"
   udf_params: <
     column_info: <
@@ -1499,7 +1500,8 @@ arg_types: Int64
   arg_types: Int32
   arg_types: Int64
   arg_types: Int64
-        )", [](int8_t a, int16_t b, int32_t c, int64_t d, int64_t e) { return a + b + c + d > e; }, "multi_columns"};
+        )",
+        [](int8_t a, int16_t b, int32_t c, int64_t d, int64_t e) { return a + b + c + d > e; }, "multi_columns"};
 
     std::string serialized_expr_plan = R"(
     vector_anns: <
@@ -1579,18 +1581,19 @@ arg_types: Int64
         auto val1 = age64_col[i];
         auto val2 = 2000;
         auto ref = ref_func1(val1, val2);
-        ASSERT_EQ(ans, ref) << clause1 << "@" << udf_name1 << "@" << i << "!!" <<
-        boost::format("[%1%, %2%]") % val1 % val2;
+        ASSERT_EQ(ans, ref) << clause1 << "@" << udf_name1 << "@" << i << "!!"
+                            << boost::format("[%1%, %2%]") % val1 % val2;
     }
 
     // testcase2
-    auto clause2= std::get<0>(testcase2);
+    auto clause2 = std::get<0>(testcase2);
     auto ref_func2 = std::get<1>(testcase2);
     auto udf_name2 = std::get<2>(testcase2);
     loc = serialized_expr_plan.find("@@@@@");
     expr_plan = serialized_expr_plan;
     expr_plan.replace(loc, 5, clause2);
-    boost::format expr2 = boost::format(expr_plan) % vec_fid.get() % i8_fid.get() % i16_fid.get() % i32_fid.get() % i64_fid.get();
+    boost::format expr2 =
+        boost::format(expr_plan) % vec_fid.get() % i8_fid.get() % i16_fid.get() % i32_fid.get() % i64_fid.get();
     binary_plan = translate_text_plan_to_binary_plan(expr2.str().data());
     plan = CreateSearchPlanByExpr(*schema, binary_plan.data(), binary_plan.size());
     final = visitor.call_child(*plan->plan_node_->predicate_.value());
@@ -1604,7 +1607,7 @@ arg_types: Int64
         auto val4 = age64_col[i];
         auto val5 = 2000;
         auto ref = ref_func2(val1, val2, val3, val4, val5);
-        ASSERT_EQ(ans, ref) << clause2 << "@" << i << "!!" <<
-                            boost::format("[%1%, %2%, %3%, %4%, %5%]") % val1 % val2 % val3 % val4 % val5;
+        ASSERT_EQ(ans, ref) << clause2 << "@" << i << "!!"
+                            << boost::format("[%1%, %2%, %3%, %4%, %5%]") % val1 % val2 % val3 % val4 % val5;
     }
 }
