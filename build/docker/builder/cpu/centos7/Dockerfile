@@ -18,7 +18,7 @@ RUN yum install -y epel-release centos-release-scl-rh && yum install -y wget cur
       devtoolset-7-gcc devtoolset-7-gcc-c++ devtoolset-7-gcc-gfortran \
       llvm-toolset-7.0-clang llvm-toolset-7.0-clang-tools-extra \
       libaio libuuid-devel pulseaudio-libs-devel unzip \
-      ccache lcov libtool m4 autoconf automake && \
+      ccache lcov libtool m4 autoconf automake cargo && \
       rm -rf /var/cache/yum/* && \
     echo "source scl_source enable devtoolset-7" >> /etc/profile.d/devtoolset-7.sh && \
     echo "source scl_source enable llvm-toolset-7.0" >> /etc/profile.d/llvm-toolset-7.sh
