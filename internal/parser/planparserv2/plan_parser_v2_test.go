@@ -1,6 +1,8 @@
 package planparserv2
 
 import (
+	"fmt"
+	"github.com/golang/protobuf/proto"
 	"sync"
 	"testing"
 
@@ -69,6 +71,10 @@ func TestExpr_Term(t *testing.T) {
 	}
 	for _, exprStr := range exprStrs {
 		assertValidExpr(t, helper, exprStr)
+		protoPlan, err := ParseExpr(helper, exprStr)
+		assert.NoError(t, err)
+		marshaledProtoPlan := proto.MarshalTextString(protoPlan)
+		fmt.Println(marshaledProtoPlan)
 	}
 }
 

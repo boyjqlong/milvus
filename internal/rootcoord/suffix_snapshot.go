@@ -106,6 +106,11 @@ func newSuffixSnapshot(txnKV kv.TxnKV, sep, root, snapshot string) (*suffixSnaps
 
 // isTombstone helper function to check whether is tombstone mark
 func (ss *suffixSnapshot) isTombstone(value string) bool {
+	return IsTombstone(value)
+}
+
+// IsTombstone used in migration tool also.
+func IsTombstone(value string) bool {
 	return bytes.Equal([]byte(value), suffixSnapshotTombstone)
 }
 

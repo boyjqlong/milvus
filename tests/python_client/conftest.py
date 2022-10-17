@@ -372,7 +372,9 @@ def collection(request, connect):
 
     def teardown():
         if connect.has_collection(collection_name):
-            connect.drop_collection(collection_name, timeout=delete_timeout)
+            pass
+            # connect.drop_collection(collection_name, timeout=delete_timeout)
+            # print(f"collection exist: {collection_name}")
 
     request.addfinalizer(teardown)
     assert connect.has_collection(collection_name)

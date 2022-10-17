@@ -46,20 +46,8 @@ def hello_milvus(host="127.0.0.1"):
     print(f"\nList collections...")
     print(list_collections())
 
-    #  insert data
     nb = 3000
     vectors = [[random.random() for _ in range(dim)] for _ in range(nb)]
-    t0 = time.time()
-    collection.insert(
-        [
-            [i for i in range(nb)],
-            [np.float32(i) for i in range(nb)],
-            [str(i) for i in range(nb)],
-            vectors
-        ]
-    )
-    t1 = time.time()
-    print(f"\nInsert {nb} vectors cost {t1 - t0:.4f} seconds")
 
     t0 = time.time()
     print(f"\nGet collection entities...")
@@ -68,12 +56,6 @@ def hello_milvus(host="127.0.0.1"):
     print(f"\nGet collection entities cost {t1 - t0:.4f} seconds")
 
     # create index and load table
-    default_index = {"index_type": "IVF_SQ8", "metric_type": "L2", "params": {"nlist": 64}}
-    print(f"\nCreate index...")
-    t0 = time.time()
-    collection.create_index(field_name="float_vector", index_params=default_index)
-    t1 = time.time()
-    print(f"\nCreate index cost {t1 - t0:.4f} seconds")
     print(f"\nload collection...")
     t0 = time.time()
     collection.load()
