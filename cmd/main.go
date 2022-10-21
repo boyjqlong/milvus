@@ -19,9 +19,14 @@ package main
 import (
 	"os"
 
+	"github.com/milvus-io/milvus/internal/util/memutil"
+
 	"github.com/milvus-io/milvus/cmd/milvus"
 )
 
 func main() {
+	memutil.FreeOSMemoryPeriodically()
+	defer memutil.StopFreeOSMemory()
+
 	milvus.RunMilvus(os.Args)
 }
