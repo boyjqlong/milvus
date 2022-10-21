@@ -154,7 +154,11 @@ func NewRocksMQ(params paramtable.BaseTable, name string, idAllocator allocator.
 	log.Debug("Start rocksmq ", zap.Int("max proc", maxProcs),
 		zap.Int("parallism", parallelism), zap.Uint64("lru cache", rocksDBLRUCacheCapacity))
 	bbto := gorocksdb.NewDefaultBlockBasedTableOptions()
-	bbto.SetBlockCache(gorocksdb.NewLRUCache(rocksDBLRUCacheCapacity))
+	if false {
+		bbto.SetBlockCache(gorocksdb.NewLRUCache(rocksDBLRUCacheCapacity))
+	} else {
+		bbto.SetNoBlockCache(true)
+	}
 	optsKV := gorocksdb.NewDefaultOptions()
 	optsKV.SetBlockBasedTableFactory(bbto)
 	optsKV.SetCreateIfMissing(true)
