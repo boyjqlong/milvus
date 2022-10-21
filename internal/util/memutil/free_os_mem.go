@@ -3,7 +3,7 @@ package memutil
 var defaultBgFreer = newBgFreer()
 
 func FreeOSMemoryPeriodically() {
-	defaultBgFreer.freeOSMemoryPeriodically()
+	go defaultBgFreer.freeOSMemoryPeriodically()
 }
 
 func StopFreeOSMemory() {
