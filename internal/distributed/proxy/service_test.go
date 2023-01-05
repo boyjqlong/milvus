@@ -404,7 +404,6 @@ func (m *MockQueryCoord) CheckHealth(ctx context.Context, req *milvuspb.CheckHea
 
 // /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 type MockDataCoord struct {
-	types.DataCoord
 	MockBase
 	err      error
 	initErr  error
@@ -558,6 +557,10 @@ func (m *MockDataCoord) BroadcastAlteredCollection(ctx context.Context, req *dat
 }
 
 func (m *MockDataCoord) CheckHealth(ctx context.Context, req *milvuspb.CheckHealthRequest) (*milvuspb.CheckHealthResponse, error) {
+	return nil, nil
+}
+
+func (m *MockDataCoord) GcConfirm(ctx context.Context, req *datapb.GcConfirmRequest) (*datapb.GcConfirmResponse, error) {
 	return nil, nil
 }
 

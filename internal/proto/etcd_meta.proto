@@ -28,7 +28,8 @@ enum CollectionState {
   CollectionDroppingAndReleased = 4;
   CollectionDroppingAndIndexDropped = 5;
   CollectionDroppingAndGcStarted = 6;
-  CollectionDroppingAndGcConfirmed = 7;
+  CollectionDroppingAndTsSynced = 7;
+  CollectionDroppingAndGcConfirmed = 8;
 }
 
 enum PartitionState {
@@ -66,6 +67,7 @@ message CollectionInfo {
   common.ConsistencyLevel consistency_level = 12;
   CollectionState state = 13; // To keep compatible with older version, default state is `Created`.
   repeated common.KeyValuePair properties = 14;
+  uint64 drop_ts = 15; // The timestamp of drop collection event in the mq.
 }
 
 message PartitionInfo {
