@@ -25,6 +25,10 @@ enum CollectionState {
   CollectionCreating = 1;
   CollectionDropping = 2;
   CollectionDropped = 3;
+  CollectionDroppingAndReleased = 4;
+  CollectionDroppingAndIndexDropped = 5;
+  CollectionDroppingAndGcStarted = 6;
+  CollectionDroppingAndGcConfirmed = 7;
 }
 
 enum PartitionState {
@@ -32,6 +36,8 @@ enum PartitionState {
   PartitionCreating = 1;
   PartitionDropping = 2;
   PartitionDropped = 3;
+  PartitionDroppingAndGcStarted = 4;
+  PartitionDroppingAndGcConfirmed = 5;
 }
 
 enum AliasState {

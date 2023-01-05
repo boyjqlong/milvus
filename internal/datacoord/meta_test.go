@@ -22,6 +22,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/milvus-io/milvus/internal/mocks"
+	"github.com/stretchr/testify/mock"
+
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1124,4 +1127,18 @@ func TestChannelCP(t *testing.T) {
 		err = meta.DropChannelCheckpoint(mockVChannel)
 		assert.NoError(t, err)
 	})
+}
+
+func Test_meta_GcConfirm(t *testing.T) {
+	m := &meta{}
+	catalog := mocks.NewDataCoordCatalog(t)
+	m.catalog = catalog
+
+	catalog.On("GcConfirm",
+		mock.Anything,
+		mock.AnythingOfType("int64"),
+		mock.AnythingOfType("int64")).
+		Return(false)
+
+	assert.False(t, m.GcConfirm(context.TODO(), 100, 10000))
 }

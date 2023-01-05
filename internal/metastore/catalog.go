@@ -98,6 +98,7 @@ func (t AlterType) String() string {
 	return ""
 }
 
+//go:generate mockery --name=DataCoordCatalog --with-expecter --output=../mocks/ --filename=mock_datacoord_catalog.go
 type DataCoordCatalog interface {
 	ListSegments(ctx context.Context) ([]*datapb.SegmentInfo, error)
 	AddSegment(ctx context.Context, segment *datapb.SegmentInfo) error
@@ -129,6 +130,8 @@ type DataCoordCatalog interface {
 	AlterSegmentIndex(ctx context.Context, newSegIndex *model.SegmentIndex) error
 	AlterSegmentIndexes(ctx context.Context, newSegIdxes []*model.SegmentIndex) error
 	DropSegmentIndex(ctx context.Context, collID, partID, segID, buildID typeutil.UniqueID) error
+
+	GcConfirm(ctx context.Context, collectionID, partitionID typeutil.UniqueID) bool
 }
 
 type IndexCoordCatalog interface {

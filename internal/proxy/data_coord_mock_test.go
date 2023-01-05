@@ -20,6 +20,8 @@ import (
 	"context"
 	"sync/atomic"
 
+	"github.com/milvus-io/milvus/internal/types"
+
 	"github.com/milvus-io/milvus-proto/go-api/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/milvuspb"
 	"github.com/milvus-io/milvus/internal/proto/datapb"
@@ -30,6 +32,8 @@ import (
 )
 
 type DataCoordMock struct {
+	types.DataCoord
+
 	nodeID  typeutil.UniqueID
 	address string
 

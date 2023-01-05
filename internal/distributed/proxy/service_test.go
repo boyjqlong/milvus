@@ -404,6 +404,7 @@ func (m *MockQueryCoord) CheckHealth(ctx context.Context, req *milvuspb.CheckHea
 
 // /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 type MockDataCoord struct {
+	types.DataCoord
 	MockBase
 	err      error
 	initErr  error

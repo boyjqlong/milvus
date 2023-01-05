@@ -76,6 +76,8 @@ service DataCoord {
   rpc DescribeIndex(DescribeIndexRequest) returns (DescribeIndexResponse) {}
   // Deprecated: use DescribeIndex instead
   rpc GetIndexBuildProgress(GetIndexBuildProgressRequest) returns (GetIndexBuildProgressResponse) {}
+
+  rpc GcConfirm(GcConfirmRequest) returns (GcConfirmResponse) {}
 }
 
 service DataNode {
@@ -794,4 +796,14 @@ message GetIndexBuildProgressResponse {
   common.Status status = 1;
   int64 indexed_rows = 2;
   int64 total_rows = 3;
+}
+
+message GcConfirmRequest {
+  int64 collection_id = 1;
+  int64 partition_id = 2; // -1 means whole collection.
+}
+
+message GcConfirmResponse {
+  common.Status status = 1;
+  bool gc_finished = 2;
 }
