@@ -70,7 +70,7 @@ func (s *stepStack) Execute(ctx context.Context) *stepStack {
 type stepStackHeap []*stepStack
 
 func (h stepStackHeap) Len() int           { return len(h) }
-func (h stepStackHeap) Less(i, j int) bool { return h[i].totalPriority() > h[j].totalPriority() }
+func (h stepStackHeap) Less(i, j int) bool { return h[i].totalPriority() < h[j].totalPriority() }
 func (h stepStackHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
 
 func (h *stepStackHeap) Push(x any) {

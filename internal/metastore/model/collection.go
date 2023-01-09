@@ -5,7 +5,6 @@ import (
 	"github.com/milvus-io/milvus-proto/go-api/schemapb"
 	"github.com/milvus-io/milvus/internal/common"
 	pb "github.com/milvus-io/milvus/internal/proto/etcdpb"
-	"github.com/milvus-io/milvus/internal/util/typeutil"
 	"github.com/samber/lo"
 )
 
@@ -26,7 +25,6 @@ type Collection struct {
 	Aliases              []string // TODO: deprecate this.
 	Properties           []*commonpb.KeyValuePair
 	State                pb.CollectionState
-	DropTs               typeutil.Timestamp
 }
 
 func (c Collection) Available() bool {
@@ -51,7 +49,6 @@ func (c Collection) Clone() *Collection {
 		Aliases:              common.CloneStringList(c.Aliases),
 		Properties:           common.CloneKeyValuePairs(c.Properties),
 		State:                c.State,
-		DropTs:               c.DropTs,
 	}
 }
 
@@ -103,7 +100,6 @@ func UnmarshalCollectionModel(coll *pb.CollectionInfo) *Collection {
 		StartPositions:       coll.StartPositions,
 		State:                coll.State,
 		Properties:           coll.Properties,
-		DropTs:               coll.DropTs,
 	}
 }
 
@@ -163,7 +159,6 @@ func marshalCollectionModelWithConfig(coll *Collection, c *config) *pb.Collectio
 		StartPositions:       coll.StartPositions,
 		State:                coll.State,
 		Properties:           coll.Properties,
-		DropTs:               coll.DropTs,
 	}
 
 	if c.withPartitions {

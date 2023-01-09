@@ -29,53 +29,6 @@ func (_m *DataCoord) EXPECT() *DataCoord_Expecter {
 	return &DataCoord_Expecter{mock: &_m.Mock}
 }
 
-// AcquireSegmentLock provides a mock function with given fields: ctx, req
-func (_m *DataCoord) AcquireSegmentLock(ctx context.Context, req *datapb.AcquireSegmentLockRequest) (*commonpb.Status, error) {
-	ret := _m.Called(ctx, req)
-
-	var r0 *commonpb.Status
-	if rf, ok := ret.Get(0).(func(context.Context, *datapb.AcquireSegmentLockRequest) *commonpb.Status); ok {
-		r0 = rf(ctx, req)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*commonpb.Status)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *datapb.AcquireSegmentLockRequest) error); ok {
-		r1 = rf(ctx, req)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// DataCoord_AcquireSegmentLock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AcquireSegmentLock'
-type DataCoord_AcquireSegmentLock_Call struct {
-	*mock.Call
-}
-
-// AcquireSegmentLock is a helper method to define mock.On call
-//  - ctx context.Context
-//  - req *datapb.AcquireSegmentLockRequest
-func (_e *DataCoord_Expecter) AcquireSegmentLock(ctx interface{}, req interface{}) *DataCoord_AcquireSegmentLock_Call {
-	return &DataCoord_AcquireSegmentLock_Call{Call: _e.mock.On("AcquireSegmentLock", ctx, req)}
-}
-
-func (_c *DataCoord_AcquireSegmentLock_Call) Run(run func(ctx context.Context, req *datapb.AcquireSegmentLockRequest)) *DataCoord_AcquireSegmentLock_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*datapb.AcquireSegmentLockRequest))
-	})
-	return _c
-}
-
-func (_c *DataCoord_AcquireSegmentLock_Call) Return(_a0 *commonpb.Status, _a1 error) *DataCoord_AcquireSegmentLock_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
 // AssignSegmentID provides a mock function with given fields: ctx, req
 func (_m *DataCoord) AssignSegmentID(ctx context.Context, req *datapb.AssignSegmentIDRequest) (*datapb.AssignSegmentIDResponse, error) {
 	ret := _m.Called(ctx, req)
@@ -124,11 +77,11 @@ func (_c *DataCoord_AssignSegmentID_Call) Return(_a0 *datapb.AssignSegmentIDResp
 }
 
 // BroadcastAlteredCollection provides a mock function with given fields: ctx, req
-func (_m *DataCoord) BroadcastAlteredCollection(ctx context.Context, req *milvuspb.AlterCollectionRequest) (*commonpb.Status, error) {
+func (_m *DataCoord) BroadcastAlteredCollection(ctx context.Context, req *datapb.AlterCollectionRequest) (*commonpb.Status, error) {
 	ret := _m.Called(ctx, req)
 
 	var r0 *commonpb.Status
-	if rf, ok := ret.Get(0).(func(context.Context, *milvuspb.AlterCollectionRequest) *commonpb.Status); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *datapb.AlterCollectionRequest) *commonpb.Status); ok {
 		r0 = rf(ctx, req)
 	} else {
 		if ret.Get(0) != nil {
@@ -137,7 +90,7 @@ func (_m *DataCoord) BroadcastAlteredCollection(ctx context.Context, req *milvus
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *milvuspb.AlterCollectionRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *datapb.AlterCollectionRequest) error); ok {
 		r1 = rf(ctx, req)
 	} else {
 		r1 = ret.Error(1)
@@ -153,14 +106,14 @@ type DataCoord_BroadcastAlteredCollection_Call struct {
 
 // BroadcastAlteredCollection is a helper method to define mock.On call
 //  - ctx context.Context
-//  - req *milvuspb.AlterCollectionRequest
+//  - req *datapb.AlterCollectionRequest
 func (_e *DataCoord_Expecter) BroadcastAlteredCollection(ctx interface{}, req interface{}) *DataCoord_BroadcastAlteredCollection_Call {
 	return &DataCoord_BroadcastAlteredCollection_Call{Call: _e.mock.On("BroadcastAlteredCollection", ctx, req)}
 }
 
-func (_c *DataCoord_BroadcastAlteredCollection_Call) Run(run func(ctx context.Context, req *milvuspb.AlterCollectionRequest)) *DataCoord_BroadcastAlteredCollection_Call {
+func (_c *DataCoord_BroadcastAlteredCollection_Call) Run(run func(ctx context.Context, req *datapb.AlterCollectionRequest)) *DataCoord_BroadcastAlteredCollection_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*milvuspb.AlterCollectionRequest))
+		run(args[0].(context.Context), args[1].(*datapb.AlterCollectionRequest))
 	})
 	return _c
 }
@@ -213,6 +166,147 @@ func (_c *DataCoord_CheckHealth_Call) Run(run func(ctx context.Context, req *mil
 }
 
 func (_c *DataCoord_CheckHealth_Call) Return(_a0 *milvuspb.CheckHealthResponse, _a1 error) *DataCoord_CheckHealth_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+// CreateIndex provides a mock function with given fields: ctx, req
+func (_m *DataCoord) CreateIndex(ctx context.Context, req *datapb.CreateIndexRequest) (*commonpb.Status, error) {
+	ret := _m.Called(ctx, req)
+
+	var r0 *commonpb.Status
+	if rf, ok := ret.Get(0).(func(context.Context, *datapb.CreateIndexRequest) *commonpb.Status); ok {
+		r0 = rf(ctx, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*commonpb.Status)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *datapb.CreateIndexRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// DataCoord_CreateIndex_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateIndex'
+type DataCoord_CreateIndex_Call struct {
+	*mock.Call
+}
+
+// CreateIndex is a helper method to define mock.On call
+//  - ctx context.Context
+//  - req *datapb.CreateIndexRequest
+func (_e *DataCoord_Expecter) CreateIndex(ctx interface{}, req interface{}) *DataCoord_CreateIndex_Call {
+	return &DataCoord_CreateIndex_Call{Call: _e.mock.On("CreateIndex", ctx, req)}
+}
+
+func (_c *DataCoord_CreateIndex_Call) Run(run func(ctx context.Context, req *datapb.CreateIndexRequest)) *DataCoord_CreateIndex_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datapb.CreateIndexRequest))
+	})
+	return _c
+}
+
+func (_c *DataCoord_CreateIndex_Call) Return(_a0 *commonpb.Status, _a1 error) *DataCoord_CreateIndex_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+// DescribeIndex provides a mock function with given fields: ctx, req
+func (_m *DataCoord) DescribeIndex(ctx context.Context, req *datapb.DescribeIndexRequest) (*datapb.DescribeIndexResponse, error) {
+	ret := _m.Called(ctx, req)
+
+	var r0 *datapb.DescribeIndexResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *datapb.DescribeIndexRequest) *datapb.DescribeIndexResponse); ok {
+		r0 = rf(ctx, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datapb.DescribeIndexResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *datapb.DescribeIndexRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// DataCoord_DescribeIndex_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DescribeIndex'
+type DataCoord_DescribeIndex_Call struct {
+	*mock.Call
+}
+
+// DescribeIndex is a helper method to define mock.On call
+//  - ctx context.Context
+//  - req *datapb.DescribeIndexRequest
+func (_e *DataCoord_Expecter) DescribeIndex(ctx interface{}, req interface{}) *DataCoord_DescribeIndex_Call {
+	return &DataCoord_DescribeIndex_Call{Call: _e.mock.On("DescribeIndex", ctx, req)}
+}
+
+func (_c *DataCoord_DescribeIndex_Call) Run(run func(ctx context.Context, req *datapb.DescribeIndexRequest)) *DataCoord_DescribeIndex_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datapb.DescribeIndexRequest))
+	})
+	return _c
+}
+
+func (_c *DataCoord_DescribeIndex_Call) Return(_a0 *datapb.DescribeIndexResponse, _a1 error) *DataCoord_DescribeIndex_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+// DropIndex provides a mock function with given fields: ctx, req
+func (_m *DataCoord) DropIndex(ctx context.Context, req *datapb.DropIndexRequest) (*commonpb.Status, error) {
+	ret := _m.Called(ctx, req)
+
+	var r0 *commonpb.Status
+	if rf, ok := ret.Get(0).(func(context.Context, *datapb.DropIndexRequest) *commonpb.Status); ok {
+		r0 = rf(ctx, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*commonpb.Status)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *datapb.DropIndexRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// DataCoord_DropIndex_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DropIndex'
+type DataCoord_DropIndex_Call struct {
+	*mock.Call
+}
+
+// DropIndex is a helper method to define mock.On call
+//  - ctx context.Context
+//  - req *datapb.DropIndexRequest
+func (_e *DataCoord_Expecter) DropIndex(ctx interface{}, req interface{}) *DataCoord_DropIndex_Call {
+	return &DataCoord_DropIndex_Call{Call: _e.mock.On("DropIndex", ctx, req)}
+}
+
+func (_c *DataCoord_DropIndex_Call) Run(run func(ctx context.Context, req *datapb.DropIndexRequest)) *DataCoord_DropIndex_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datapb.DropIndexRequest))
+	})
+	return _c
+}
+
+func (_c *DataCoord_DropIndex_Call) Return(_a0 *commonpb.Status, _a1 error) *DataCoord_DropIndex_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
@@ -307,6 +401,53 @@ func (_c *DataCoord_Flush_Call) Run(run func(ctx context.Context, req *datapb.Fl
 }
 
 func (_c *DataCoord_Flush_Call) Return(_a0 *datapb.FlushResponse, _a1 error) *DataCoord_Flush_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+// GcConfirm provides a mock function with given fields: ctx, request
+func (_m *DataCoord) GcConfirm(ctx context.Context, request *datapb.GcConfirmRequest) (*datapb.GcConfirmResponse, error) {
+	ret := _m.Called(ctx, request)
+
+	var r0 *datapb.GcConfirmResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *datapb.GcConfirmRequest) *datapb.GcConfirmResponse); ok {
+		r0 = rf(ctx, request)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datapb.GcConfirmResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *datapb.GcConfirmRequest) error); ok {
+		r1 = rf(ctx, request)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// DataCoord_GcConfirm_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GcConfirm'
+type DataCoord_GcConfirm_Call struct {
+	*mock.Call
+}
+
+// GcConfirm is a helper method to define mock.On call
+//  - ctx context.Context
+//  - request *datapb.GcConfirmRequest
+func (_e *DataCoord_Expecter) GcConfirm(ctx interface{}, request interface{}) *DataCoord_GcConfirm_Call {
+	return &DataCoord_GcConfirm_Call{Call: _e.mock.On("GcConfirm", ctx, request)}
+}
+
+func (_c *DataCoord_GcConfirm_Call) Run(run func(ctx context.Context, request *datapb.GcConfirmRequest)) *DataCoord_GcConfirm_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datapb.GcConfirmRequest))
+	})
+	return _c
+}
+
+func (_c *DataCoord_GcConfirm_Call) Return(_a0 *datapb.GcConfirmResponse, _a1 error) *DataCoord_GcConfirm_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
@@ -592,6 +733,147 @@ func (_c *DataCoord_GetFlushedSegments_Call) Return(_a0 *datapb.GetFlushedSegmen
 	return _c
 }
 
+// GetIndexBuildProgress provides a mock function with given fields: ctx, req
+func (_m *DataCoord) GetIndexBuildProgress(ctx context.Context, req *datapb.GetIndexBuildProgressRequest) (*datapb.GetIndexBuildProgressResponse, error) {
+	ret := _m.Called(ctx, req)
+
+	var r0 *datapb.GetIndexBuildProgressResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *datapb.GetIndexBuildProgressRequest) *datapb.GetIndexBuildProgressResponse); ok {
+		r0 = rf(ctx, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datapb.GetIndexBuildProgressResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *datapb.GetIndexBuildProgressRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// DataCoord_GetIndexBuildProgress_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetIndexBuildProgress'
+type DataCoord_GetIndexBuildProgress_Call struct {
+	*mock.Call
+}
+
+// GetIndexBuildProgress is a helper method to define mock.On call
+//  - ctx context.Context
+//  - req *datapb.GetIndexBuildProgressRequest
+func (_e *DataCoord_Expecter) GetIndexBuildProgress(ctx interface{}, req interface{}) *DataCoord_GetIndexBuildProgress_Call {
+	return &DataCoord_GetIndexBuildProgress_Call{Call: _e.mock.On("GetIndexBuildProgress", ctx, req)}
+}
+
+func (_c *DataCoord_GetIndexBuildProgress_Call) Run(run func(ctx context.Context, req *datapb.GetIndexBuildProgressRequest)) *DataCoord_GetIndexBuildProgress_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datapb.GetIndexBuildProgressRequest))
+	})
+	return _c
+}
+
+func (_c *DataCoord_GetIndexBuildProgress_Call) Return(_a0 *datapb.GetIndexBuildProgressResponse, _a1 error) *DataCoord_GetIndexBuildProgress_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+// GetIndexInfos provides a mock function with given fields: ctx, req
+func (_m *DataCoord) GetIndexInfos(ctx context.Context, req *datapb.GetIndexInfoRequest) (*datapb.GetIndexInfoResponse, error) {
+	ret := _m.Called(ctx, req)
+
+	var r0 *datapb.GetIndexInfoResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *datapb.GetIndexInfoRequest) *datapb.GetIndexInfoResponse); ok {
+		r0 = rf(ctx, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datapb.GetIndexInfoResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *datapb.GetIndexInfoRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// DataCoord_GetIndexInfos_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetIndexInfos'
+type DataCoord_GetIndexInfos_Call struct {
+	*mock.Call
+}
+
+// GetIndexInfos is a helper method to define mock.On call
+//  - ctx context.Context
+//  - req *datapb.GetIndexInfoRequest
+func (_e *DataCoord_Expecter) GetIndexInfos(ctx interface{}, req interface{}) *DataCoord_GetIndexInfos_Call {
+	return &DataCoord_GetIndexInfos_Call{Call: _e.mock.On("GetIndexInfos", ctx, req)}
+}
+
+func (_c *DataCoord_GetIndexInfos_Call) Run(run func(ctx context.Context, req *datapb.GetIndexInfoRequest)) *DataCoord_GetIndexInfos_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datapb.GetIndexInfoRequest))
+	})
+	return _c
+}
+
+func (_c *DataCoord_GetIndexInfos_Call) Return(_a0 *datapb.GetIndexInfoResponse, _a1 error) *DataCoord_GetIndexInfos_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+// GetIndexState provides a mock function with given fields: ctx, req
+func (_m *DataCoord) GetIndexState(ctx context.Context, req *datapb.GetIndexStateRequest) (*datapb.GetIndexStateResponse, error) {
+	ret := _m.Called(ctx, req)
+
+	var r0 *datapb.GetIndexStateResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *datapb.GetIndexStateRequest) *datapb.GetIndexStateResponse); ok {
+		r0 = rf(ctx, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datapb.GetIndexStateResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *datapb.GetIndexStateRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// DataCoord_GetIndexState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetIndexState'
+type DataCoord_GetIndexState_Call struct {
+	*mock.Call
+}
+
+// GetIndexState is a helper method to define mock.On call
+//  - ctx context.Context
+//  - req *datapb.GetIndexStateRequest
+func (_e *DataCoord_Expecter) GetIndexState(ctx interface{}, req interface{}) *DataCoord_GetIndexState_Call {
+	return &DataCoord_GetIndexState_Call{Call: _e.mock.On("GetIndexState", ctx, req)}
+}
+
+func (_c *DataCoord_GetIndexState_Call) Run(run func(ctx context.Context, req *datapb.GetIndexStateRequest)) *DataCoord_GetIndexState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datapb.GetIndexStateRequest))
+	})
+	return _c
+}
+
+func (_c *DataCoord_GetIndexState_Call) Return(_a0 *datapb.GetIndexStateResponse, _a1 error) *DataCoord_GetIndexState_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
 // GetInsertBinlogPaths provides a mock function with given fields: ctx, req
 func (_m *DataCoord) GetInsertBinlogPaths(ctx context.Context, req *datapb.GetInsertBinlogPathsRequest) (*datapb.GetInsertBinlogPathsResponse, error) {
 	ret := _m.Called(ctx, req)
@@ -776,6 +1058,53 @@ func (_c *DataCoord_GetRecoveryInfo_Call) Run(run func(ctx context.Context, req 
 }
 
 func (_c *DataCoord_GetRecoveryInfo_Call) Return(_a0 *datapb.GetRecoveryInfoResponse, _a1 error) *DataCoord_GetRecoveryInfo_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+// GetSegmentIndexState provides a mock function with given fields: ctx, req
+func (_m *DataCoord) GetSegmentIndexState(ctx context.Context, req *datapb.GetSegmentIndexStateRequest) (*datapb.GetSegmentIndexStateResponse, error) {
+	ret := _m.Called(ctx, req)
+
+	var r0 *datapb.GetSegmentIndexStateResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *datapb.GetSegmentIndexStateRequest) *datapb.GetSegmentIndexStateResponse); ok {
+		r0 = rf(ctx, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datapb.GetSegmentIndexStateResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *datapb.GetSegmentIndexStateRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// DataCoord_GetSegmentIndexState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSegmentIndexState'
+type DataCoord_GetSegmentIndexState_Call struct {
+	*mock.Call
+}
+
+// GetSegmentIndexState is a helper method to define mock.On call
+//  - ctx context.Context
+//  - req *datapb.GetSegmentIndexStateRequest
+func (_e *DataCoord_Expecter) GetSegmentIndexState(ctx interface{}, req interface{}) *DataCoord_GetSegmentIndexState_Call {
+	return &DataCoord_GetSegmentIndexState_Call{Call: _e.mock.On("GetSegmentIndexState", ctx, req)}
+}
+
+func (_c *DataCoord_GetSegmentIndexState_Call) Run(run func(ctx context.Context, req *datapb.GetSegmentIndexStateRequest)) *DataCoord_GetSegmentIndexState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datapb.GetSegmentIndexStateRequest))
+	})
+	return _c
+}
+
+func (_c *DataCoord_GetSegmentIndexState_Call) Return(_a0 *datapb.GetSegmentIndexStateResponse, _a1 error) *DataCoord_GetSegmentIndexState_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
@@ -1272,53 +1601,6 @@ func (_c *DataCoord_Register_Call) Return(_a0 error) *DataCoord_Register_Call {
 	return _c
 }
 
-// ReleaseSegmentLock provides a mock function with given fields: ctx, req
-func (_m *DataCoord) ReleaseSegmentLock(ctx context.Context, req *datapb.ReleaseSegmentLockRequest) (*commonpb.Status, error) {
-	ret := _m.Called(ctx, req)
-
-	var r0 *commonpb.Status
-	if rf, ok := ret.Get(0).(func(context.Context, *datapb.ReleaseSegmentLockRequest) *commonpb.Status); ok {
-		r0 = rf(ctx, req)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*commonpb.Status)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *datapb.ReleaseSegmentLockRequest) error); ok {
-		r1 = rf(ctx, req)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// DataCoord_ReleaseSegmentLock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReleaseSegmentLock'
-type DataCoord_ReleaseSegmentLock_Call struct {
-	*mock.Call
-}
-
-// ReleaseSegmentLock is a helper method to define mock.On call
-//  - ctx context.Context
-//  - req *datapb.ReleaseSegmentLockRequest
-func (_e *DataCoord_Expecter) ReleaseSegmentLock(ctx interface{}, req interface{}) *DataCoord_ReleaseSegmentLock_Call {
-	return &DataCoord_ReleaseSegmentLock_Call{Call: _e.mock.On("ReleaseSegmentLock", ctx, req)}
-}
-
-func (_c *DataCoord_ReleaseSegmentLock_Call) Run(run func(ctx context.Context, req *datapb.ReleaseSegmentLockRequest)) *DataCoord_ReleaseSegmentLock_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*datapb.ReleaseSegmentLockRequest))
-	})
-	return _c
-}
-
-func (_c *DataCoord_ReleaseSegmentLock_Call) Return(_a0 *commonpb.Status, _a1 error) *DataCoord_ReleaseSegmentLock_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
 // SaveBinlogPaths provides a mock function with given fields: ctx, req
 func (_m *DataCoord) SaveBinlogPaths(ctx context.Context, req *datapb.SaveBinlogPathsRequest) (*commonpb.Status, error) {
 	ret := _m.Called(ctx, req)
@@ -1622,6 +1904,53 @@ func (_c *DataCoord_UnsetIsImportingState_Call) Run(run func(ctx context.Context
 }
 
 func (_c *DataCoord_UnsetIsImportingState_Call) Return(_a0 *commonpb.Status, _a1 error) *DataCoord_UnsetIsImportingState_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+// UpdateChannelCheckpoint provides a mock function with given fields: ctx, req
+func (_m *DataCoord) UpdateChannelCheckpoint(ctx context.Context, req *datapb.UpdateChannelCheckpointRequest) (*commonpb.Status, error) {
+	ret := _m.Called(ctx, req)
+
+	var r0 *commonpb.Status
+	if rf, ok := ret.Get(0).(func(context.Context, *datapb.UpdateChannelCheckpointRequest) *commonpb.Status); ok {
+		r0 = rf(ctx, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*commonpb.Status)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *datapb.UpdateChannelCheckpointRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// DataCoord_UpdateChannelCheckpoint_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateChannelCheckpoint'
+type DataCoord_UpdateChannelCheckpoint_Call struct {
+	*mock.Call
+}
+
+// UpdateChannelCheckpoint is a helper method to define mock.On call
+//  - ctx context.Context
+//  - req *datapb.UpdateChannelCheckpointRequest
+func (_e *DataCoord_Expecter) UpdateChannelCheckpoint(ctx interface{}, req interface{}) *DataCoord_UpdateChannelCheckpoint_Call {
+	return &DataCoord_UpdateChannelCheckpoint_Call{Call: _e.mock.On("UpdateChannelCheckpoint", ctx, req)}
+}
+
+func (_c *DataCoord_UpdateChannelCheckpoint_Call) Run(run func(ctx context.Context, req *datapb.UpdateChannelCheckpointRequest)) *DataCoord_UpdateChannelCheckpoint_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datapb.UpdateChannelCheckpointRequest))
+	})
+	return _c
+}
+
+func (_c *DataCoord_UpdateChannelCheckpoint_Call) Return(_a0 *commonpb.Status, _a1 error) *DataCoord_UpdateChannelCheckpoint_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }

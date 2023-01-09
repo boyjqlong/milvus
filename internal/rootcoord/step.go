@@ -377,8 +377,8 @@ func (b *BroadcastAlteredCollectionStep) Desc() string {
 }
 
 var (
-	confirmGCInterval = time.Minute * 20
-	allPartition      = -1
+	confirmGCInterval          = time.Minute * 20
+	allPartition      UniqueID = -1
 )
 
 type confirmGCStep struct {
@@ -398,7 +398,7 @@ func newConfirmGCStep(core *Core, collectionID, partitionID UniqueID) *confirmGC
 }
 
 func (b *confirmGCStep) Execute(ctx context.Context) ([]nestedStep, error) {
-	if time.Since(b.lastScheduledTime) > confirmGCInterval {
+	if time.Since(b.lastScheduledTime) < confirmGCInterval {
 		return nil, fmt.Errorf("wait for reschedule to confirm GC, collection: %d, partition: %d, last scheduled time: %s, now: %s",
 			b.collectionID, b.partitionID, b.lastScheduledTime.String(), time.Now().String())
 	}

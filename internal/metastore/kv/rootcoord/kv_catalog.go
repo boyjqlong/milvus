@@ -374,7 +374,6 @@ func (kc *Catalog) alterModifyCollection(oldColl *model.Collection, newColl *mod
 	oldCollClone.CreateTime = newColl.CreateTime
 	oldCollClone.ConsistencyLevel = newColl.ConsistencyLevel
 	oldCollClone.State = newColl.State
-	oldCollClone.DropTs = newColl.DropTs
 	key := BuildCollectionKey(oldColl.CollectionID)
 	value, err := proto.Marshal(model.MarshalCollectionModel(oldCollClone))
 	if err != nil {

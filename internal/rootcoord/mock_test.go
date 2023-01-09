@@ -791,6 +791,8 @@ type mockBroker struct {
 	GetSegmentIndexStateFunc func(ctx context.Context, collID UniqueID, indexName string, segIDs []UniqueID) ([]*datapb.SegmentIndexState, error)
 
 	BroadcastAlteredCollectionFunc func(ctx context.Context, req *milvuspb.AlterCollectionRequest) error
+
+	GCConfirmFunc func(ctx context.Context, collectionID, partitionID UniqueID) bool
 }
 
 func newMockBroker() *mockBroker {
@@ -823,6 +825,10 @@ func (b mockBroker) GetSegmentIndexState(ctx context.Context, collID UniqueID, i
 
 func (b mockBroker) BroadcastAlteredCollection(ctx context.Context, req *milvuspb.AlterCollectionRequest) error {
 	return b.BroadcastAlteredCollectionFunc(ctx, req)
+}
+
+func (b mockBroker) GcConfirm(ctx context.Context, collectionID, partitionID UniqueID) bool {
+	return b.GCConfirmFunc(ctx, collectionID, partitionID)
 }
 
 func withBroker(b Broker) Opt {
