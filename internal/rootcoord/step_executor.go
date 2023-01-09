@@ -1,9 +1,12 @@
 package rootcoord
 
 import (
+	"container/heap"
 	"context"
 	"sync"
 	"time"
+
+	"github.com/samber/lo"
 
 	"github.com/milvus-io/milvus/internal/log"
 	"github.com/milvus-io/milvus/internal/util/retry"
@@ -25,14 +28,24 @@ type stepStack struct {
 	steps []nestedStep
 }
 
+func (s *stepStack) totalPriority() int {
+	return lo.Reduce(s.steps, func(total int, e nestedStep, _ int) int {
+		return int(e.Weight()) + total
+	}, 0)
+}
+
 func (s *stepStack) Execute(ctx context.Context) *stepStack {
 	steps := s.steps
 	for len(steps) > 0 {
 		l := len(steps)
 		todo := steps[l-1]
 		childSteps, err := todo.Execute(ctx)
+
 		// TODO: maybe a interface `step.LogOnError` is better.
-		_, skipLog := todo.(*waitForTsSyncedStep)
+		_, isWaitForTsSyncedStep := todo.(*waitForTsSyncedStep)
+		_, isConfirmGCStep := todo.(*confirmGCStep)
+		skipLog := isWaitForTsSyncedStep || isConfirmGCStep
+
 		if retry.IsUnRecoverable(err) {
 			if !skipLog {
 				log.Warn("failed to execute step, not able to reschedule", zap.Error(err), zap.String("step", todo.Desc()))
@@ -52,6 +65,33 @@ func (s *stepStack) Execute(ctx context.Context) *stepStack {
 	}
 	// everything is done.
 	return nil
+}
+
+type stepStackHeap []*stepStack
+
+func (h stepStackHeap) Len() int           { return len(h) }
+func (h stepStackHeap) Less(i, j int) bool { return h[i].totalPriority() > h[j].totalPriority() }
+func (h stepStackHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+
+func (h *stepStackHeap) Push(x any) {
+	*h = append(*h, x.(*stepStack))
+}
+
+func (h *stepStackHeap) Pop() any {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[0 : n-1]
+	return x
+}
+
+func getStepStackHeap(m map[*stepStack]struct{}) *stepStackHeap {
+	h := &stepStackHeap{}
+	heap.Init(h)
+	for k := range m {
+		heap.Push(h, k)
+	}
+	return h
 }
 
 type selectStepPolicy func(map[*stepStack]struct{}) []*stepStack
@@ -76,8 +116,24 @@ func randomSelectPolicy(parallel int) selectStepPolicy {
 	}
 }
 
+func selectByPriority(parallel int, m map[*stepStack]struct{}) []*stepStack {
+	h := getStepStackHeap(m)
+	ret := make([]*stepStack, 0, parallel)
+	for len(ret) < parallel && h.Len() > 0 {
+		top := h.Pop().(*stepStack)
+		ret = append(ret, top)
+	}
+	return ret
+}
+
+func selectByPriorityPolicy(parallel int) selectStepPolicy {
+	return func(m map[*stepStack]struct{}) []*stepStack {
+		return selectByPriority(parallel, m)
+	}
+}
+
 func defaultSelectPolicy() selectStepPolicy {
-	return randomSelectPolicy(defaultBgExecutingParallel)
+	return selectByPriorityPolicy(defaultBgExecutingParallel)
 }
 
 type bgOpt func(*bgStepExecutor)
