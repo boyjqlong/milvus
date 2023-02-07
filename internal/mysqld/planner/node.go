@@ -3,6 +3,7 @@ package planner
 type Node interface {
 	GetLocation() NodeLocation
 	GetChildren() []Node
+	Accept(visitor Visitor) interface{}
 }
 
 type baseNode struct {
