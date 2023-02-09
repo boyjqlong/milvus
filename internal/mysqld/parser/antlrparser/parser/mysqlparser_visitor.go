@@ -25,9 +25,6 @@ type MySqlParserVisitor interface {
 	// Visit a parse tree produced by MySqlParser#simpleSelect.
 	VisitSimpleSelect(ctx *SimpleSelectContext) interface{}
 
-	// Visit a parse tree produced by MySqlParser#parenthesisSelect.
-	VisitParenthesisSelect(ctx *ParenthesisSelectContext) interface{}
-
 	// Visit a parse tree produced by MySqlParser#lockClause.
 	VisitLockClause(ctx *LockClauseContext) interface{}
 
@@ -36,9 +33,6 @@ type MySqlParserVisitor interface {
 
 	// Visit a parse tree produced by MySqlParser#tableSourceBase.
 	VisitTableSourceBase(ctx *TableSourceBaseContext) interface{}
-
-	// Visit a parse tree produced by MySqlParser#queryExpression.
-	VisitQueryExpression(ctx *QueryExpressionContext) interface{}
 
 	// Visit a parse tree produced by MySqlParser#querySpecification.
 	VisitQuerySpecification(ctx *QuerySpecificationContext) interface{}
@@ -72,9 +66,6 @@ type MySqlParserVisitor interface {
 
 	// Visit a parse tree produced by MySqlParser#fullColumnName.
 	VisitFullColumnName(ctx *FullColumnNameContext) interface{}
-
-	// Visit a parse tree produced by MySqlParser#mysqlVariable.
-	VisitMysqlVariable(ctx *MysqlVariableContext) interface{}
 
 	// Visit a parse tree produced by MySqlParser#collationName.
 	VisitCollationName(ctx *CollationNameContext) interface{}
@@ -139,14 +130,8 @@ type MySqlParserVisitor interface {
 	// Visit a parse tree produced by MySqlParser#fullColumnNameExpressionAtom.
 	VisitFullColumnNameExpressionAtom(ctx *FullColumnNameExpressionAtomContext) interface{}
 
-	// Visit a parse tree produced by MySqlParser#functionCallExpressionAtom.
-	VisitFunctionCallExpressionAtom(ctx *FunctionCallExpressionAtomContext) interface{}
-
 	// Visit a parse tree produced by MySqlParser#unaryExpressionAtom.
 	VisitUnaryExpressionAtom(ctx *UnaryExpressionAtomContext) interface{}
-
-	// Visit a parse tree produced by MySqlParser#binaryExpressionAtom.
-	VisitBinaryExpressionAtom(ctx *BinaryExpressionAtomContext) interface{}
 
 	// Visit a parse tree produced by MySqlParser#nestedExpressionAtom.
 	VisitNestedExpressionAtom(ctx *NestedExpressionAtomContext) interface{}

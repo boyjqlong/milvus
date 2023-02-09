@@ -182,8 +182,11 @@ require (
 require github.com/ianlancetaylor/cgosymbolizer v0.0.0-20221217025313-27d3c9f66b6a // indirect
 
 require (
+	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20221202181307-76fa05c21b12
+	github.com/moznion/go-optional v0.10.0
 	github.com/pingcap/tidb v0.0.0-20220831024823-7bdb7b5705ff
 	github.com/pingcap/tidb/parser v0.0.0-20220831024823-7bdb7b5705ff
+	github.com/shivamMg/ppds v0.0.1
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
 	go.opentelemetry.io/otel/exporters/jaeger v1.11.2
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.11.2
@@ -191,7 +194,6 @@ require (
 
 require (
 	cloud.google.com/go/compute/metadata v0.2.0 // indirect
-	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20221202181307-76fa05c21b12 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.0 // indirect
 	github.com/cznic/mathutil v0.0.0-20181122101859-297441e03548 // indirect

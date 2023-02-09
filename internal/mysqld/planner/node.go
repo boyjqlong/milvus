@@ -1,19 +1,22 @@
 package planner
 
+import "fmt"
+
 type Node interface {
-	GetLocation() NodeLocation
+	fmt.Stringer
+	GetText() string
 	GetChildren() []Node
 	Accept(visitor Visitor) interface{}
 }
 
 type baseNode struct {
-	location NodeLocation
+	text string
 }
 
-func (n baseNode) GetLocation() NodeLocation {
-	return n.location
+func (n baseNode) GetText() string {
+	return n.text
 }
 
-func newBaseNode(location NodeLocation) *baseNode {
-	return &baseNode{location: location}
+func newBaseNode(text string) baseNode {
+	return baseNode{text: text}
 }

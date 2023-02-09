@@ -31,10 +31,6 @@ func (v *BaseMySqlParserVisitor) VisitSimpleSelect(ctx *SimpleSelectContext) int
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseMySqlParserVisitor) VisitParenthesisSelect(ctx *ParenthesisSelectContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
 func (v *BaseMySqlParserVisitor) VisitLockClause(ctx *LockClauseContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -44,10 +40,6 @@ func (v *BaseMySqlParserVisitor) VisitTableSources(ctx *TableSourcesContext) int
 }
 
 func (v *BaseMySqlParserVisitor) VisitTableSourceBase(ctx *TableSourceBaseContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseMySqlParserVisitor) VisitQueryExpression(ctx *QueryExpressionContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -92,10 +84,6 @@ func (v *BaseMySqlParserVisitor) VisitTableName(ctx *TableNameContext) interface
 }
 
 func (v *BaseMySqlParserVisitor) VisitFullColumnName(ctx *FullColumnNameContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseMySqlParserVisitor) VisitMysqlVariable(ctx *MysqlVariableContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -183,15 +171,7 @@ func (v *BaseMySqlParserVisitor) VisitFullColumnNameExpressionAtom(ctx *FullColu
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseMySqlParserVisitor) VisitFunctionCallExpressionAtom(ctx *FunctionCallExpressionAtomContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
 func (v *BaseMySqlParserVisitor) VisitUnaryExpressionAtom(ctx *UnaryExpressionAtomContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseMySqlParserVisitor) VisitBinaryExpressionAtom(ctx *BinaryExpressionAtomContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

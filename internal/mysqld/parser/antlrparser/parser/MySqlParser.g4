@@ -891,7 +891,7 @@ dmlStatement
 
 selectStatement
     : querySpecification lockClause?                                #simpleSelect
-    | queryExpression lockClause?                                   #parenthesisSelect
+//     | queryExpression lockClause?                                   #parenthesisSelect
 //     | querySpecificationNointo unionStatement+
 //         (
 //           UNION unionType=(ALL | DISTINCT)?
@@ -1050,11 +1050,11 @@ tableSource
 //     ;
 // 
 // //    Select Statement's Details
-
-queryExpression
-    : '(' querySpecification ')'
-    | '(' queryExpression ')'
-    ;
+//
+// queryExpression
+//     : '(' querySpecification ')'
+//     | '(' queryExpression ')'
+//     ;
 
 // queryExpressionNointo
 //     : '(' querySpecificationNointo ')'
@@ -1178,7 +1178,7 @@ selectElement
 //     ;
 
 fromClause
-    : (FROM tableSources)+
+    : (FROM tableSources)
       (WHERE whereExpr=expression)?
     ;
 
@@ -1209,7 +1209,9 @@ limitClause
     ;
 
 limitClauseAtom
-	: decimalLiteral | mysqlVariable | simpleId
+	: decimalLiteral
+//	| mysqlVariable
+//	| simpleId
 	;
 
 
@@ -2097,12 +2099,12 @@ fullColumnName
 // 
 // userName
 //     : STRING_USER_NAME | ID | STRING_LITERAL | ADMIN | keywordsCanBeId;
-
-mysqlVariable
-    : LOCAL_ID
-    | GLOBAL_ID
-    ;
-
+//
+// mysqlVariable
+//     : LOCAL_ID
+//     | GLOBAL_ID
+//     ;
+//
 // charsetName
 //     : BINARY
 //     | charsetNameBase
@@ -2209,8 +2211,9 @@ constant
     : stringLiteral | decimalLiteral
     | '-' decimalLiteral
     | hexadecimalLiteral | booleanLiteral
-    | REAL_LITERAL | BIT_STRING
-    | NOT? nullLiteral=(NULL_LITERAL | NULL_SPEC_LITERAL)
+    | REAL_LITERAL
+//    | BIT_STRING
+//    | NOT? nullLiteral=(NULL_LITERAL | NULL_SPEC_LITERAL)
     ;
 
 
@@ -2521,7 +2524,7 @@ functionCall
 //    ;
 
 aggregateWindowedFunction
-    : COUNT '(' (starArg='*') ')'?
+    : COUNT '(' (starArg='*') ')'
     ;
 
 // nonAggregateWindowedFunction
@@ -2633,9 +2636,9 @@ predicate
 expressionAtom
     : constant                                                      #constantExpressionAtom
     | fullColumnName                                                #fullColumnNameExpressionAtom
-    | functionCall                                                  #functionCallExpressionAtom
+//    | functionCall                                                  #functionCallExpressionAtom
     | unaryOperator expressionAtom                                  #unaryExpressionAtom
-    | BINARY expressionAtom                                         #binaryExpressionAtom
+//    | BINARY expressionAtom                                         #binaryExpressionAtom
     | '(' expression (',' expression)* ')'                          #nestedExpressionAtom
     ;
 
@@ -2645,11 +2648,14 @@ unaryOperator
 
 comparisonOperator
     : '=' | '>' | '<' | '<' '=' | '>' '='
-    | '<' '>' | '!' '=' | '<' '=' '>'
+    | '<' '>' | '!' '='
+//    | '<' '=' '>' // NULL-safe equal operator.
     ;
 
 logicalOperator
-    : AND | '&' '&' | XOR | OR | '|' '|'
+    : AND | '&' '&'
+//    | XOR
+    | OR | '|' '|'
     ;
 
 // bitOperator
