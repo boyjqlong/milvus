@@ -758,7 +758,7 @@ func TestCatalog_listAliasesAfter210(t *testing.T) {
 
 		kc := Catalog{Snapshot: snapshot}
 
-		_, err := kc.listAliasesAfter210(ctx, 0)
+		_, err := kc.listAliasesAfter210WithDb(ctx, 0)
 		assert.Error(t, err)
 	})
 
@@ -772,7 +772,7 @@ func TestCatalog_listAliasesAfter210(t *testing.T) {
 
 		kc := Catalog{Snapshot: snapshot}
 
-		_, err := kc.listAliasesAfter210(ctx, 0)
+		_, err := kc.listAliasesAfter210WithDb(ctx, 0)
 		assert.Error(t, err)
 	})
 
@@ -790,7 +790,7 @@ func TestCatalog_listAliasesAfter210(t *testing.T) {
 
 		kc := Catalog{Snapshot: snapshot}
 
-		got, err := kc.listAliasesAfter210(ctx, 0)
+		got, err := kc.listAliasesAfter210WithDb(ctx, 0)
 		assert.NoError(t, err)
 		assert.Equal(t, 1, len(got))
 		assert.Equal(t, int64(100), got[0].CollectionID)

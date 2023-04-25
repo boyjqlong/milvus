@@ -59,9 +59,9 @@ type IMetaTable interface {
 	AddPartition(ctx context.Context, partition *model.Partition) error
 	ChangePartitionState(ctx context.Context, collectionID UniqueID, partitionID UniqueID, state pb.PartitionState, ts Timestamp) error
 	RemovePartition(ctx context.Context, collectionID UniqueID, partitionID UniqueID, ts Timestamp) error
-	CreateAlias(ctx context.Context, alias string, collectionName string, ts Timestamp) error
-	DropAlias(ctx context.Context, alias string, ts Timestamp) error
-	AlterAlias(ctx context.Context, alias string, collectionName string, ts Timestamp) error
+	CreateAlias(ctx context.Context, dbName string, alias string, collectionName string, ts Timestamp) error
+	DropAlias(ctx context.Context, dbName string, alias string, ts Timestamp) error
+	AlterAlias(ctx context.Context, dbName string, alias string, collectionName string, ts Timestamp) error
 	AlterCollection(ctx context.Context, oldColl *model.Collection, newColl *model.Collection, ts Timestamp) error
 	RenameCollection(ctx context.Context, dbName string, oldName string, newName string, ts Timestamp) error
 
@@ -97,10 +97,11 @@ type MetaTable struct {
 	ctx     context.Context
 	catalog metastore.RootCoordCatalog
 
-	db2CollIDs	map[string]typeutil.UniqueSet
-	collID2Meta  map[typeutil.UniqueID]*model.Collection // collection id -> collection meta
-	collName2ID  map[string]typeutil.UniqueID            // collection name to collection id
-	collAlias2ID map[string]typeutil.UniqueID            // collection alias to collection id
+	collID2Meta map[typeutil.UniqueID]*model.Collection // collection id -> collection meta
+
+	// collections *collectionDb
+	names   *nameDb
+	aliases *nameDb
 
 	ddLock         sync.RWMutex
 	permissionLock sync.RWMutex
@@ -121,13 +122,34 @@ func (mt *MetaTable) reload() error {
 	mt.ddLock.Lock()
 	defer mt.ddLock.Unlock()
 
-	mt.db2CollIDs = make(map[string]typeutil.UniqueSet)
 	mt.collID2Meta = make(map[UniqueID]*model.Collection)
-	mt.collName2ID = make(map[string]UniqueID)
-	mt.collAlias2ID = make(map[string]UniqueID)
+	mt.names = newNameDb()
+	mt.aliases = newNameDb()
 
 	collectionNum := int64(0)
 	partitionNum := int64(0)
+
+	dbs, err := mt.catalog.ListDatabases(mt.ctx, typeutil.MaxTimestamp)
+	if err != nil {
+		return err
+	}
+	dbs = append(dbs, "")
+
+	for _, db := range dbs {
+		collections, err := mt.catalog.ListCollections(mt.ctx, db, typeutil.MaxTimestamp)
+		if err != nil {
+			return err
+		}
+		for name, collection := range collections {
+			mt.collID2Meta[collection.CollectionID] = collection
+			mt.db2CollName2ID[name] = collection.CollectionID
+
+			if collection.Available() {
+				collectionNum++
+				partitionNum += int64(collection.GetPartitionNum(true))
+			}
+		}
+	}
 
 	collections, err := mt.listAllCollections()
 	if err != nil {
@@ -135,7 +157,7 @@ func (mt *MetaTable) reload() error {
 	}
 	for name, collection := range collections {
 		mt.collID2Meta[collection.CollectionID] = collection
-		mt.collName2ID[name] = collection.CollectionID
+		mt.db2CollName2ID[name] = collection.CollectionID
 
 		if collection.Available() {
 			collectionNum++
@@ -149,7 +171,7 @@ func (mt *MetaTable) reload() error {
 		return err
 	}
 	for _, alias := range aliases {
-		mt.collAlias2ID[alias.Name] = alias.CollectionID
+		mt.db2CollAlias2ID[alias.Name] = alias.CollectionID
 	}
 
 	metrics.RootCoordNumOfCollections.Set(float64(collectionNum))
@@ -164,7 +186,7 @@ func (mt *MetaTable) listAllCollections() (map[string]*model.Collection, error) 
 	}
 
 	ret := make(map[string]*model.Collection)
-	ctx, cancel := context.WithTimeout(mt.ctx, time.Second * 60)
+	ctx, cancel := context.WithTimeout(mt.ctx, time.Second*60)
 	defer cancel()
 	group, _ := errgroup.WithContext(ctx)
 
@@ -194,7 +216,7 @@ func (mt *MetaTable) CreateDatabase(ctx context.Context, dbName string, ts typeu
 	defer mt.ddLock.Unlock()
 
 	if dbName == "" {
-		return  errors.New("database name should not be empty")
+		return errors.New("database name should not be empty")
 	}
 
 	_, ok := mt.db2CollIDs[dbName]
@@ -251,7 +273,7 @@ func (mt *MetaTable) AddCollection(ctx context.Context, coll *model.Collection) 
 	if err := mt.catalog.CreateCollection(ctx1, coll, coll.CreateTime); err != nil {
 		return err
 	}
-	mt.collName2ID[coll.Name] = coll.CollectionID
+	mt.db2CollName2ID[coll.Name] = coll.CollectionID
 	mt.collID2Meta[coll.CollectionID] = coll.Clone()
 	if coll.DBName != "" {
 		cols, ok := mt.db2CollIDs[coll.DBName]
@@ -295,16 +317,16 @@ func (mt *MetaTable) ChangeCollectionState(ctx context.Context, collectionID Uni
 }
 
 func (mt *MetaTable) removeIfNameMatchedInternal(collectionID UniqueID, name string) {
-	id, ok := mt.collName2ID[name]
+	id, ok := mt.db2CollName2ID[name]
 	if ok && id == collectionID {
-		delete(mt.collName2ID, name)
+		delete(mt.db2CollName2ID, name)
 	}
 }
 
 func (mt *MetaTable) removeIfAliasMatchedInternal(collectionID UniqueID, alias string) {
-	id, ok := mt.collAlias2ID[alias]
+	id, ok := mt.db2CollAlias2ID[alias]
 	if ok && id == collectionID {
-		delete(mt.collAlias2ID, alias)
+		delete(mt.db2CollAlias2ID, alias)
 	}
 }
 
@@ -430,12 +452,12 @@ func (mt *MetaTable) GetCollectionByName(ctx context.Context, dbName string, col
 }
 
 func (mt *MetaTable) getCollectionByNameInternal(ctx context.Context, dbName string, collectionName string, ts Timestamp) (*model.Collection, error) {
-	collectionID, ok := mt.collAlias2ID[collectionName]
+	collectionID, ok := mt.db2CollAlias2ID[collectionName]
 	if ok {
 		return mt.getCollectionByIDInternal(ctx, dbName, collectionID, ts, false)
 	}
 
-	collectionID, ok = mt.collName2ID[collectionName]
+	collectionID, ok = mt.db2CollName2ID[collectionName]
 	if ok {
 		return mt.getCollectionByIDInternal(ctx, dbName, collectionID, ts, false)
 	}
@@ -550,7 +572,7 @@ func (mt *MetaTable) RenameCollection(ctx context.Context, dbName string, oldNam
 	log := log.Ctx(ctx).With(zap.String("oldName", oldName), zap.String("newName", newName))
 
 	//old collection should not be an alias
-	_, ok := mt.collAlias2ID[oldName]
+	_, ok := mt.db2CollAlias2ID[oldName]
 	if ok {
 		log.Warn("unsupported use a alias to rename collection")
 		return fmt.Errorf("unsupported use an alias to rename collection, alias:%s", oldName)
@@ -578,8 +600,8 @@ func (mt *MetaTable) RenameCollection(ctx context.Context, dbName string, oldNam
 		return err
 	}
 
-	mt.collName2ID[newName] = oldColl.CollectionID
-	delete(mt.collName2ID, oldName)
+	mt.db2CollName2ID[newName] = oldColl.CollectionID
+	delete(mt.db2CollName2ID, oldName)
 	mt.collID2Meta[oldColl.CollectionID] = newColl
 
 	log.Info("rename collection finished")
@@ -681,25 +703,29 @@ func (mt *MetaTable) RemovePartition(ctx context.Context, collectionID UniqueID,
 	return nil
 }
 
-func (mt *MetaTable) CreateAlias(ctx context.Context, alias string, collectionName string, ts Timestamp) error {
+func (mt *MetaTable) CreateAlias(ctx context.Context, dbName string, alias string, collectionName string, ts Timestamp) error {
 	mt.ddLock.Lock()
 	defer mt.ddLock.Unlock()
 
 	// It's ok that we don't read from catalog when cache missed.
 	// Since cache always keep the latest version, and the ts should always be the latest.
 
-	if _, ok := mt.collName2ID[alias]; ok {
+	if _, ok := mt.db2CollIDs[dbName]; !ok {
+		return fmt.Errorf("database %s not found", dbName)
+	}
+
+	if _, ok := mt.db2CollName2ID[alias]; ok {
 		return fmt.Errorf("cannot create alias, collection already exists with same name: %s", alias)
 	}
 
-	collectionID, ok := mt.collName2ID[collectionName]
+	collectionID, ok := mt.db2CollName2ID[collectionName]
 	if !ok {
 		// you cannot alias to a non-existent collection.
 		return fmt.Errorf("collection not exists: %s", collectionName)
 	}
 
 	// check if alias exists.
-	aliasedCollectionID, ok := mt.collAlias2ID[alias]
+	aliasedCollectionID, ok := mt.db2CollAlias2ID[alias]
 	if ok && aliasedCollectionID == collectionID {
 		log.Warn("add duplicate alias", zap.String("alias", alias), zap.String("collection", collectionName), zap.Uint64("ts", ts))
 		return nil
@@ -722,39 +748,44 @@ func (mt *MetaTable) CreateAlias(ctx context.Context, alias string, collectionNa
 		CollectionID: collectionID,
 		CreatedTime:  ts,
 		State:        pb.AliasState_AliasCreated,
+		DbName:       dbName,
 	}, ts); err != nil {
 		return err
 	}
-	mt.collAlias2ID[alias] = collectionID
+	mt.db2CollAlias2ID[alias] = collectionID
 	log.Info("create alias", zap.String("alias", alias), zap.String("collection", collectionName), zap.Uint64("ts", ts))
 	return nil
 }
 
-func (mt *MetaTable) DropAlias(ctx context.Context, alias string, ts Timestamp) error {
+func (mt *MetaTable) DropAlias(ctx context.Context, dbName string, alias string, ts Timestamp) error {
 	mt.ddLock.Lock()
 	defer mt.ddLock.Unlock()
 
 	ctx1 := contextutil.WithTenantID(ctx, Params.CommonCfg.ClusterName)
-	if err := mt.catalog.DropAlias(ctx1, alias, ts); err != nil {
+	if err := mt.catalog.DropAlias(ctx1, dbName, alias, ts); err != nil {
 		return err
 	}
-	delete(mt.collAlias2ID, alias)
+	delete(mt.db2CollAlias2ID, alias)
 	log.Info("drop alias", zap.String("alias", alias), zap.Uint64("ts", ts))
 	return nil
 }
 
-func (mt *MetaTable) AlterAlias(ctx context.Context, alias string, collectionName string, ts Timestamp) error {
+func (mt *MetaTable) AlterAlias(ctx context.Context, dbName string, alias string, collectionName string, ts Timestamp) error {
 	mt.ddLock.Lock()
 	defer mt.ddLock.Unlock()
 
 	// It's ok that we don't read from catalog when cache missed.
 	// Since cache always keep the latest version, and the ts should always be the latest.
 
-	if _, ok := mt.collName2ID[alias]; ok {
+	if _, ok := mt.db2CollIDs[dbName]; !ok {
+		return fmt.Errorf("database not found: %s", dbName)
+	}
+
+	if _, ok := mt.db2CollName2ID[alias]; ok {
 		return fmt.Errorf("cannot alter alias, collection already exists with same name: %s", alias)
 	}
 
-	collectionID, ok := mt.collName2ID[collectionName]
+	collectionID, ok := mt.db2CollName2ID[collectionName]
 	if !ok {
 		// you cannot alias to a non-existent collection.
 		return fmt.Errorf("collection not exists: %s", collectionName)
@@ -767,7 +798,7 @@ func (mt *MetaTable) AlterAlias(ctx context.Context, alias string, collectionNam
 	}
 
 	// check if alias exists.
-	_, ok = mt.collAlias2ID[alias]
+	_, ok = mt.db2CollAlias2ID[alias]
 	if !ok {
 		//
 		return fmt.Errorf("failed to alter alias, alias does not exist: %s", alias)
@@ -779,12 +810,13 @@ func (mt *MetaTable) AlterAlias(ctx context.Context, alias string, collectionNam
 		CollectionID: collectionID,
 		CreatedTime:  ts,
 		State:        pb.AliasState_AliasCreated,
+		DbName:       dbName,
 	}, ts); err != nil {
 		return err
 	}
 
 	// alias switch to another collection anyway.
-	mt.collAlias2ID[alias] = collectionID
+	mt.db2CollAlias2ID[alias] = collectionID
 	log.Info("alter alias", zap.String("alias", alias), zap.String("collection", collectionName), zap.Uint64("ts", ts))
 	return nil
 }
@@ -793,13 +825,13 @@ func (mt *MetaTable) IsAlias(name string) bool {
 	mt.ddLock.RLock()
 	defer mt.ddLock.RUnlock()
 
-	_, ok := mt.collAlias2ID[name]
+	_, ok := mt.db2CollAlias2ID[name]
 	return ok
 }
 
 func (mt *MetaTable) listAliasesByID(collID UniqueID) []string {
 	ret := make([]string, 0)
-	for alias, id := range mt.collAlias2ID {
+	for alias, id := range mt.db2CollAlias2ID {
 		if id == collID {
 			ret = append(ret, alias)
 		}
@@ -866,7 +898,7 @@ func (mt *MetaTable) GetCollectionIDByName(name string) (UniqueID, error) {
 	mt.ddLock.RLock()
 	defer mt.ddLock.RUnlock()
 
-	id, ok := mt.collName2ID[name]
+	id, ok := mt.db2CollName2ID[name]
 	if !ok {
 		return InvalidCollectionID, fmt.Errorf("collection not exists: %s", name)
 	}

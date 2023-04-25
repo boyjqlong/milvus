@@ -496,7 +496,7 @@ func TestMetaTable_getCollectionByIDInternal(t *testing.T) {
 func TestMetaTable_GetCollectionByName(t *testing.T) {
 	t.Run("get by alias", func(t *testing.T) {
 		meta := &MetaTable{
-			collAlias2ID: map[string]typeutil.UniqueID{
+			db2CollAlias2ID: map[string]typeutil.UniqueID{
 				"alias": 100,
 			},
 			collID2Meta: map[typeutil.UniqueID]*model.Collection{
@@ -520,7 +520,7 @@ func TestMetaTable_GetCollectionByName(t *testing.T) {
 
 	t.Run("get by name", func(t *testing.T) {
 		meta := &MetaTable{
-			collName2ID: map[string]typeutil.UniqueID{
+			db2CollName2ID: map[string]typeutil.UniqueID{
 				"name": 100,
 			},
 			collID2Meta: map[typeutil.UniqueID]*model.Collection{
@@ -594,7 +594,7 @@ func TestMetaTable_GetCollectionByName(t *testing.T) {
 
 	t.Run("get latest version", func(t *testing.T) {
 		ctx := context.Background()
-		meta := &MetaTable{collName2ID: nil}
+		meta := &MetaTable{db2CollName2ID: nil}
 		_, err := meta.GetCollectionByName(ctx, "", "not_exist", typeutil.MaxTimestamp)
 		assert.Error(t, err)
 		assert.True(t, common.IsCollectionNotExistError(err))
@@ -736,14 +736,14 @@ func TestMetaTable_RemoveCollection(t *testing.T) {
 		).Return(nil)
 		meta := &MetaTable{
 			catalog: catalog,
-			collAlias2ID: map[string]typeutil.UniqueID{
+			db2CollAlias2ID: map[string]typeutil.UniqueID{
 				"alias1": 100,
 				"alias2": 100,
 			},
 			collID2Meta: map[typeutil.UniqueID]*model.Collection{
 				100: {Name: "collection"},
 			},
-			collName2ID: map[string]typeutil.UniqueID{
+			db2CollName2ID: map[string]typeutil.UniqueID{
 				"collection": 100,
 			},
 		}
@@ -764,8 +764,8 @@ func TestMetaTable_reload(t *testing.T) {
 		err := meta.reload()
 		assert.Error(t, err)
 		assert.Empty(t, meta.collID2Meta)
-		assert.Empty(t, meta.collName2ID)
-		assert.Empty(t, meta.collAlias2ID)
+		assert.Empty(t, meta.db2CollName2ID)
+		assert.Empty(t, meta.db2CollAlias2ID)
 	})
 
 	t.Run("failed to list aliases", func(t *testing.T) {
@@ -783,7 +783,7 @@ func TestMetaTable_reload(t *testing.T) {
 		meta := &MetaTable{catalog: catalog}
 		err := meta.reload()
 		assert.Error(t, err)
-		assert.Empty(t, meta.collAlias2ID)
+		assert.Empty(t, meta.db2CollAlias2ID)
 	})
 
 	t.Run("normal case", func(t *testing.T) {
@@ -807,8 +807,8 @@ func TestMetaTable_reload(t *testing.T) {
 		err := meta.reload()
 		assert.NoError(t, err)
 		assert.Equal(t, 1, len(meta.collID2Meta))
-		assert.Equal(t, 1, len(meta.collName2ID))
-		assert.Equal(t, 1, len(meta.collAlias2ID))
+		assert.Equal(t, 1, len(meta.db2CollName2ID))
+		assert.Equal(t, 1, len(meta.db2CollAlias2ID))
 	})
 }
 
@@ -918,7 +918,7 @@ func TestMetaTable_AddPartition(t *testing.T) {
 func TestMetaTable_RenameCollection(t *testing.T) {
 	t.Run("unsupported use a alias to rename collection", func(t *testing.T) {
 		meta := &MetaTable{
-			collAlias2ID: map[string]typeutil.UniqueID{
+			db2CollAlias2ID: map[string]typeutil.UniqueID{
 				"alias": 1,
 			},
 		}
@@ -934,7 +934,7 @@ func TestMetaTable_RenameCollection(t *testing.T) {
 
 	t.Run("collection id not exist", func(t *testing.T) {
 		meta := &MetaTable{
-			collName2ID: map[string]typeutil.UniqueID{
+			db2CollName2ID: map[string]typeutil.UniqueID{
 				"old": 1,
 			},
 		}
@@ -944,7 +944,7 @@ func TestMetaTable_RenameCollection(t *testing.T) {
 
 	t.Run("new collection name already exist-1", func(t *testing.T) {
 		meta := &MetaTable{
-			collName2ID: map[string]typeutil.UniqueID{
+			db2CollName2ID: map[string]typeutil.UniqueID{
 				"old": 1,
 				"new": 2,
 			},
@@ -969,7 +969,7 @@ func TestMetaTable_RenameCollection(t *testing.T) {
 		).Return(nil, errors.New("error mock GetCollectionByID"))
 		meta := &MetaTable{
 			catalog: catalog,
-			collName2ID: map[string]typeutil.UniqueID{
+			db2CollName2ID: map[string]typeutil.UniqueID{
 				"old": 1,
 				"new": 2,
 			},
@@ -995,7 +995,7 @@ func TestMetaTable_RenameCollection(t *testing.T) {
 
 		meta := &MetaTable{
 			catalog: catalog,
-			collName2ID: map[string]typeutil.UniqueID{
+			db2CollName2ID: map[string]typeutil.UniqueID{
 				"old": 1,
 			},
 			collID2Meta: map[typeutil.UniqueID]*model.Collection{
@@ -1025,7 +1025,7 @@ func TestMetaTable_RenameCollection(t *testing.T) {
 		).Return(nil, common.NewCollectionNotExistError("error"))
 		meta := &MetaTable{
 			catalog: catalog,
-			collName2ID: map[string]typeutil.UniqueID{
+			db2CollName2ID: map[string]typeutil.UniqueID{
 				"old": 1,
 			},
 			collID2Meta: map[typeutil.UniqueID]*model.Collection{
@@ -1038,7 +1038,7 @@ func TestMetaTable_RenameCollection(t *testing.T) {
 		err := meta.RenameCollection(context.TODO(), "", "old", "new", 1000)
 		assert.NoError(t, err)
 
-		id, ok := meta.collName2ID["new"]
+		id, ok := meta.db2CollName2ID["new"]
 		assert.True(t, ok)
 		assert.Equal(t, int64(1), id)
 
