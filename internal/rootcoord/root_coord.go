@@ -371,7 +371,7 @@ func (c *Core) initMetaTable() error {
 			return retry.Unrecoverable(fmt.Errorf("not supported meta store: %s", Params.MetaStoreCfg.MetaStoreType))
 		}
 
-		if c.meta, err = NewMetaTable(c.ctx, catalog); err != nil {
+		if c.meta, err = NewMetaTable(c.ctx, catalog, c.tsoAllocator); err != nil {
 			return err
 		}
 
@@ -593,42 +593,40 @@ func (c *Core) initRbac() (initError error) {
 	return nil
 }
 
+// TODO: database implement
 func (c *Core) restore(ctx context.Context) error {
-	colls, err := c.meta.ListAbnormalCollections(ctx, typeutil.MaxTimestamp)
+	dbs, err := c.meta.ListDatabases(ctx, typeutil.MaxTimestamp)
 	if err != nil {
 		return err
 	}
 
-	for _, coll := range colls {
-		ts, err := c.tsoAllocator.GenerateTSO(1)
+	for _, db := range dbs {
+		colls, err := c.meta.ListCollections(ctx, db, typeutil.MaxTimestamp, false)
 		if err != nil {
 			return err
 		}
+		for _, coll := range colls {
+			for _, part := range coll.Partitions {
+				ts, err := c.tsoAllocator.GenerateTSO(1)
+				if err != nil {
+					return err
+				}
 
-		switch coll.State {
-		case pb.CollectionState_CollectionDropping:
-			go c.garbageCollector.ReDropCollection(coll.Clone(), ts)
-		case pb.CollectionState_CollectionCreating:
-			go c.garbageCollector.RemoveCreatingCollection(coll.Clone())
-		default:
-		}
-	}
-
-	colls, err = c.meta.ListCollections(ctx, typeutil.MaxTimestamp)
-	if err != nil {
-		return err
-	}
-	for _, coll := range colls {
-		for _, part := range coll.Partitions {
-			ts, err := c.tsoAllocator.GenerateTSO(1)
-			if err != nil {
-				return err
-			}
-
-			switch part.State {
-			case pb.PartitionState_PartitionDropping:
-				go c.garbageCollector.ReDropPartition(coll.PhysicalChannelNames, part.Clone(), ts)
-			default:
+				if coll.Available() {
+					switch part.State {
+					case pb.PartitionState_PartitionDropping:
+						go c.garbageCollector.ReDropPartition(coll.DBName, coll.PhysicalChannelNames, part.Clone(), ts)
+					default:
+					}
+				} else {
+					switch coll.State {
+					case pb.CollectionState_CollectionDropping:
+						go c.garbageCollector.ReDropCollection(coll.Clone(), ts)
+					case pb.CollectionState_CollectionCreating:
+						go c.garbageCollector.RemoveCreatingCollection(coll.Clone())
+					default:
+					}
+				}
 			}
 		}
 	}
@@ -779,6 +777,149 @@ func (c *Core) GetStatisticsChannel(ctx context.Context) (*milvuspb.StringRespon
 	}, nil
 }
 
+func (c *Core) CreateDatabase(ctx context.Context, in *milvuspb.CreateDatabaseRequest) (*commonpb.Status, error) {
+	if code, ok := c.checkHealthy(); !ok {
+		ret := &commonpb.Status{}
+		setNotServingStatus(ret, code)
+		return ret, nil
+	}
+
+	method := "CreateDatabase"
+	metrics.RootCoordDDLReqCounter.WithLabelValues(method, metrics.TotalLabel).Inc()
+	tr := timerecord.NewTimeRecorder("CreateDatabase")
+
+	log.Ctx(ctx).Info("received request to create database", zap.String("role", typeutil.RootCoordRole),
+		zap.String("dbName", in.GetDbName()), zap.Int64("msgID", in.GetBase().GetMsgID()))
+
+	t := &createDatabaseTask{
+		baseTask: newBaseTask(ctx, c),
+		Req:      in,
+	}
+
+	if err := c.scheduler.AddTask(t); err != nil {
+		log.Ctx(ctx).Info("failed to enqueue request to create database",
+			zap.String("role", typeutil.RootCoordRole),
+			zap.Error(err),
+			zap.String("dbName", in.GetDbName()), zap.Int64("msgID", in.GetBase().GetMsgID()))
+
+		metrics.RootCoordDDLReqCounter.WithLabelValues(method, metrics.FailLabel).Inc()
+		return failStatus(commonpb.ErrorCode_UnexpectedError, err.Error()), nil
+	}
+
+	if err := t.WaitToFinish(); err != nil {
+		log.Ctx(ctx).Info("failed to create database",
+			zap.String("role", typeutil.RootCoordRole),
+			zap.Error(err),
+			zap.String("dbName", in.GetDbName()),
+			zap.Int64("msgID", in.GetBase().GetMsgID()), zap.Uint64("ts", t.GetTs()))
+
+		metrics.RootCoordDDLReqCounter.WithLabelValues(method, metrics.FailLabel).Inc()
+		return failStatus(commonpb.ErrorCode_UnexpectedError, err.Error()), nil
+	}
+
+	metrics.RootCoordDDLReqCounter.WithLabelValues(method, metrics.SuccessLabel).Inc()
+	metrics.RootCoordDDLReqLatency.WithLabelValues(method).Observe(float64(tr.ElapseSpan().Milliseconds()))
+	metrics.RootCoordNumOfDatabases.Inc()
+	metrics.RootCoordDDLReqLatencyInQueue.WithLabelValues(method).Observe(float64(t.queueDur.Milliseconds()))
+
+	log.Ctx(ctx).Info("done to create database", zap.String("role", typeutil.RootCoordRole),
+		zap.String("dbName", in.GetDbName()),
+		zap.Int64("msgID", in.GetBase().GetMsgID()), zap.Uint64("ts", t.GetTs()))
+	return succStatus(), nil
+}
+
+func (c *Core) DropDatabase(ctx context.Context, in *milvuspb.DropDatabaseRequest) (*commonpb.Status, error) {
+	if code, ok := c.checkHealthy(); !ok {
+		ret := &commonpb.Status{}
+		setNotServingStatus(ret, code)
+		return ret, nil
+	}
+
+	method := "DropDatabase"
+	metrics.RootCoordDDLReqCounter.WithLabelValues(method, metrics.TotalLabel).Inc()
+	tr := timerecord.NewTimeRecorder("DropDatabase")
+
+	log.Ctx(ctx).Info("received request to drop database", zap.String("role", typeutil.RootCoordRole),
+		zap.String("dbName", in.GetDbName()), zap.Int64("msgID", in.GetBase().GetMsgID()))
+
+	t := &dropDatabaseTask{
+		baseTask: newBaseTask(ctx, c),
+		Req:      in,
+	}
+
+	if err := c.scheduler.AddTask(t); err != nil {
+		log.Ctx(ctx).Info("failed to enqueue request to drop database", zap.String("role", typeutil.RootCoordRole),
+			zap.Error(err),
+			zap.String("dbName", in.GetDbName()), zap.Int64("msgID", in.GetBase().GetMsgID()))
+
+		metrics.RootCoordDDLReqCounter.WithLabelValues(method, metrics.FailLabel).Inc()
+		return failStatus(commonpb.ErrorCode_UnexpectedError, err.Error()), nil
+	}
+
+	if err := t.WaitToFinish(); err != nil {
+		log.Ctx(ctx).Info("failed to drop database", zap.String("role", typeutil.RootCoordRole),
+			zap.Error(err),
+			zap.String("dbName", in.GetDbName()),
+			zap.Int64("msgID", in.GetBase().GetMsgID()), zap.Uint64("ts", t.GetTs()))
+
+		metrics.RootCoordDDLReqCounter.WithLabelValues(method, metrics.FailLabel).Inc()
+		return failStatus(commonpb.ErrorCode_UnexpectedError, err.Error()), nil
+	}
+
+	metrics.RootCoordDDLReqCounter.WithLabelValues(method, metrics.SuccessLabel).Inc()
+	metrics.RootCoordDDLReqLatency.WithLabelValues(method).Observe(float64(tr.ElapseSpan().Milliseconds()))
+	metrics.RootCoordNumOfDatabases.Dec()
+	metrics.RootCoordDDLReqLatencyInQueue.WithLabelValues(method).Observe(float64(t.queueDur.Milliseconds()))
+
+	log.Ctx(ctx).Info("done to drop database", zap.String("role", typeutil.RootCoordRole),
+		zap.String("dbName", in.GetDbName()), zap.Int64("msgID", in.GetBase().GetMsgID()),
+		zap.Uint64("ts", t.GetTs()))
+	return succStatus(), nil
+}
+
+func (c *Core) ListDatabases(ctx context.Context, in *milvuspb.ListDatabasesRequest) (*milvuspb.ListDatabasesResponse, error) {
+	if code, ok := c.checkHealthy(); !ok {
+		ret := &milvuspb.ListDatabasesResponse{Status: &commonpb.Status{}}
+		setNotServingStatus(ret.GetStatus(), code)
+		return ret, nil
+	}
+	method := "ListDatabases"
+	metrics.RootCoordDDLReqCounter.WithLabelValues(method, metrics.TotalLabel).Inc()
+	tr := timerecord.NewTimeRecorder("ListDatabases")
+
+	log := log.Ctx(ctx).With(zap.Int64("msgID", in.GetBase().GetMsgID()))
+	log.Info("received request to list databases")
+
+	t := &listDatabaseTask{
+		baseTask: newBaseTask(ctx, c),
+		Req:      in,
+		Resp:     &milvuspb.ListDatabasesResponse{},
+	}
+
+	if err := c.scheduler.AddTask(t); err != nil {
+		log.Info("failed to enqueue request to list databases", zap.Error(err))
+		metrics.RootCoordDDLReqCounter.WithLabelValues(method, metrics.FailLabel).Inc()
+		return &milvuspb.ListDatabasesResponse{
+			Status: failStatus(commonpb.ErrorCode_UnexpectedError, "ListDatabases failed: "+err.Error()),
+		}, nil
+	}
+
+	if err := t.WaitToFinish(); err != nil {
+		log.Info("failed to list databases", zap.Error(err))
+		metrics.RootCoordDDLReqCounter.WithLabelValues(method, metrics.FailLabel).Inc()
+		return &milvuspb.ListDatabasesResponse{
+			Status: failStatus(commonpb.ErrorCode_UnexpectedError, "ListDatabases failed: "+err.Error()),
+		}, nil
+	}
+
+	metrics.RootCoordDDLReqCounter.WithLabelValues(method, metrics.SuccessLabel).Inc()
+	metrics.RootCoordDDLReqLatency.WithLabelValues(method).Observe(float64(tr.ElapseSpan().Milliseconds()))
+	metrics.RootCoordDDLReqLatencyInQueue.WithLabelValues(method).Observe(float64(t.queueDur.Milliseconds()))
+
+	log.Info("done to list databases", zap.Int("num of databases", len(t.Resp.GetDbNames())))
+	return t.Resp, nil
+}
+
 // CreateCollection create collection
 func (c *Core) CreateCollection(ctx context.Context, in *milvuspb.CreateCollectionRequest) (*commonpb.Status, error) {
 	if code, ok := c.checkHealthy(); !ok {
@@ -791,8 +932,11 @@ func (c *Core) CreateCollection(ctx context.Context, in *milvuspb.CreateCollecti
 	metrics.RootCoordDDLReqCounter.WithLabelValues(method, metrics.TotalLabel).Inc()
 	tr := timerecord.NewTimeRecorder("CreateCollection")
 
-	log.Ctx(ctx).Info("received request to create collection", zap.String("role", typeutil.RootCoordRole),
-		zap.String("name", in.GetCollectionName()), zap.Int64("msgID", in.GetBase().GetMsgID()))
+	log.Ctx(ctx).Info("received request to create collection",
+		zap.String("dbName", in.GetDbName()),
+		zap.String("collectionName", in.GetCollectionName()),
+		zap.String("role", typeutil.RootCoordRole),
+		zap.Int64("msgID", in.GetBase().GetMsgID()))
 
 	t := &createCollectionTask{
 		baseTask: newBaseTask(ctx, c),
@@ -841,8 +985,11 @@ func (c *Core) DropCollection(ctx context.Context, in *milvuspb.DropCollectionRe
 	metrics.RootCoordDDLReqCounter.WithLabelValues(method, metrics.TotalLabel).Inc()
 	tr := timerecord.NewTimeRecorder("DropCollection")
 
-	log.Ctx(ctx).Info("received request to drop collection", zap.String("role", typeutil.RootCoordRole),
-		zap.String("name", in.GetCollectionName()), zap.Int64("msgID", in.GetBase().GetMsgID()))
+	log.Ctx(ctx).Info("received request to drop collection",
+		zap.String("role", typeutil.RootCoordRole),
+		zap.String("dbName", in.GetDbName()),
+		zap.String("collectionName", in.GetCollectionName()),
+		zap.Int64("msgID", in.GetBase().GetMsgID()))
 
 	t := &dropCollectionTask{
 		baseTask: newBaseTask(ctx, c),
@@ -932,9 +1079,9 @@ func (c *Core) HasCollection(ctx context.Context, in *milvuspb.HasCollectionRequ
 func (c *Core) describeCollection(ctx context.Context, in *milvuspb.DescribeCollectionRequest, allowUnavailable bool) (*model.Collection, error) {
 	ts := getTravelTs(in)
 	if in.GetCollectionName() != "" {
-		return c.meta.GetCollectionByName(ctx, in.GetCollectionName(), ts)
+		return c.meta.GetCollectionByName(ctx, in.GetDbName(), in.GetCollectionName(), ts)
 	}
-	return c.meta.GetCollectionByID(ctx, in.GetCollectionID(), ts, allowUnavailable)
+	return c.meta.GetCollectionByID(ctx, in.GetDbName(), in.GetCollectionID(), ts, allowUnavailable)
 }
 
 func convertModelToDesc(collInfo *model.Collection, aliases []string) *milvuspb.DescribeCollectionResponse {
@@ -1681,7 +1828,7 @@ func (c *Core) Import(ctx context.Context, req *milvuspb.ImportRequest) (*milvus
 	// Get collection/partition ID from collection/partition name.
 	var colInfo *model.Collection
 	var err error
-	if colInfo, err = c.meta.GetCollectionByName(ctx, req.GetCollectionName(), typeutil.MaxTimestamp); err != nil {
+	if colInfo, err = c.meta.GetCollectionByName(ctx, req.GetDbName(), req.GetCollectionName(), typeutil.MaxTimestamp); err != nil {
 		log.Error("failed to find collection ID from its name",
 			zap.String("collection name", req.GetCollectionName()),
 			zap.Error(err))
@@ -1734,7 +1881,7 @@ func (c *Core) ListImportTasks(ctx context.Context, req *milvuspb.ListImportTask
 	if len(collectionName) != 0 {
 		// if the collection name is specified but not found, user may input a wrong name, the collection doesn't exist or has been dropped.
 		// we will return error to notify user the name is incorrect.
-		colInfo, err := c.meta.GetCollectionByName(ctx, req.GetCollectionName(), typeutil.MaxTimestamp)
+		colInfo, err := c.meta.GetCollectionByName(ctx, req.GetDbName(), req.GetCollectionName(), typeutil.MaxTimestamp)
 		if err != nil {
 			err = fmt.Errorf("failed to find collection ID from its name: '%s', error: %w", req.GetCollectionName(), err)
 			log.Error("ListImportTasks failed", zap.Error(err))

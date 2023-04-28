@@ -135,6 +135,31 @@ func ValidateResourceGroupName(entity string) error {
 	return nil
 }
 
+func ValidateDatabaseName(dbName string) error {
+	if dbName == "" {
+		return errors.New("database name couldn't be empty")
+	}
+
+	invalidMsg := fmt.Sprintf("Invalid database name %s,", dbName)
+	if int64(len(dbName)) > Params.ProxyCfg.MaxNameLength {
+		return fmt.Errorf("%s the length of a database name must be less than %d characters",
+			invalidMsg, Params.ProxyCfg.MaxNameLength)
+	}
+
+	firstChar := dbName[0]
+	if firstChar != '_' && !isAlpha(firstChar) {
+		return fmt.Errorf("%s the first character of a database name must be an underscore or letter", invalidMsg)
+	}
+
+	for i := 1; i < len(dbName); i++ {
+		c := dbName[i]
+		if c != '_' && !isAlpha(c) && !isNumber(c) {
+			return fmt.Errorf("%s database name can only contain numbers, letters and underscores", invalidMsg)
+		}
+	}
+	return nil
+}
+
 // ValidateCollectionAlias returns true if collAlias is a valid alias name for collection, otherwise returns false.
 func ValidateCollectionAlias(collAlias string) error {
 	return validateCollectionNameOrAlias(collAlias, "alias")
@@ -741,6 +766,25 @@ func GetCurDBNameFromContext(ctx context.Context) string {
 	return dbNameData[0]
 }
 
+func GetCurDatabaseFromContext(ctx context.Context) (string, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return "", fmt.Errorf("fail to get md from the context")
+	}
+	header := md[strings.ToLower(util.HeaderDatabase)]
+	if len(header) < 1 {
+		return "", nil
+	}
+	return header[0], nil
+}
+
+func GetCurDatabaseFromContextOrDefault(ctx context.Context) string {
+	if db, err := GetCurDatabaseFromContext(ctx); err == nil {
+		return db
+	}
+	return ""
+}
+
 func GetRole(username string) ([]string, error) {
 	if globalMetaCache == nil {
 		return []string{}, ErrProxyNotReady()
@@ -943,7 +987,7 @@ func getPartitionProgress(ctx context.Context, queryCoord types.QueryCoord,
 	IDs2Names := make(map[int64]string)
 	partitionIDs := make([]int64, 0)
 	for _, partitionName := range partitionNames {
-		partitionID, err := globalMetaCache.GetPartitionID(ctx, collectionName, partitionName)
+		partitionID, err := globalMetaCache.GetPartitionID(ctx, GetCurDatabaseFromContextOrDefault(ctx), collectionName, partitionName)
 		if err != nil {
 			return 0, err
 		}

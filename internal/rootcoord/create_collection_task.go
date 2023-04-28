@@ -20,29 +20,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
-	ms "github.com/milvus-io/milvus/internal/mq/msgstream"
-	"github.com/milvus-io/milvus/internal/proto/internalpb"
-
-	"github.com/milvus-io/milvus/internal/util/commonpbutil"
-	"github.com/milvus-io/milvus/internal/util/funcutil"
-
 	"github.com/milvus-io/milvus-proto/go-api/commonpb"
-
-	pb "github.com/milvus-io/milvus/internal/proto/etcdpb"
-
-	"github.com/milvus-io/milvus/internal/metastore/model"
-
+	"github.com/milvus-io/milvus-proto/go-api/milvuspb"
+	"github.com/milvus-io/milvus-proto/go-api/schemapb"
 	"github.com/milvus-io/milvus/internal/common"
 	"github.com/milvus-io/milvus/internal/log"
+	"github.com/milvus-io/milvus/internal/metastore/model"
+	ms "github.com/milvus-io/milvus/internal/mq/msgstream"
+	pb "github.com/milvus-io/milvus/internal/proto/etcdpb"
+	"github.com/milvus-io/milvus/internal/proto/internalpb"
+	"github.com/milvus-io/milvus/internal/util/commonpbutil"
+	"github.com/milvus-io/milvus/internal/util/funcutil"
 	"github.com/milvus-io/milvus/internal/util/typeutil"
-	"go.uber.org/zap"
 
 	"github.com/golang/protobuf/proto"
-
-	"github.com/milvus-io/milvus-proto/go-api/schemapb"
-
-	"github.com/milvus-io/milvus-proto/go-api/milvuspb"
+	"go.uber.org/zap"
 )
 
 type collectionChannels struct {
@@ -270,6 +262,7 @@ func (t *createCollectionTask) Execute(ctx context.Context) error {
 
 	collInfo := model.Collection{
 		CollectionID:         collID,
+		DBName:               t.Req.DbName,
 		Name:                 t.schema.Name,
 		Description:          t.schema.Description,
 		AutoID:               t.schema.AutoID,
@@ -299,7 +292,7 @@ func (t *createCollectionTask) Execute(ctx context.Context) error {
 	clone := collInfo.Clone()
 	clone.Partitions = []*model.Partition{{PartitionName: Params.CommonCfg.DefaultPartitionName}}
 	// need double check in meta table if we can't promise the sequence execution.
-	existedCollInfo, err := t.core.meta.GetCollectionByName(ctx, t.Req.GetCollectionName(), typeutil.MaxTimestamp)
+	existedCollInfo, err := t.core.meta.GetCollectionByName(ctx, t.Req.GetDbName(), t.Req.GetCollectionName(), typeutil.MaxTimestamp)
 	if err == nil {
 		equal := existedCollInfo.Equal(*clone)
 		if !equal {
@@ -310,10 +303,10 @@ func (t *createCollectionTask) Execute(ctx context.Context) error {
 		return nil
 	}
 
-	existedCollInfos, err := t.core.meta.ListCollections(ctx, typeutil.MaxTimestamp)
+	existedCollInfos, err := t.core.meta.ListCollections(ctx, t.Req.GetDbName(), typeutil.MaxTimestamp, true)
 	if err != nil {
 		log.Warn("fail to list collections for checking the collection count", zap.Error(err))
-		return fmt.Errorf("fail to list collections for checking the collection count")
+		return fmt.Errorf("fail to list collections for checking the collection count, err: %s", err.Error())
 	}
 	maxCollectionNum := Params.QuotaConfig.MaxCollectionNum
 	if len(existedCollInfos) >= maxCollectionNum {
@@ -324,6 +317,7 @@ func (t *createCollectionTask) Execute(ctx context.Context) error {
 	undoTask := newBaseUndoTask(t.core.stepExecutor)
 	undoTask.AddStep(&expireCacheStep{
 		baseStep:        baseStep{core: t.core},
+		dbName:          t.Req.GetDbName(),
 		collectionNames: []string{t.Req.GetCollectionName()},
 		collectionID:    InvalidCollectionID,
 		ts:              ts,
