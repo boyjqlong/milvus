@@ -923,3 +923,7 @@ func (s *Server) ListIndexedSegment(ctx context.Context, req *federpb.ListIndexe
 func (s *Server) DescribeSegmentIndexData(ctx context.Context, req *federpb.DescribeSegmentIndexDataRequest) (*federpb.DescribeSegmentIndexDataResponse, error) {
 	panic("TODO: implement me")
 }
+
+func (s *Server) Connect(ctx context.Context, request *milvuspb.ConnectRequest) (*milvuspb.ConnectResponse, error) {
+	return s.proxy.Connect(ctx, request)
+}

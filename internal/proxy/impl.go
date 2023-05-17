@@ -5053,3 +5053,7 @@ func (node *Proxy) ListIndexedSegment(ctx context.Context, request *federpb.List
 func (node *Proxy) DescribeSegmentIndexData(ctx context.Context, request *federpb.DescribeSegmentIndexDataRequest) (*federpb.DescribeSegmentIndexDataResponse, error) {
 	panic("TODO: implement me")
 }
+
+func (node *Proxy) Connect(ctx context.Context, request *milvuspb.ConnectRequest) (*milvuspb.ConnectResponse, error) {
+	return nil, nil
+}
