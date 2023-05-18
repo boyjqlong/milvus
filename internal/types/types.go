@@ -848,6 +848,8 @@ type Proxy interface {
 	// because it only obtains the metrics of Proxy, not including the topological metrics of Query cluster and Data cluster.
 	GetProxyMetrics(ctx context.Context, request *milvuspb.GetMetricsRequest) (*milvuspb.GetMetricsResponse, error)
 	RefreshPolicyInfoCache(ctx context.Context, req *proxypb.RefreshPolicyInfoCacheRequest) (*commonpb.Status, error)
+
+	ListClientInfos(ctx context.Context, req *proxypb.ListClientInfosRequest) (*proxypb.ListClientInfosResponse, error)
 }
 
 // ProxyComponent defines the interface of proxy component.

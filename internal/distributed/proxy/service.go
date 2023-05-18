@@ -176,6 +176,7 @@ func (s *Server) startExternalGrpc(grpcPort int, errChan chan error) {
 			logutil.UnaryTraceLoggerInterceptor,
 			proxy.RateLimitInterceptor(limiter),
 			accesslog.UnaryAccessLoggerInterceptor,
+			proxy.KeepActiveInterceptor,
 		)),
 	}
 
@@ -924,6 +925,10 @@ func (s *Server) DescribeSegmentIndexData(ctx context.Context, req *federpb.Desc
 	panic("TODO: implement me")
 }
 
-func (s *Server) Connect(ctx context.Context, request *milvuspb.ConnectRequest) (*milvuspb.ConnectResponse, error) {
-	return s.proxy.Connect(ctx, request)
+func (s *Server) Connect(ctx context.Context, req *milvuspb.ConnectRequest) (*milvuspb.ConnectResponse, error) {
+	return s.proxy.Connect(ctx, req)
+}
+
+func (s *Server) ListClientInfos(ctx context.Context, req *proxypb.ListClientInfosRequest) (*proxypb.ListClientInfosResponse, error) {
+	return s.proxy.ListClientInfos(ctx, req)
 }
