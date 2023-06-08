@@ -302,7 +302,7 @@ func (s *Server) initMeta() error {
 	s.meta = meta.NewMeta(s.idAllocator, s.store, s.nodeMgr)
 
 	log.Info("recover meta...")
-	err := s.meta.CollectionManager.Recover()
+	err := s.meta.CollectionManager.Recover(s.broker)
 	if err != nil {
 		log.Error("failed to recover collections")
 		return err
