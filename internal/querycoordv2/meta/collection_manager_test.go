@@ -42,8 +42,6 @@ type CollectionManagerSuite struct {
 	loadTypes      []querypb.LoadType
 	replicaNumber  []int32
 	loadPercentage []int32
-	colLoadPercent []int32
-	parLoadPercent map[int64][]int32
 
 	// Mocks
 	kv     kv.MetaKv
@@ -57,26 +55,21 @@ type CollectionManagerSuite struct {
 func (suite *CollectionManagerSuite) SetupSuite() {
 	Params.InitOnce()
 
-	suite.collections = []int64{100, 101, 102}
+	suite.collections = []int64{100, 101, 102, 103}
 	suite.partitions = map[int64][]int64{
 		100: {10},
 		101: {11, 12},
 		102: {13, 14, 15},
+		103: {16, 17},
 	}
 	suite.loadTypes = []querypb.LoadType{
 		querypb.LoadType_LoadCollection,
 		querypb.LoadType_LoadPartition,
 		querypb.LoadType_LoadCollection,
+		querypb.LoadType_LoadPartition,
 	}
-	suite.replicaNumber = []int32{1, 2, 3}
-	suite.loadPercentage = []int32{0, 50, 100}
-	suite.colLoadPercent = []int32{0, 50, 100, 100}
-	suite.parLoadPercent = map[int64][]int32{
-		100: {0},
-		101: {0, 100},
-		102: {100, 100, 100},
-		103: {},
-	}
+	suite.replicaNumber = []int32{1, 2, 3, 1}
+	suite.loadPercentage = []int32{0, 50, 100, 100}
 }
 
 func (suite *CollectionManagerSuite) SetupTest() {
@@ -160,9 +153,10 @@ func (suite *CollectionManagerSuite) TestGet() {
 func (suite *CollectionManagerSuite) TestUpdate() {
 	mgr := suite.mgr
 
-	suite.broker.EXPECT().GetCollectionSchema(mock.Anything, mock.Anything).Return(nil, nil)
-	for _, collection := range suite.collections {
-		if len(suite.partitions[collection]) > 0 {
+	for i, collection := range suite.collections {
+		if suite.loadTypes[i] == querypb.LoadType_LoadCollection {
+			suite.broker.EXPECT().GetCollectionSchema(mock.Anything, collection).Return(nil, nil)
+		} else if len(suite.partitions[collection]) > 0 {
 			suite.broker.EXPECT().GetPartitions(mock.Anything, collection).Return(suite.partitions[collection], nil)
 		}
 	}
@@ -213,11 +207,6 @@ func (suite *CollectionManagerSuite) TestUpdate() {
 
 func (suite *CollectionManagerSuite) TestRemove() {
 	mgr := suite.mgr
-
-	suite.broker.EXPECT().GetCollectionSchema(mock.Anything, mock.Anything).Return(nil, nil)
-	for _, collection := range suite.collections {
-		suite.broker.EXPECT().GetPartitions(mock.Anything, collection).Return(suite.partitions[collection], nil).Maybe()
-	}
 
 	// Remove collections/partitions
 	for i, collectionID := range suite.collections {
@@ -270,9 +259,10 @@ func (suite *CollectionManagerSuite) TestRecover_normal() {
 	mgr := suite.mgr
 
 	// recover successfully
-	for _, collection := range suite.collections {
-		suite.broker.EXPECT().GetCollectionSchema(mock.Anything, collection).Return(nil, nil)
-		if len(suite.partitions[collection]) > 0 {
+	for i, collection := range suite.collections {
+		if suite.loadTypes[i] == querypb.LoadType_LoadCollection {
+			suite.broker.EXPECT().GetCollectionSchema(mock.Anything, collection).Return(nil, nil)
+		} else if len(suite.partitions[collection]) > 0 {
 			suite.broker.EXPECT().GetPartitions(mock.Anything, collection).Return(suite.partitions[collection], nil)
 		}
 	}
@@ -281,14 +271,13 @@ func (suite *CollectionManagerSuite) TestRecover_normal() {
 	suite.NoError(err)
 	for i, collection := range suite.collections {
 		exist := suite.loadPercentage[i] == 100
-		suite.Equal(exist, mgr.Exist(collection))
-		if !exist {
-			continue
-		}
-		for j, partitionID := range suite.partitions[collection] {
-			partition := mgr.GetPartition(partitionID)
-			exist = suite.parLoadPercent[collection][j] == 100
-			suite.Equal(exist, partition != nil)
+		if suite.loadTypes[i] == querypb.LoadType_LoadCollection {
+			suite.Equal(exist, mgr.Exist(collection))
+		} else {
+			for _, partitionID := range suite.partitions[collection] {
+				partition := mgr.GetPartition(partitionID)
+				suite.Equal(exist, partition != nil)
+			}
 		}
 	}
 }
@@ -296,17 +285,17 @@ func (suite *CollectionManagerSuite) TestRecover_normal() {
 func (suite *CollectionManagerSuite) TestRecover_with_dropped() {
 	mgr := suite.mgr
 
-	droppedCollection := int64(101)
-	droppedPartition := int64(13)
+	droppedCollections := []int64{101, 102}
+	droppedPartition := int64(16)
 
-	for _, collection := range suite.collections {
-		if collection == droppedCollection {
+	for i, collection := range suite.collections {
+		if suite.loadTypes[i] == querypb.LoadType_LoadCollection && lo.Contains(droppedCollections, collection) {
 			suite.broker.EXPECT().GetCollectionSchema(mock.Anything, collection).Return(nil, common.NewCollectionNotExistError("not exist"))
-		} else {
+		} else if suite.loadTypes[i] == querypb.LoadType_LoadCollection {
 			suite.broker.EXPECT().GetCollectionSchema(mock.Anything, collection).Return(nil, nil)
 		}
-		if len(suite.partitions[collection]) != 0 {
-			if collection == droppedCollection {
+		if suite.loadTypes[i] == querypb.LoadType_LoadPartition && len(suite.partitions[collection]) != 0 {
+			if lo.Contains(droppedCollections, collection) {
 				suite.broker.EXPECT().GetPartitions(mock.Anything, collection).Return(nil, common.NewCollectionNotExistError("not exist"))
 			} else {
 				suite.broker.EXPECT().GetPartitions(mock.Anything, collection).
@@ -320,15 +309,15 @@ func (suite *CollectionManagerSuite) TestRecover_with_dropped() {
 	err := mgr.Recover(suite.broker)
 	suite.NoError(err)
 	for i, collection := range suite.collections {
-		exist := suite.colLoadPercent[i] == 100 && collection != droppedCollection
-		suite.Equal(exist, mgr.Exist(collection))
-		if !exist {
-			continue
-		}
-		for j, partitionID := range suite.partitions[collection] {
-			partition := mgr.GetPartition(partitionID)
-			exist = suite.parLoadPercent[collection][j] == 100 && partitionID != droppedPartition
-			suite.Equal(exist, partition != nil)
+		exist := suite.loadPercentage[i] == 100 && !lo.Contains(droppedCollections, collection)
+		if suite.loadTypes[i] == querypb.LoadType_LoadCollection {
+			suite.Equal(exist, mgr.Exist(collection))
+		} else {
+			for _, partitionID := range suite.partitions[collection] {
+				partition := mgr.GetPartition(partitionID)
+				partitionExist := exist && partitionID != droppedPartition
+				suite.Equal(partitionExist, partition != nil)
+			}
 		}
 	}
 }

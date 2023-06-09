@@ -272,18 +272,16 @@ func (suite *ServerSuite) TestEnableActiveStandby() {
 		Schema: &schemapb.CollectionSchema{},
 	}, nil).Maybe()
 	for _, collection := range suite.collections {
-		if suite.loadTypes[collection] == querypb.LoadType_LoadCollection {
-			req := &milvuspb.ShowPartitionsRequest{
-				Base: commonpbutil.NewMsgBase(
-					commonpbutil.WithMsgType(commonpb.MsgType_ShowPartitions),
-				),
-				CollectionID: collection,
-			}
-			mockRootCoord.EXPECT().ShowPartitions(mock.Anything, req).Return(&milvuspb.ShowPartitionsResponse{
-				Status:       successStatus,
-				PartitionIDs: suite.partitions[collection],
-			}, nil).Maybe()
+		req := &milvuspb.ShowPartitionsRequest{
+			Base: commonpbutil.NewMsgBase(
+				commonpbutil.WithMsgType(commonpb.MsgType_ShowPartitions),
+			),
+			CollectionID: collection,
 		}
+		mockRootCoord.EXPECT().ShowPartitions(mock.Anything, req).Return(&milvuspb.ShowPartitionsResponse{
+			Status:       successStatus,
+			PartitionIDs: suite.partitions[collection],
+		}, nil).Maybe()
 		suite.expectGetRecoverInfoByMockDataCoord(collection, mockDataCoord)
 	}
 	err = suite.server.SetRootCoord(mockRootCoord)
