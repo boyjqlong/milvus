@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/milvus-io/milvus/internal/util/trace"
 	"sort"
 	"strconv"
 	"sync"
@@ -721,6 +722,9 @@ func filterSegmentInfo(segmentInfos []*querypb.SegmentInfo, segmentIDs map[int64
 
 // Search performs replica search tasks.
 func (node *QueryNode) Search(ctx context.Context, req *querypb.SearchRequest) (*internalpb.SearchResults, error) {
+	sp, ctx := trace.StartSpanFromContextWithOperationName(ctx, "QueryNode-Search")
+	defer sp.Finish()
+
 	if !node.IsStandAlone && req.GetReq().GetBase().GetTargetID() != Params.QueryNodeCfg.GetNodeID() {
 		return &internalpb.SearchResults{
 			Status: &commonpb.Status{
@@ -804,6 +808,9 @@ func (node *QueryNode) Search(ctx context.Context, req *querypb.SearchRequest) (
 		return failRet, nil
 	}
 
+	sp1, ctx := trace.StartSpanFromContextWithOperationName(ctx, "QueryNode-ReduceSearchResults-Global")
+	defer sp1.Finish()
+
 	ret, err := reduceSearchResults(ctx, toReduceResults, req.Req.GetNq(), req.Req.GetTopk(), req.Req.GetMetricType())
 	if err != nil {
 		failRet.Status.ErrorCode = commonpb.ErrorCode_UnexpectedError
@@ -831,6 +838,9 @@ func (node *QueryNode) Search(ctx context.Context, req *querypb.SearchRequest) (
 }
 
 func (node *QueryNode) searchWithDmlChannel(ctx context.Context, req *querypb.SearchRequest, dmlChannel string) (*internalpb.SearchResults, error) {
+	sp, ctx := trace.StartSpanFromContextWithOperationName(ctx, "QueryNode-SearchWithDmlChannel")
+	defer sp.Finish()
+
 	metrics.QueryNodeSQCount.WithLabelValues(fmt.Sprint(Params.QueryNodeCfg.GetNodeID()), metrics.SearchLabel, metrics.TotalLabel).Inc()
 	failRet := &internalpb.SearchResults{
 		Status: &commonpb.Status{
@@ -987,6 +997,9 @@ func (node *QueryNode) searchWithDmlChannel(ctx context.Context, req *querypb.Se
 	}
 
 	tr.CtxElapse(ctx, fmt.Sprintf("do search done in shard cluster, vChannel = %s, segmentIDs = %v", dmlChannel, req.GetSegmentIDs()))
+
+	sp1, ctx := trace.StartSpanFromContextWithOperationName(ctx, "QueryNode-ReduceSearchResults-Shard")
+	defer sp1.Finish()
 
 	ret, err2 := reduceSearchResults(ctx, results, req.Req.GetNq(), req.Req.GetTopk(), req.Req.GetMetricType())
 	if err2 != nil {

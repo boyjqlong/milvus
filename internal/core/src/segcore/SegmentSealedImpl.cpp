@@ -22,6 +22,7 @@
 #include "query/SearchOnSealed.h"
 #include "storage/Util.h"
 #include "storage/RemoteChunkManagerFactory.h"
+#include "common/Common.h"
 
 namespace milvus::segcore {
 
@@ -485,6 +486,8 @@ template <typename T>
 void
 SegmentSealedImpl::bulk_subscript_impl(const void* src_raw, const int64_t* seg_offsets, int64_t count, void* dst_raw) {
     static_assert(IsScalar<T>);
+    milvus::TimeRecorder tr("bulk_subscript_impl cost", 2);
+#if 0
     auto src = reinterpret_cast<const T*>(src_raw);
     auto dst = reinterpret_cast<T*>(dst_raw);
     for (int64_t i = 0; i < count; ++i) {
@@ -493,6 +496,83 @@ SegmentSealedImpl::bulk_subscript_impl(const void* src_raw, const int64_t* seg_o
             dst[i] = src[offset];
         }
     }
+    tr.RecordSection("original version");
+#elif 0
+    auto src = reinterpret_cast<const T*>(src_raw);
+    auto dst = reinterpret_cast<T*>(dst_raw);
+    for (int64_t i = 0; i < count; ++i) {
+        auto offset = seg_offsets[i];
+        dst[i] = src[offset];
+    }
+    tr.RecordSection("original version without if");
+#elif 0
+    auto src = reinterpret_cast<const T*>(src_raw);
+    auto dst = reinterpret_cast<T*>(dst_raw);
+#pragma omp simd
+    for (int64_t i = 0; i < count; ++i) {
+        auto offset = seg_offsets[i];
+        if (offset != INVALID_SEG_OFFSET) {
+            dst[i] = src[offset];
+        }
+    }
+    tr.RecordSection("simd version");
+#elif 1
+    auto src = reinterpret_cast<const T*>(src_raw);
+    auto dst = reinterpret_cast<T*>(dst_raw);
+#pragma omp simd
+    for (int64_t i = 0; i < count; ++i) {
+        auto offset = seg_offsets[i];
+        dst[i] = src[offset];
+    }
+    tr.RecordSection("simd version without if");
+#else
+    {
+        auto src = reinterpret_cast<const T*>(src_raw);
+        auto dst = reinterpret_cast<T*>(dst_raw);
+        for (int64_t i = 0; i < count; ++i) {
+            auto offset = seg_offsets[i];
+            if (offset != INVALID_SEG_OFFSET) {
+                dst[i] = src[offset];
+            }
+        }
+        tr.RecordSection("original version");
+    }
+
+    {
+        auto src = reinterpret_cast<const T*>(src_raw);
+        auto dst = reinterpret_cast<T*>(dst_raw);
+        for (int64_t i = 0; i < count; ++i) {
+            auto offset = seg_offsets[i];
+            dst[i] = src[offset];
+        }
+        tr.RecordSection("original version without if");
+    }
+
+    {
+
+        auto src = reinterpret_cast<const T *>(src_raw);
+        auto dst = reinterpret_cast<T *>(dst_raw);
+#pragma omp simd
+        for (int64_t i = 0; i < count; ++i) {
+            auto offset = seg_offsets[i];
+            if (offset != INVALID_SEG_OFFSET) {
+                dst[i] = src[offset];
+            }
+        }
+        tr.RecordSection("simd version");
+    }
+
+    {
+        auto src = reinterpret_cast<const T*>(src_raw);
+        auto dst = reinterpret_cast<T*>(dst_raw);
+#pragma omp simd
+        for (int64_t i = 0; i < count; ++i) {
+            auto offset = seg_offsets[i];
+            dst[i] = src[offset];
+        }
+        tr.RecordSection("simd version without if");
+    }
+#endif
 }
 
 template <typename S, typename T>
@@ -539,6 +619,8 @@ SegmentSealedImpl::fill_with_empty(FieldId field_id, int64_t count) const {
 
 std::unique_ptr<DataArray>
 SegmentSealedImpl::bulk_subscript(FieldId field_id, const int64_t* seg_offsets, int64_t count) const {
+    milvus::TimeRecorder tr("SegmentSealedImpl::bulk_subscript", 2);
+
     auto& field_meta = schema_->operator[](field_id);
     // if count == 0, return empty data array
     if (count == 0) {
@@ -605,8 +687,11 @@ SegmentSealedImpl::bulk_subscript(FieldId field_id, const int64_t* seg_offsets, 
             return CreateScalarDataArrayFrom(output.data(), count, field_meta);
         }
         case DataType::INT64: {
+            tr.RecordSection("11111111111111");
             FixedVector<int64_t> output(count);
+            tr.RecordSection("22222222222222");
             bulk_subscript_impl<int64_t>(src_vec, seg_offsets, count, output.data());
+            tr.RecordSection("33333333333333");
             return CreateScalarDataArrayFrom(output.data(), count, field_meta);
         }
         case DataType::FLOAT: {

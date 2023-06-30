@@ -15,17 +15,20 @@
 #include "common/Types.h"
 #include "query/generated/ExecPlanNodeVisitor.h"
 #include "Utils.h"
+#include "common/Common.h"
 
 namespace milvus::segcore {
 
 void
 SegmentInternalInterface::FillPrimaryKeys(const query::Plan* plan, SearchResult& results) const {
     std::shared_lock lck(mutex_);
+    milvus::TimeRecorder tr("SegmentInternalInterface::FillPrimaryKeys", 2);
     AssertInfo(plan, "empty plan");
     auto size = results.distances_.size();
     AssertInfo(results.seg_offsets_.size() == size, "Size of result distances is not equal to size of ids");
     Assert(results.primary_keys_.size() == 0);
     results.primary_keys_.resize(size);
+    tr.RecordSection("results.primary_keys_.resize");
 
     auto pk_field_id_opt = get_schema().get_primary_field_id();
     AssertInfo(pk_field_id_opt.has_value(), "Cannot get primary key offset from schema");
@@ -33,9 +36,11 @@ SegmentInternalInterface::FillPrimaryKeys(const query::Plan* plan, SearchResult&
     AssertInfo(IsPrimaryKeyDataType(get_schema()[pk_field_id].get_data_type()),
                "Primary key field is not INT64 or VARCHAR type");
     auto field_data = bulk_subscript(pk_field_id, results.seg_offsets_.data(), size);
+    tr.RecordSection("bulk_subscript");
     results.pk_type_ = DataType(field_data->type());
 
     ParsePksFromFieldData(results.primary_keys_, *field_data.get());
+    tr.RecordSection("ParsePksFromFieldData");
 }
 
 void

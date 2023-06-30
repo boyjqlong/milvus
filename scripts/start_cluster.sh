@@ -28,6 +28,9 @@ fi
 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/internal/core/output/lib/
 
+export JAEGER_SAMPLER_PARAM=1.0
+export JAEGER_SAMPLER_TYPE=const
+
 echo "Starting rootcoord..."
 nohup ./bin/milvus run rootcoord > /tmp/rootcoord.log 2>&1 &
 

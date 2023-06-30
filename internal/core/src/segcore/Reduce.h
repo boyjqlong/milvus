@@ -21,6 +21,8 @@
 #include "common/QueryResult.h"
 #include "query/PlanImpl.h"
 
+#include <shared_mutex>
+
 namespace milvus::segcore {
 
 // SearchResultDataBlobs contains the marshal blobs of many `milvus::proto::schema::SearchResultData`
@@ -72,6 +74,16 @@ class ReduceHelper {
     int64_t
     ReduceSearchResultForOneNQ(int64_t qi, int64_t topk, int64_t& result_offset);
 
+    struct ReduceSelectedSet {
+        int64_t query_index;
+        std::vector<int64_t> selected; // which segments.
+        std::vector<int64_t> offsets; // offset of selected segments.
+        int64_t skip_cnt;
+    };
+
+    void
+    mergeSortSearchResultForOneNQ(int64_t qi, int64_t topk, std::vector<ReduceSelectedSet>& selected_topks);
+
     void
     ReduceResultData();
 
@@ -92,6 +104,7 @@ class ReduceHelper {
 
     // dim0: num_segments_; dim1: total_nq_; dim2: offset
     std::vector<std::vector<std::vector<int64_t>>> final_search_records_;
+    mutable std::shared_mutex final_search_records_mutex_;
 
     // output
     std::unique_ptr<SearchResultDataBlobs> search_result_data_blobs_;

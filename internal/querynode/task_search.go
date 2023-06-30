@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/milvus-io/milvus/internal/util/trace"
 	"sync"
 
 	"github.com/milvus-io/milvus/internal/parser/planparserv2"
@@ -60,6 +61,9 @@ type searchTask struct {
 }
 
 func (s *searchTask) PreExecute(ctx context.Context) error {
+	sp, ctx := trace.StartSpanFromContextWithOperationName(ctx, "QueryNode-Search-PreExecute")
+	defer sp.Finish()
+
 	s.SetStep(typeutil.TaskStepPreExecute)
 	rateCol.rtCounter.increaseQueueTime(s)
 	for _, t := range s.otherTasks {
@@ -122,6 +126,10 @@ func (s *searchTask) searchOnStreaming() error {
 		return sErr
 	}
 	defer deleteSearchResults(partResults)
+
+	sp, ctx := trace.StartSpanFromContextWithOperationName(ctx, "QueryNode-Search-Execute-Reduce-Segments")
+	defer sp.Finish()
+
 	return s.reduceResults(ctx, searchReq, partResults)
 }
 
@@ -156,10 +164,17 @@ func (s *searchTask) searchOnHistorical() error {
 		return err
 	}
 	defer deleteSearchResults(partResults)
+
+	sp, ctx := trace.StartSpanFromContextWithOperationName(ctx, "QueryNode-Search-Execute-Reduce-Segments")
+	defer sp.Finish()
+
 	return s.reduceResults(ctx, searchReq, partResults)
 }
 
 func (s *searchTask) Execute(ctx context.Context) error {
+	sp, ctx := trace.StartSpanFromContextWithOperationName(ctx, "QueryNode-Search-Execute")
+	defer sp.Finish()
+
 	if s.DataScope == querypb.DataScope_Streaming {
 		return s.searchOnStreaming()
 	} else if s.DataScope == querypb.DataScope_Historical {
@@ -225,6 +240,8 @@ func (s *searchTask) reduceResults(ctx context.Context, searchReq *searchRequest
 	if !isEmpty {
 		sInfo := parseSliceInfo(s.OrigNQs, s.OrigTopKs, s.NQ)
 		numSegment := int64(len(results))
+		sp, ctx := trace.StartSpanFromContextWithOperationName(ctx, "QueryNode-ReduceSearchResultsAndFillData")
+		defer sp.Finish()
 		blobs, err := reduceSearchResultsAndFillData(searchReq.plan, results, numSegment, sInfo.sliceNQs, sInfo.sliceTopKs)
 		if err != nil {
 			log.Ctx(ctx).Warn("marshal for historical results error", zap.Int64("msgID", s.ID()), zap.Error(err))
@@ -237,14 +254,21 @@ func (s *searchTask) reduceResults(ctx context.Context, searchReq *searchRequest
 		}()
 
 		for i := 0; i < cnt; i++ {
+			sp1, ctx := trace.StartSpanFromContextWithOperationName(ctx, "QueryNode-GetSearchResultDataBlob")
 			blob, err := getSearchResultDataBlob(blobs, i)
 			if err != nil {
+				sp1.Finish()
 				log.Ctx(ctx).Warn("getSearchResultDataBlob for historical results error", zap.Int64("msgID", s.ID()),
 					zap.Error(err))
 				return err
 			}
+			sp1.Finish()
+
+			sp2, ctx := trace.StartSpanFromContextWithOperationName(ctx, "QueryNode-SearchResultDataBlob-Copy")
 			bs := make([]byte, len(blob))
 			copy(bs, blob)
+			sp2.Finish()
+
 			if i == 0 {
 				t = s
 			} else {

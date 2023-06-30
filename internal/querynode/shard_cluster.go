@@ -747,7 +747,7 @@ func (sc *ShardCluster) Search(ctx context.Context, req *querypb.SearchRequest, 
 			}
 			cancel()
 		}
-		if streamResult != nil {
+		if streamResult != nil && streamResult.GetSlicedBlob() != nil {
 			results = append(results, streamResult)
 		}
 	}()

@@ -19,6 +19,8 @@ package querynode
 import (
 	"context"
 	"fmt"
+	"github.com/milvus-io/milvus/internal/util/trace"
+	"go.uber.org/atomic"
 	"math"
 	"strconv"
 
@@ -78,6 +80,10 @@ func reduceStatisticResponse(results []*internalpb.GetStatisticsResponse) (*inte
 }
 
 func reduceSearchResults(ctx context.Context, results []*internalpb.SearchResults, nq int64, topk int64, metricType string) (*internalpb.SearchResults, error) {
+	if len(results) == 1 {
+		return results[0], nil
+	}
+
 	searchResultData, err := decodeSearchResults(results)
 	if err != nil {
 		log.Ctx(ctx).Warn("decode search results errors", zap.Error(err))
@@ -109,6 +115,14 @@ func reduceSearchResults(ctx context.Context, results []*internalpb.SearchResult
 }
 
 func reduceSearchResultData(ctx context.Context, searchResultData []*schemapb.SearchResultData, nq int64, topk int64) (*schemapb.SearchResultData, error) {
+	sp1, ctx := trace.StartSpanFromContextWithOperationName(ctx, "QueryNode-ReduceSearchResultData")
+	defer sp1.Finish()
+
+	const topKThreshold = 1024 // TODO: make this configurable?
+	if topk >= topKThreshold {
+		return reduceSearchResultDataParallel(ctx, searchResultData, nq, topk)
+	}
+
 	if len(searchResultData) == 0 {
 		return &schemapb.SearchResultData{
 			NumQueries: nq,
@@ -175,6 +189,114 @@ func reduceSearchResultData(ctx context.Context, searchResultData []*schemapb.Se
 
 	if skipDupCnt > 0 {
 		log.Ctx(ctx).Debug("skip duplicated search result", zap.Int64("count", skipDupCnt))
+	}
+	return ret, nil
+}
+
+func reduceSearchResultDataParallel(ctx context.Context, searchResultData []*schemapb.SearchResultData, nq int64, topk int64) (*schemapb.SearchResultData, error) {
+	if len(searchResultData) == 0 {
+		return &schemapb.SearchResultData{
+			NumQueries: nq,
+			TopK:       topk,
+			FieldsData: make([]*schemapb.FieldData, 0),
+			Scores:     make([]float32, 0),
+			Ids:        &schemapb.IDs{},
+			Topks:      make([]int64, 0),
+		}, nil
+	}
+	ret := &schemapb.SearchResultData{
+		NumQueries: nq,
+		TopK:       topk,
+		FieldsData: make([]*schemapb.FieldData, len(searchResultData[0].FieldsData)),
+		Scores:     make([]float32, 0),
+		Ids:        &schemapb.IDs{},
+		Topks:      make([]int64, nq),
+	}
+
+	resultOffsets := make([][]int64, len(searchResultData))
+	for i := 0; i < len(searchResultData); i++ {
+		resultOffsets[i] = make([]int64, len(searchResultData[i].Topks))
+		for j := int64(1); j < nq; j++ {
+			resultOffsets[i][j] = resultOffsets[i][j-1] + searchResultData[i].Topks[j-1]
+		}
+	}
+
+	type resOffsetsPerNq struct {
+		queryIndex int64
+		selected   []int64 // which segment.
+		offsets    []int64 // offset of this segment.
+	}
+
+	resultCh := make(chan resOffsetsPerNq, nq)
+
+	var skipDupCnt atomic.Int64
+	reduceSingle := func(i int) error {
+		var resOffsets = resOffsetsPerNq{
+			queryIndex: int64(i),
+			selected:   make([]int64, 0, topk),
+			offsets:    make([]int64, 0, topk),
+		}
+
+		offsets := make([]int64, len(searchResultData))
+
+		var idSet = make(map[interface{}]struct{})
+		var j int64
+		for j = 0; j < topk; {
+			sel := selectSearchResultData(searchResultData, resultOffsets, offsets, int64(i))
+			if sel == -1 {
+				break
+			}
+
+			idx := resultOffsets[sel][i] + offsets[sel]
+
+			id := typeutil.GetPK(searchResultData[sel].GetIds(), idx)
+			// remove duplicates
+			if _, ok := idSet[id]; !ok {
+				idSet[id] = struct{}{}
+				j++
+				resOffsets.selected = append(resOffsets.selected, int64(sel))
+				resOffsets.offsets = append(resOffsets.offsets, offsets[sel])
+			} else {
+				// skip entity with same id
+				skipDupCnt.Add(1)
+			}
+			offsets[sel]++
+		}
+
+		resultCh <- resOffsets
+
+		return nil
+	}
+
+	sp1, ctx := trace.StartSpanFromContextWithOperationName(ctx, "QueryNode-Reduce-SelectTopK")
+	_ = funcutil.ProcessFuncParallel(int(nq), getNumCPU(), reduceSingle, "reduce")
+	sp1.Finish()
+
+	// post process.
+	sp2, ctx := trace.StartSpanFromContextWithOperationName(ctx, "QueryNode-Reduce-Copy-FieldsData")
+	defer sp2.Finish()
+	close(resultCh)
+	resMap := make(map[int64]resOffsetsPerNq, nq) // queryIndex -> result
+	for resOffsets := range resultCh {
+		resMap[resOffsets.queryIndex] = resOffsets
+	}
+
+	// TODO: make this parallel.
+	for i := int64(0); i < nq; i++ {
+		resOffsets := resMap[i]
+		for k, sel := range resOffsets.selected {
+			idx := resultOffsets[sel][i] + resOffsets.offsets[k]
+			id := typeutil.GetPK(searchResultData[sel].GetIds(), idx)
+			score := searchResultData[sel].Scores[idx]
+			typeutil.AppendFieldData(ret.FieldsData, searchResultData[sel].FieldsData, idx)
+			typeutil.AppendPKs(ret.Ids, id)
+			ret.Scores = append(ret.Scores, score)
+		}
+		ret.Topks[i] = int64(len(resOffsets.selected))
+	}
+
+	if skipDupCnt.Load() > 0 {
+		log.Ctx(ctx).Debug("skip duplicated search result", zap.Int64("count", skipDupCnt.Load()))
 	}
 	return ret, nil
 }

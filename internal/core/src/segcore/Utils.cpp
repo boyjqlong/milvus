@@ -201,6 +201,7 @@ CreateVectorDataArray(int64_t count, const FieldMeta& field_meta) {
 
 std::unique_ptr<DataArray>
 CreateScalarDataArrayFrom(const void* data_raw, int64_t count, const FieldMeta& field_meta) {
+    milvus::TimeRecorder tr("CreateScalarDataArrayFrom", 2);
     auto data_type = field_meta.get_data_type();
     auto data_array = std::make_unique<DataArray>();
     data_array->set_field_id(field_meta.get_id().get());
@@ -271,11 +272,14 @@ CreateScalarDataArrayFrom(const void* data_raw, int64_t count, const FieldMeta& 
         }
     }
 
+    tr.RecordSection("");
     return data_array;
 }
 
 std::unique_ptr<DataArray>
 CreateVectorDataArrayFrom(const void* data_raw, int64_t count, const FieldMeta& field_meta) {
+    milvus::TimeRecorder tr("CreateVectorDataArrayFrom", 2);
+
     auto data_type = field_meta.get_data_type();
     auto data_array = std::make_unique<DataArray>();
     data_array->set_field_id(field_meta.get_id().get());
@@ -304,6 +308,7 @@ CreateVectorDataArrayFrom(const void* data_raw, int64_t count, const FieldMeta& 
             PanicInfo("unsupported datatype");
         }
     }
+    tr.RecordSection("");
     return data_array;
 }
 

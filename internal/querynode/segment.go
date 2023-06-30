@@ -30,6 +30,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/milvus-io/milvus/internal/util/trace"
 	"sort"
 	"sync"
 	"unsafe"
@@ -366,6 +367,9 @@ func (s *Segment) search(ctx context.Context, searchReq *searchRequest) (*Search
 			long int* result_ids,
 			float* result_distances);
 	*/
+	sp, ctx := trace.StartSpanFromContextWithOperationName(ctx, "QueryNode-Segment-Search")
+	defer sp.Finish()
+
 	s.mut.RLock()
 	defer s.mut.RUnlock()
 	if !s.healthy() {

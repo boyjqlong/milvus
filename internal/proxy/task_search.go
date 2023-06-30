@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/milvus-io/milvus/internal/util/hardware"
+	"go.uber.org/atomic"
 	"regexp"
 	"strconv"
 
@@ -471,10 +473,13 @@ func (t *searchTask) PostExecute(ctx context.Context) error {
 
 	// Decode all search results
 	tr.CtxRecord(ctx, "decodeResultStart")
+	sp1, ctx := trace.StartSpanFromContextWithOperationName(ctx, "Proxy-DecodeSearchResults")
 	validSearchResults, err := decodeSearchResults(ctx, t.toReduceResults)
 	if err != nil {
+		sp1.Finish()
 		return err
 	}
+	sp1.Finish()
 	metrics.ProxyDecodeResultLatency.WithLabelValues(strconv.FormatInt(Params.ProxyCfg.GetNodeID(), 10),
 		metrics.SearchLabel).Observe(float64(tr.RecordSpan().Milliseconds()))
 
@@ -710,6 +715,14 @@ func reduceSearchResultData(ctx context.Context, subSearchResultData []*schemapb
 		tr.CtxElapse(ctx, "done")
 	}()
 
+	sp1, ctx := trace.StartSpanFromContextWithOperationName(ctx, "Proxy-ReduceSearchResultData")
+	defer sp1.Finish()
+
+	const topKThreshold = 1024 // TODO: make this configurable?
+	if topk >= topKThreshold {
+		return reduceSearchResultDataParallel(ctx, subSearchResultData, nq, topk, metricType, pkType, offset)
+	}
+
 	limit := topk - offset
 	log.Ctx(ctx).Debug("reduceSearchResultData",
 		zap.Int("len(subSearchResultData)", len(subSearchResultData)),
@@ -847,6 +860,182 @@ func reduceSearchResultData(ctx context.Context, subSearchResultData []*schemapb
 		}
 	}
 	// printSearchResultData(ret.Results, "proxy reduce result")
+	return ret, nil
+}
+
+func reduceSearchResultDataParallel(ctx context.Context, subSearchResultData []*schemapb.SearchResultData, nq int64, topk int64, metricType string, pkType schemapb.DataType, offset int64) (*milvuspb.SearchResults, error) {
+	tr := timerecord.NewTimeRecorder("reduceSearchResultData")
+	defer func() {
+		tr.CtxElapse(ctx, "done")
+	}()
+
+	limit := topk - offset
+	log.Ctx(ctx).Debug("reduceSearchResultData",
+		zap.Int("len(subSearchResultData)", len(subSearchResultData)),
+		zap.Int64("nq", nq),
+		zap.Int64("offset", offset),
+		zap.Int64("limit", limit),
+		zap.String("metricType", metricType))
+
+	ret := &milvuspb.SearchResults{
+		Status: &commonpb.Status{
+			ErrorCode: commonpb.ErrorCode_Success,
+		},
+		Results: &schemapb.SearchResultData{
+			NumQueries: nq,
+			TopK:       topk,
+			FieldsData: make([]*schemapb.FieldData, len(subSearchResultData[0].FieldsData)),
+			Scores:     []float32{},
+			Ids:        &schemapb.IDs{},
+			Topks:      make([]int64, nq),
+		},
+	}
+
+	switch pkType {
+	case schemapb.DataType_Int64:
+		ret.GetResults().Ids.IdField = &schemapb.IDs_IntId{
+			IntId: &schemapb.LongArray{
+				Data: make([]int64, 0),
+			},
+		}
+	case schemapb.DataType_VarChar:
+		ret.GetResults().Ids.IdField = &schemapb.IDs_StrId{
+			StrId: &schemapb.StringArray{
+				Data: make([]string, 0),
+			},
+		}
+	default:
+		return nil, errors.New("unsupported pk type")
+	}
+
+	for i, sData := range subSearchResultData {
+		log.Ctx(ctx).Debug("subSearchResultData",
+			zap.Int("result No.", i),
+			zap.Int64("nq", sData.NumQueries),
+			zap.Int64("topk", sData.TopK),
+			zap.Any("length of FieldsData", len(sData.FieldsData)))
+		if err := checkSearchResultData(sData, nq, topk); err != nil {
+			log.Ctx(ctx).Warn("invalid search results", zap.Error(err))
+			return ret, err
+		}
+		// printSearchResultData(sData, strconv.FormatInt(int64(i), 10))
+	}
+
+	var (
+		subSearchNum = len(subSearchResultData)
+		// for results of each subSearchResultData, storing the start offset of each query of nq queries
+		subSearchNqOffset = make([][]int64, subSearchNum)
+	)
+	for i := 0; i < subSearchNum; i++ {
+		subSearchNqOffset[i] = make([]int64, subSearchResultData[i].GetNumQueries())
+		for j := int64(1); j < nq; j++ {
+			subSearchNqOffset[i][j] = subSearchNqOffset[i][j-1] + subSearchResultData[i].Topks[j-1]
+		}
+	}
+
+	type resOffsetsPerNq struct {
+		queryIndex int64
+		selected   []int64 // which segment.
+		offsets    []int64 // offset of this segment.
+	}
+
+	var (
+		skipDupCnt atomic.Int64
+		resultCh   = make(chan resOffsetsPerNq, nq)
+	)
+
+	reduceSingle := func(i int) error {
+		var (
+			// cursor of current data of each subSearch for merging the j-th data of TopK.
+			// sum(cursors) == j
+			cursors = make([]int64, subSearchNum)
+
+			j     int64
+			idSet = make(map[interface{}]struct{})
+
+			resOffsets = resOffsetsPerNq{
+				queryIndex: int64(i),
+				selected:   make([]int64, 0, topk),
+				offsets:    make([]int64, 0, topk),
+			}
+		)
+
+		// skip offset results
+		for k := int64(0); k < offset; k++ {
+			subSearchIdx, _ := selectHighestScoreIndex(subSearchResultData, subSearchNqOffset, cursors, int64(i))
+			if subSearchIdx == -1 {
+				break
+			}
+
+			cursors[subSearchIdx]++
+		}
+
+		// keep limit results
+		for j = 0; j < limit; {
+			// From all the sub-query result sets of the i-th query vector,
+			//   find the sub-query result set index of the score j-th data,
+			//   and the index of the data in schemapb.SearchResultData
+			subSearchIdx, resultDataIdx := selectHighestScoreIndex(subSearchResultData, subSearchNqOffset, cursors, int64(i))
+			if subSearchIdx == -1 {
+				break
+			}
+
+			id := typeutil.GetPK(subSearchResultData[subSearchIdx].GetIds(), resultDataIdx)
+			// remove duplicates
+			if _, ok := idSet[id]; !ok {
+				idSet[id] = struct{}{}
+				j++
+				resOffsets.selected = append(resOffsets.selected, int64(subSearchIdx))
+				resOffsets.offsets = append(resOffsets.offsets, cursors[subSearchIdx])
+			} else {
+				// skip entity with same id
+				skipDupCnt.Add(1)
+			}
+			cursors[subSearchIdx]++
+		}
+
+		resultCh <- resOffsets
+
+		return nil
+	}
+
+	sp1, ctx := trace.StartSpanFromContextWithOperationName(ctx, "Proxy-Reduce-SelectTopK")
+	_ = funcutil.ProcessFuncParallel(int(nq), hardware.GetCPUNum(), reduceSingle, "Reduce")
+	sp1.Finish()
+
+	if skipDupCnt.Load() > 0 {
+		log.Ctx(ctx).Debug("skip duplicated search result", zap.Int64("count", skipDupCnt.Load()))
+	}
+
+	// post process.
+	sp2, ctx := trace.StartSpanFromContextWithOperationName(ctx, "Proxy-Reduce-Copy-FieldsData")
+	defer sp2.Finish()
+	close(resultCh)
+	resMap := make(map[int64]resOffsetsPerNq, nq) // queryIndex -> result
+	for resOffsets := range resultCh {
+		resMap[resOffsets.queryIndex] = resOffsets
+	}
+
+	// TODO: make this parallel.
+	for i := int64(0); i < nq; i++ {
+		resOffsets := resMap[i]
+		for k, sel := range resOffsets.selected {
+			idx := subSearchNqOffset[sel][i] + resOffsets.offsets[k]
+			id := typeutil.GetPK(subSearchResultData[sel].GetIds(), idx)
+			score := subSearchResultData[sel].Scores[idx]
+			typeutil.AppendFieldData(ret.Results.FieldsData, subSearchResultData[sel].FieldsData, idx)
+			typeutil.AppendPKs(ret.Results.Ids, id)
+			ret.Results.Scores = append(ret.Results.Scores, score)
+		}
+		ret.Results.Topks[i] = int64(len(resOffsets.selected))
+		ret.Results.TopK = int64(len(resOffsets.selected))
+	}
+
+	if !distance.PositivelyRelated(metricType) {
+		for k := range ret.Results.Scores {
+			ret.Results.Scores[k] *= -1
+		}
+	}
 	return ret, nil
 }
 

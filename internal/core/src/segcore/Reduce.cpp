@@ -12,13 +12,17 @@
 #include <cstdint>
 #include <vector>
 #include <algorithm>
+#include <mutex>
 #include <log/Log.h>
+#include <omp.h>
 
 #include "Reduce.h"
 #include "pkVisitor.h"
 #include "SegmentInterface.h"
 #include "ReduceStructure.h"
 #include "Utils.h"
+
+#include "common/Common.h"
 
 namespace milvus::segcore {
 
@@ -49,14 +53,24 @@ ReduceHelper::Initialize() {
 
 void
 ReduceHelper::Reduce() {
+    milvus::TimeRecorder tr("Reduce cost", 2);
+
     FillPrimaryKey();
+    tr.RecordSection("FillPrimaryKey");
+
     ReduceResultData();
+    tr.RecordSection("ReduceResultData");
+
     RefreshSearchResult();
+    tr.RecordSection("RefreshSearchResult");
+
     FillEntryData();
+    tr.RecordSection("FillEntryData");
 }
 
 void
 ReduceHelper::Marshal() {
+    milvus::TimeRecorder tr("Marshal cost", 2);
     // get search result data blobs of slices
     search_result_data_blobs_ = std::make_unique<milvus::segcore::SearchResultDataBlobs>();
     search_result_data_blobs_->blobs.resize(num_slices_);
@@ -64,6 +78,7 @@ ReduceHelper::Marshal() {
         auto proto = GetSearchResultDataSlice(i);
         search_result_data_blobs_->blobs[i] = proto;
     }
+    tr.RecordSection("");
 }
 
 void
@@ -100,15 +115,18 @@ ReduceHelper::FilterInvalidSearchResult(SearchResult* search_result) {
 
 void
 ReduceHelper::FillPrimaryKey() {
+    milvus::TimeRecorder tr("FillPrimaryKey cost", 2);
     std::vector<SearchResult*> valid_search_results;
     // get primary keys for duplicates removal
     uint32_t valid_index = 0;
     for (auto& search_result : search_results_) {
         FilterInvalidSearchResult(search_result);
+        tr.RecordSection("FilterInvalidSearchResult");
         if (search_result->get_total_result_count() > 0) {
             auto segment = static_cast<SegmentInterface*>(search_result->segment_);
             segment->FillPrimaryKeys(plan_, *search_result);
             search_results_[valid_index++] = search_result;
+            tr.RecordSection("segment->FillPrimaryKeys");
         }
     }
     search_results_.resize(valid_index);
@@ -157,6 +175,8 @@ ReduceHelper::FillEntryData() {
 
 int64_t
 ReduceHelper::ReduceSearchResultForOneNQ(int64_t qi, int64_t topk, int64_t& offset) {
+    milvus::TimeRecorder tr("ReduceSearchResultForOneNQ cost", 2);
+
     std::vector<SearchResultPair> result_pairs;
     for (int i = 0; i < num_segments_; i++) {
         auto search_result = search_results_[i];
@@ -198,7 +218,58 @@ ReduceHelper::ReduceSearchResultForOneNQ(int64_t qi, int64_t topk, int64_t& offs
         }
         pilot.reset();
     }
+    tr.RecordSection("");
     return dup_cnt;
+}
+
+void
+ReduceHelper::mergeSortSearchResultForOneNQ(int64_t qi, int64_t topk, std::vector<ReduceSelectedSet>& selected_topks) {
+    selected_topks[qi].query_index = qi;
+    selected_topks[qi].selected.reserve(topk);
+    selected_topks[qi].offsets.reserve(topk);
+    selected_topks[qi].skip_cnt = 0;
+
+    std::vector<SearchResultPair> result_pairs;
+    for (int i = 0; i < num_segments_; i++) {
+        auto search_result = search_results_[i];
+        auto offset_beg = search_result->topk_per_nq_prefix_sum_[qi];
+        auto offset_end = search_result->topk_per_nq_prefix_sum_[qi + 1];
+        if (offset_beg == offset_end) {
+            continue;
+        }
+        auto primary_key = search_result->primary_keys_[offset_beg];
+        auto distance = search_result->distances_[offset_beg];
+        result_pairs.emplace_back(primary_key, distance, search_result, i, offset_beg, offset_end);
+    }
+
+    // nq has no results for all segments
+    if (result_pairs.size() == 0) {
+        return;
+    }
+
+    std::unordered_set<milvus::PkType> pk_set;
+    int64_t offset = 0;
+    while (offset < topk) {
+        std::sort(result_pairs.begin(), result_pairs.end(), std::greater<>());
+        auto& pilot = result_pairs[0];
+        auto index = pilot.segment_index_;
+        auto pk = pilot.primary_key_;
+        // no valid search result for this nq, break to next
+        if (pk == INVALID_PK) {
+            break;
+        }
+        // remove duplicates
+        if (pk_set.count(pk) == 0) {
+            selected_topks[qi].selected.push_back(index);
+            selected_topks[qi].offsets.push_back(pilot.offset_);
+            pk_set.insert(pk);
+            offset++;
+        } else {
+            // skip entity with same primary key
+            selected_topks[qi].skip_cnt++;
+        }
+        pilot.reset();
+    }
 }
 
 void
@@ -218,10 +289,55 @@ ReduceHelper::ReduceResultData() {
         auto nq_end = slice_nqs_prefix_sum_[slice_index + 1];
 
         // reduce search results
+
+        milvus::TimeRecorder tr("ReduceResultData cost", 2);
+#if 1
+        std::vector<ReduceSelectedSet> selected_topks;
+        selected_topks.resize(nq_end - nq_begin);
+
+        auto mergeSingle = [this, slice_index, &selected_topks](int64_t query_index) {
+            mergeSortSearchResultForOneNQ(query_index, slice_topKs_[slice_index], selected_topks);
+        };
+        auto mergeBatch = [&mergeSingle](int64_t begin, int64_t end) {
+            for (int64_t query_index = begin; query_index < end; query_index++) {
+                mergeSingle(query_index);
+            }
+        };
+        std::vector<std::thread> threads;
+        auto batch = (nq_end - nq_begin + 8 - 1) / 8;
+        for (int j = 0; j < 8; j++) {
+            auto begin = j * batch;
+            auto end = (j + 1) * batch;
+            if (end > nq_end) {
+                end = nq_end;
+            }
+            threads.emplace_back(mergeBatch, begin, end);
+        }
+        for (auto& th : threads) {
+            th.join();
+        }
+        tr.RecordSection("Select TopK");
+
+        int64_t result_offset = 0;
+        for (int64_t qi = nq_begin; qi < nq_end; qi++) {
+            const auto& selected_topk = selected_topks[qi];
+            auto hit_size = selected_topk.selected.size();
+            for (int i = 0; i < hit_size; i++) {
+                auto segment_index = selected_topk.selected[i];
+                auto seg_offset = selected_topk.offsets[i];
+                search_results_[segment_index]->result_offsets_.push_back(result_offset++);
+                final_search_records_[segment_index][selected_topk.query_index].push_back(seg_offset);
+            }
+            skip_dup_cnt += selected_topk.skip_cnt;
+        }
+        tr.RecordSection("ReCalculate Result Offsets");
+#else
         int64_t result_offset = 0;
         for (int64_t qi = nq_begin; qi < nq_end; qi++) {
             skip_dup_cnt += ReduceSearchResultForOneNQ(qi, slice_topKs_[slice_index], result_offset);
         }
+        tr.RecordSection("Select TopK");
+#endif
     }
     if (skip_dup_cnt > 0) {
         LOG_SEGCORE_DEBUG_ << "skip duplicated search result, count = " << skip_dup_cnt;
