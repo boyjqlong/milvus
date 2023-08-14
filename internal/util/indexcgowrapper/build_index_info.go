@@ -147,3 +147,11 @@ func (bi *BuildIndexInfo) AppendInsertFile(filePath string) error {
 	status := C.AppendInsertFilePath(bi.cBuildIndexInfo, cInsertFilePath)
 	return HandleCStatus(&status, "appendInsertFile failed")
 }
+
+func (bi *BuildIndexInfo) AppendIndexNodeEngineVersion(indexNodeEngineVersion string) error {
+	cIndexNodeEngineVersion := C.CString(indexNodeEngineVersion)
+	defer C.free(unsafe.Pointer(cIndexNodeEngineVersion))
+
+	status := C.AppendIndexNodeEngineVersion(bi.cBuildIndexInfo, cIndexNodeEngineVersion)
+	return HandleCStatus(&status, "appendIndexNodeEngineVersion failed")
+}

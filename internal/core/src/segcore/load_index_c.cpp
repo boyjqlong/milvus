@@ -251,6 +251,8 @@ AppendIndexV2(CLoadIndexInfo c_load_index_info) {
         auto config = milvus::index::ParseConfigFromIndexParams(
             load_index_info->index_params);
         config["index_files"] = load_index_info->index_files;
+        config["index_node_engine_version"] =
+            load_index_info->index_node_engine_version;
 
         load_index_info->index =
             milvus::index::IndexFactory::GetInstance().CreateIndex(
@@ -311,6 +313,27 @@ AppendIndexInfo(CLoadIndexInfo c_load_index_info,
         load_index_info->index_id = index_id;
         load_index_info->index_build_id = build_id;
         load_index_info->index_version = version;
+
+        auto status = CStatus();
+        status.error_code = Success;
+        status.error_msg = "";
+        return status;
+    } catch (std::exception& e) {
+        auto status = CStatus();
+        status.error_code = UnexpectedError;
+        status.error_msg = strdup(e.what());
+        return status;
+    }
+}
+
+CStatus
+AppendIndexNodeEngineVersion(CLoadIndexInfo c_load_index_info,
+                             const char* c_index_node_engine_version) {
+    try {
+        auto load_index_info =
+            (milvus::segcore::LoadIndexInfo*)c_load_index_info;
+        std::string index_node_engine_version(c_index_node_engine_version);
+        load_index_info->index_node_engine_version = index_node_engine_version;
 
         auto status = CStatus();
         status.error_code = Success;

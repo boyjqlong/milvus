@@ -76,6 +76,8 @@ CreateIndexV2(CIndex* res_index, CBuildIndexInfo c_build_index_info) {
 
         auto& config = build_index_info->config;
         config["insert_files"] = build_index_info->insert_files;
+        config["index_node_engine_version"] =
+            build_index_info->index_node_engine_version;
 
         // get index type
         auto index_type = milvus::index::GetValueFromConfig<std::string>(
@@ -430,6 +432,26 @@ AppendInsertFilePath(CBuildIndexInfo c_build_index_info,
         auto build_index_info = (BuildIndexInfo*)c_build_index_info;
         std::string insert_file_path(c_file_path);
         build_index_info->insert_files.emplace_back(insert_file_path);
+
+        auto status = CStatus();
+        status.error_code = Success;
+        status.error_msg = "";
+        return status;
+    } catch (std::exception& e) {
+        auto status = CStatus();
+        status.error_code = UnexpectedError;
+        status.error_msg = strdup(e.what());
+        return status;
+    }
+}
+
+CStatus
+AppendIndexNodeEngineVersion(CBuildIndexInfo c_build_index_info,
+                             const char* c_index_node_engine_version) {
+    try {
+        auto build_index_info = (BuildIndexInfo*)c_build_index_info;
+        std::string index_node_engine_version(c_index_node_engine_version);
+        build_index_info->index_node_engine_version = index_node_engine_version;
 
         auto status = CStatus();
         status.error_code = Success;

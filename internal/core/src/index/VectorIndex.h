@@ -86,6 +86,13 @@ class VectorIndex : public IndexBase {
     CleanLocalData() {
     }
 
+    void
+    CheckCompatible(const Config& config) {
+        // TODO: check if the knowhere version is satisfied with the index node engine version.
+        auto index_node_engine_version = GetValueFromConfig<std::string>(
+            config, "index_node_engine_version");
+    }
+
  private:
     MetricType metric_type_;
     int64_t dim_;

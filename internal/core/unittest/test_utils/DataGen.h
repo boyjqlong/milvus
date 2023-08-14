@@ -414,7 +414,8 @@ DataGenForJsonArray(SchemaPtr schema,
                             std::to_string(static_cast<double>(er())));
                         stringVec.push_back("\"" + std::to_string(er()) + "\"");
                         boolVec.push_back(i % 2 == 0 ? "true" : "false");
-                        arrayVec.push_back(fmt::format("[{}, {}, {}]", i, i+1, i+2));
+                        arrayVec.push_back(
+                            fmt::format("[{}, {}, {}]", i, i + 1, i + 2));
                     }
                     auto str = R"({"int":[)" + join(intVec, ",") +
                                R"(],"double":[)" + join(doubleVec, ",") +

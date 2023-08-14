@@ -106,6 +106,8 @@ VectorMemIndex::Load(const BinarySet& binary_set, const Config& config) {
 
 void
 VectorMemIndex::Load(const Config& config) {
+    CheckCompatible(config);
+
     if (config.contains(kMmapFilepath)) {
         return LoadFromFile(config);
     }
@@ -224,6 +226,7 @@ VectorMemIndex::BuildWithDataset(const DatasetPtr& dataset,
     SetDim(dataset->GetDim());
 
     knowhere::TimeRecorder rc("BuildWithoutIds", 1);
+    CheckCompatible(index_config);
     auto stat = index_.Build(*dataset, index_config);
     if (stat != knowhere::Status::success)
         PanicCodeInfo(ErrorCodeEnum::BuildIndexError,
