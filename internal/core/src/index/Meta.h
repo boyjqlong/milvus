@@ -45,6 +45,7 @@ constexpr const char* FIELD_ID = "field_id";
 constexpr const char* INDEX_BUILD_ID = "index_build_id";
 constexpr const char* INDEX_ID = "index_id";
 constexpr const char* INDEX_VERSION = "index_version";
+constexpr const char* VERSION_CODE = "version_code";
 
 // DiskAnn build params
 constexpr const char* DISK_ANN_PREFIX_PATH = "index_prefix";

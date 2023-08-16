@@ -227,6 +227,12 @@ VectorMemIndex::BuildWithDataset(const DatasetPtr& dataset,
 
     knowhere::TimeRecorder rc("BuildWithoutIds", 1);
     CheckCompatible(index_config);
+
+    auto version =
+        GetValueFromConfig<std::string>(config, "index_node_engine_version");
+    if (version.has_value()) {
+        index_config[VERSION_CODE] = version.value();
+    }
     auto stat = index_.Build(*dataset, index_config);
     if (stat != knowhere::Status::success)
         PanicCodeInfo(ErrorCodeEnum::BuildIndexError,
