@@ -86,16 +86,16 @@ class VectorIndex : public IndexBase {
     CleanLocalData() {
     }
 
-    bool
+    void
     CheckCompatible(const Config& config) {
-        // TODO: check if the knowhere version is satisfied with the index node engine version.
-        auto index_node_engine_version = GetValueFromConfig<std::string>(
-            config, "index_node_engine_version");
-        if (index_node_engine_version.has_value()) {
-            return knowhere::Version::VersionSupport(
-                knowhere::Version(index_node_engine_version->c_str()));
+        auto version = GetValueFromConfig<std::string>(config, VERSION_CODE);
+        if (version.has_value()) {
+            std::string
+                err_msg;  // TODO: contain passed version and knowhere version.
+            AssertInfo(knowhere::Version::VersionSupport(
+                               knowhere::Version(index_node_engine_version->c_str()),
+                               err_msg);
         }
-        return true;
     }
 
  private:

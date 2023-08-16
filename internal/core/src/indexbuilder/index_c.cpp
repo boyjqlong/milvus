@@ -25,6 +25,7 @@
 #include "index/Utils.h"
 #include "pb/index_cgo_msg.pb.h"
 #include "storage/Util.h"
+#include "index/Meta.h"
 
 CStatus
 CreateIndex(enum CDataType dtype,
@@ -76,8 +77,7 @@ CreateIndexV2(CIndex* res_index, CBuildIndexInfo c_build_index_info) {
 
         auto& config = build_index_info->config;
         config["insert_files"] = build_index_info->insert_files;
-        config["index_node_engine_version"] =
-            build_index_info->index_node_engine_version;
+        config[VERSION_CODE] = build_index_info->index_node_engine_version;
 
         // get index type
         auto index_type = milvus::index::GetValueFromConfig<std::string>(

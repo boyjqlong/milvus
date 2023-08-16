@@ -251,8 +251,7 @@ AppendIndexV2(CLoadIndexInfo c_load_index_info) {
         auto config = milvus::index::ParseConfigFromIndexParams(
             load_index_info->index_params);
         config["index_files"] = load_index_info->index_files;
-        config["index_node_engine_version"] =
-            load_index_info->index_node_engine_version;
+        config[VERSION_CODE] = load_index_info->index_node_engine_version;
 
         load_index_info->index =
             milvus::index::IndexFactory::GetInstance().CreateIndex(
