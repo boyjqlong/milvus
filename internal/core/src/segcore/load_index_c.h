@@ -59,8 +59,8 @@ CStatus
 AppendIndexV2(CLoadIndexInfo c_load_index_info);
 
 CStatus
-AppendIndexNodeEngineVersion(CLoadIndexInfo c_load_index_info,
-                             const char* c_index_node_engine_version);
+AppendIndexNodeEngineVersionToLoadInfo(CLoadIndexInfo c_load_index_info,
+                                       const char* c_index_node_engine_version);
 
 CStatus
 CleanLoadedIndex(CLoadIndexInfo c_load_index_info);

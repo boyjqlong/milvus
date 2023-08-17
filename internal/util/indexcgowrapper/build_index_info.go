@@ -152,6 +152,6 @@ func (bi *BuildIndexInfo) AppendIndexNodeEngineVersion(indexNodeEngineVersion st
 	cIndexNodeEngineVersion := C.CString(indexNodeEngineVersion)
 	defer C.free(unsafe.Pointer(cIndexNodeEngineVersion))
 
-	status := C.AppendIndexNodeEngineVersion(bi.cBuildIndexInfo, cIndexNodeEngineVersion)
+	status := C.AppendIndexNodeEngineVersionToBuildInfo(bi.cBuildIndexInfo, cIndexNodeEngineVersion)
 	return HandleCStatus(&status, "appendIndexNodeEngineVersion failed")
 }

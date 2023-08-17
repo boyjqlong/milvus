@@ -451,10 +451,11 @@ AppendInsertFilePath(CBuildIndexInfo c_build_index_info,
 }
 
 CStatus
-AppendIndexNodeEngineVersion(CBuildIndexInfo c_build_index_info,
-                             const char* c_index_node_engine_version) {
+AppendIndexNodeEngineVersionToBuildInfo(
+    CBuildIndexInfo c_load_index_info,
+    const char* c_index_node_engine_version) {
     try {
-        auto build_index_info = (BuildIndexInfo*)c_build_index_info;
+        auto build_index_info = (BuildIndexInfo*)c_load_index_info;
         std::string index_node_engine_version(c_index_node_engine_version);
         build_index_info->index_node_engine_version = index_node_engine_version;
 

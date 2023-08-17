@@ -111,6 +111,7 @@ appendVecIndex(CLoadIndexInfo c_load_index_info, CBinarySet c_binary_set) {
 
         milvus::index::CreateIndexInfo index_info;
         index_info.field_type = load_index_info->field_type;
+        index_info.version = load_index_info->index_node_engine_version;
 
         // get index type
         AssertInfo(index_params.find("index_type") != index_params.end(),
@@ -216,6 +217,7 @@ AppendIndexV2(CLoadIndexInfo c_load_index_info) {
 
         milvus::index::CreateIndexInfo index_info;
         index_info.field_type = load_index_info->field_type;
+        index_info.version = load_index_info->index_node_engine_version;
 
         // get index type
         AssertInfo(index_params.find("index_type") != index_params.end(),
@@ -329,8 +331,8 @@ AppendIndexInfo(CLoadIndexInfo c_load_index_info,
 }
 
 CStatus
-AppendIndexNodeEngineVersion(CLoadIndexInfo c_load_index_info,
-                             const char* c_index_node_engine_version) {
+AppendIndexNodeEngineVersionToLoadInfo(
+    CLoadIndexInfo c_load_index_info, const char* c_index_node_engine_version) {
     try {
         auto load_index_info =
             (milvus::segcore::LoadIndexInfo*)c_load_index_info;
