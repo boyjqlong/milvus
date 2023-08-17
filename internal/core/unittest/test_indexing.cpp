@@ -384,7 +384,7 @@ TEST_P(IndexTest, BuildAndQuery) {
     milvus::storage::IndexMeta index_meta{3, 100, 1000, 1};
     auto chunk_manager = milvus::storage::CreateChunkManager(storage_config_);
     auto file_manager = milvus::storage::CreateFileManager(
-        index_type, field_data_meta, index_meta, chunk_manager);
+        index_type, "v2.2.0", field_data_meta, index_meta, chunk_manager);
     index = milvus::index::IndexFactory::GetInstance().CreateIndex(
         create_index_info, file_manager);
 
@@ -435,7 +435,7 @@ TEST_P(IndexTest, Mmap) {
     milvus::storage::IndexMeta index_meta{3, 100, 1000, 1};
     auto chunk_manager = milvus::storage::CreateChunkManager(storage_config_);
     auto file_manager = milvus::storage::CreateFileManager(
-        index_type, field_data_meta, index_meta, chunk_manager);
+        index_type, "v2.2.0", field_data_meta, index_meta, chunk_manager);
     index = milvus::index::IndexFactory::GetInstance().CreateIndex(
         create_index_info, file_manager);
 
@@ -490,7 +490,7 @@ TEST_P(IndexTest, GetVector) {
     milvus::storage::IndexMeta index_meta{3, 100, 1000, 1};
     auto chunk_manager = milvus::storage::CreateChunkManager(storage_config_);
     auto file_manager = milvus::storage::CreateFileManager(
-        index_type, field_data_meta, index_meta, chunk_manager);
+        index_type, "v2.2.0", field_data_meta, index_meta, chunk_manager);
     index = milvus::index::IndexFactory::GetInstance().CreateIndex(
         create_index_info, file_manager);
 
@@ -576,7 +576,7 @@ TEST(Indexing, SearchDiskAnnWithInvalidParam) {
         segment_id, field_id, build_id, index_version};
     auto chunk_manager = storage::CreateChunkManager(storage_config);
     auto file_manager = milvus::storage::CreateFileManager(
-        index_type, field_data_meta, index_meta, chunk_manager);
+        index_type, "v2.2.0", field_data_meta, index_meta, chunk_manager);
     auto index = milvus::index::IndexFactory::GetInstance().CreateIndex(
         create_index_info, file_manager);
 

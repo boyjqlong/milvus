@@ -120,6 +120,11 @@ GetIndexTypeFromConfig(const Config& config) {
     return index_type.value();
 }
 
+std::optional<std::string>
+GetIndexVersionFromConfig(const Config& config) {
+    return GetValueFromConfig<std::string>(config, VERSION_CODE);
+}
+
 // TODO :: too ugly
 storage::FieldDataMeta
 GetFieldDataMetaFromConfig(const Config& config) {

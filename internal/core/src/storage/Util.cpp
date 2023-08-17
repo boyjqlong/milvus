@@ -27,6 +27,7 @@
 #include "storage/MinioChunkManager.h"
 #include "storage/MemFileManagerImpl.h"
 #include "storage/DiskFileManagerImpl.h"
+#include "knowhere/version.h"
 
 namespace milvus::storage {
 
@@ -518,12 +519,16 @@ CreateChunkManager(const StorageConfig& storage_config) {
     }
 }
 
+//TODO: bind
 FileManagerImplPtr
 CreateFileManager(IndexType index_type,
+                  std::optional<std::string> version,
                   const FieldDataMeta& field_meta,
                   const IndexMeta& index_meta,
                   ChunkManagerPtr cm) {
-    if (is_in_disk_list(index_type)) {
+    if (is_in_disk_list(index_type) ||
+        (index_type == knowhere::IndexEnum::INDEX_HNSW && version.has_value() &&
+         knowhere::Version(version->c_str()).CloudVersion())) {
         return std::make_shared<DiskFileManagerImpl>(
             field_meta, index_meta, cm);
     }

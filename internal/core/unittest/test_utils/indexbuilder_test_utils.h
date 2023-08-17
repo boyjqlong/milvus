@@ -82,6 +82,7 @@ generate_build_conf(const milvus::IndexType& index_type,
         };
     } else if (index_type == knowhere::IndexEnum::INDEX_HNSW) {
         return knowhere::Json{
+            {"version_code", "v2.2.0"},
             {knowhere::meta::METRIC_TYPE, metric_type},
             {knowhere::meta::DIM, std::to_string(DIM)},
             {knowhere::indexparam::HNSW_M, "16"},
@@ -89,6 +90,7 @@ generate_build_conf(const milvus::IndexType& index_type,
         };
     } else if (index_type == knowhere::IndexEnum::INDEX_DISKANN) {
         return knowhere::Json{
+            {"version_code", "v2.2.0"},
             {knowhere::meta::METRIC_TYPE, metric_type},
             {knowhere::meta::DIM, std::to_string(DIM)},
             {milvus::index::DISK_ANN_MAX_DEGREE, std::to_string(48)},
@@ -112,6 +114,7 @@ generate_load_conf(const milvus::IndexType& index_type,
             {milvus::index::DISK_ANN_LOAD_THREAD_NUM, std::to_string(2)},
             {milvus::index::DISK_ANN_SEARCH_CACHE_BUDGET,
              std::to_string(0.0002)},
+            {"version_code", "v2.2.0"},
         };
     }
     return knowhere::Json();

@@ -27,8 +27,6 @@
 
 namespace milvus::index {
 
-#ifdef BUILD_DISK_ANN
-
 #define kSearchListMaxValue1 200    // used if tok <= 20
 #define kSearchListMaxValue2 65535  // used for topk > 20
 #define kPrepareDim 100
@@ -90,8 +88,9 @@ VectorDiskAnnIndex<T>::Load(const Config& config) {
 template <typename T>
 BinarySet
 VectorDiskAnnIndex<T>::Upload(const Config& config) {
-    auto remote_paths_to_size = file_manager_->GetRemotePathsToFileSize();
     BinarySet ret;
+    index_.Serialize(ret);
+    auto remote_paths_to_size = file_manager_->GetRemotePathsToFileSize();
     for (auto& file : remote_paths_to_size) {
         ret.Append(file.first, nullptr, file.second);
     }
@@ -151,12 +150,15 @@ VectorDiskAnnIndex<T>::BuildWithDataset(const DatasetPtr& dataset,
     auto local_index_path_prefix = file_manager_->GetLocalIndexObjectPrefix();
     build_config[DISK_ANN_PREFIX_PATH] = local_index_path_prefix;
 
-    auto num_threads = GetValueFromConfig<std::string>(
-        build_config, DISK_ANN_BUILD_THREAD_NUM);
-    AssertInfo(num_threads.has_value(),
-               "param " + std::string(DISK_ANN_BUILD_THREAD_NUM) + "is empty");
-    build_config[DISK_ANN_THREADS_NUM] = std::atoi(num_threads.value().c_str());
-
+    if (GetIndexType() == knowhere::IndexEnum::INDEX_DISKANN) {
+        auto num_threads = GetValueFromConfig<std::string>(
+            build_config, DISK_ANN_BUILD_THREAD_NUM);
+        AssertInfo(
+            num_threads.has_value(),
+            "param " + std::string(DISK_ANN_BUILD_THREAD_NUM) + "is empty");
+        build_config[DISK_ANN_THREADS_NUM] =
+            std::atoi(num_threads.value().c_str());
+    }
     if (!local_chunk_manager->Exist(local_data_path)) {
         local_chunk_manager->CreateFile(local_data_path);
     }
@@ -204,19 +206,20 @@ VectorDiskAnnIndex<T>::Query(const DatasetPtr dataset,
     // set search list size
     auto search_list_size = GetValueFromConfig<uint32_t>(
         search_info.search_params_, DISK_ANN_QUERY_LIST);
-    if (search_list_size.has_value()) {
-        search_config[DISK_ANN_SEARCH_LIST_SIZE] = search_list_size.value();
-    }
 
-    // set beamwidth
-    search_config[DISK_ANN_QUERY_BEAMWIDTH] = int(search_beamwidth_);
+    if (GetIndexType() == knowhere::IndexEnum::INDEX_DISKANN) {
+        if (search_list_size.has_value()) {
+            search_config[DISK_ANN_SEARCH_LIST_SIZE] = search_list_size.value();
+        }
+        // set beamwidth
+        search_config[DISK_ANN_QUERY_BEAMWIDTH] = int(search_beamwidth_);
+        // set json reset field, will be removed later
+        search_config[DISK_ANN_PQ_CODE_BUDGET] = 0.0;
+    }
 
     // set index prefix, will be removed later
     auto local_index_path_prefix = file_manager_->GetLocalIndexObjectPrefix();
     search_config[DISK_ANN_PREFIX_PATH] = local_index_path_prefix;
-
-    // set json reset field, will be removed later
-    search_config[DISK_ANN_PQ_CODE_BUDGET] = 0.0;
 
     auto final = [&] {
         auto radius =
@@ -330,29 +333,31 @@ VectorDiskAnnIndex<T>::update_load_json(const Config& config) {
     auto local_index_path_prefix = file_manager_->GetLocalIndexObjectPrefix();
     load_config[DISK_ANN_PREFIX_PATH] = local_index_path_prefix;
 
-    // set base info
-    load_config[DISK_ANN_PREPARE_WARM_UP] = false;
-    load_config[DISK_ANN_PREPARE_USE_BFS_CACHE] = false;
+    if (GetIndexType() == knowhere::IndexEnum::INDEX_DISKANN) {
+        // set base info
+        load_config[DISK_ANN_PREPARE_WARM_UP] = false;
+        load_config[DISK_ANN_PREPARE_USE_BFS_CACHE] = false;
 
-    // set threads number
-    auto num_threads =
-        GetValueFromConfig<std::string>(load_config, DISK_ANN_LOAD_THREAD_NUM);
-    AssertInfo(num_threads.has_value(),
-               "param " + std::string(DISK_ANN_LOAD_THREAD_NUM) + "is empty");
-    load_config[DISK_ANN_THREADS_NUM] = std::atoi(num_threads.value().c_str());
+        // set threads number
+        auto num_threads = GetValueFromConfig<std::string>(
+            load_config, DISK_ANN_LOAD_THREAD_NUM);
+        AssertInfo(
+            num_threads.has_value(),
+            "param " + std::string(DISK_ANN_LOAD_THREAD_NUM) + "is empty");
+        load_config[DISK_ANN_THREADS_NUM] =
+            std::atoi(num_threads.value().c_str());
 
-    // update search_beamwidth
-    auto beamwidth =
-        GetValueFromConfig<std::string>(load_config, DISK_ANN_QUERY_BEAMWIDTH);
-    if (beamwidth.has_value()) {
-        search_beamwidth_ = std::atoi(beamwidth.value().c_str());
+        // update search_beamwidth
+        auto beamwidth = GetValueFromConfig<std::string>(
+            load_config, DISK_ANN_QUERY_BEAMWIDTH);
+        if (beamwidth.has_value()) {
+            search_beamwidth_ = std::atoi(beamwidth.value().c_str());
+        }
     }
 
     return load_config;
 }
 
 template class VectorDiskAnnIndex<float>;
-
-#endif
 
 }  // namespace milvus::index

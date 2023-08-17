@@ -123,6 +123,7 @@ CreateChunkManager(const StorageConfig& storage_config);
 
 FileManagerImplPtr
 CreateFileManager(IndexType index_type,
+                  std::optional<std::string> version,
                   const FieldDataMeta& field_meta,
                   const IndexMeta& index_meta,
                   ChunkManagerPtr cm);

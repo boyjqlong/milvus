@@ -77,7 +77,8 @@ CreateIndexV2(CIndex* res_index, CBuildIndexInfo c_build_index_info) {
 
         auto& config = build_index_info->config;
         config["insert_files"] = build_index_info->insert_files;
-        config[VERSION_CODE] = build_index_info->index_node_engine_version;
+        config[milvus::index::VERSION_CODE] =
+            build_index_info->index_node_engine_version;
 
         // get index type
         auto index_type = milvus::index::GetValueFromConfig<std::string>(
@@ -106,7 +107,11 @@ CreateIndexV2(CIndex* res_index, CBuildIndexInfo c_build_index_info) {
         auto chunk_manager = milvus::storage::CreateChunkManager(
             build_index_info->storage_config);
         auto file_manager = milvus::storage::CreateFileManager(
-            index_info.index_type, field_meta, index_meta, chunk_manager);
+            index_info.index_type,
+            build_index_info->index_node_engine_version,
+            field_meta,
+            index_meta,
+            chunk_manager);
         AssertInfo(file_manager != nullptr, "create file manager failed!");
 
         auto index =

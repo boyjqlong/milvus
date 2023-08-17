@@ -22,6 +22,7 @@
 #include <vector>
 #include <boost/dynamic_bitset.hpp>
 
+#include "Utils.h"
 #include "knowhere/factory.h"
 #include "index/Index.h"
 #include "common/Types.h"
@@ -88,13 +89,15 @@ class VectorIndex : public IndexBase {
 
     void
     CheckCompatible(const Config& config) {
-        auto version = GetValueFromConfig<std::string>(config, VERSION_CODE);
+        auto version = GetIndexVersionFromConfig(config);
         if (version.has_value()) {
-            std::string
-                err_msg;  // TODO: contain passed version and knowhere version.
+            std::string err_msg =
+                "version not support : " + version.value() +
+                " , knowhere version " +
+                knowhere::Version::GetCurrentVersion().ToString();
             AssertInfo(knowhere::Version::VersionSupport(
-                               knowhere::Version(index_node_engine_version->c_str()),
-                               err_msg);
+                           knowhere::Version(version->c_str())),
+                       err_msg);
         }
     }
 

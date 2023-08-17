@@ -90,7 +90,7 @@ VectorMemIndex::Serialize(const Config& config) {
 void
 VectorMemIndex::LoadWithoutAssemble(const BinarySet& binary_set,
                                     const Config& config) {
-    auto stat = index_.Deserialize(binary_set);
+    auto stat = index_.Deserialize(binary_set, config);
     if (stat != knowhere::Status::success)
         PanicCodeInfo(
             ErrorCodeEnum::UnexpectedError,
@@ -227,7 +227,6 @@ VectorMemIndex::BuildWithDataset(const DatasetPtr& dataset,
 
     knowhere::TimeRecorder rc("BuildWithoutIds", 1);
     CheckCompatible(index_config);
-
     auto stat = index_.Build(*dataset, index_config);
     if (stat != knowhere::Status::success)
         PanicCodeInfo(ErrorCodeEnum::BuildIndexError,

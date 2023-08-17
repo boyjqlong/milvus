@@ -20,9 +20,7 @@
 #include "index/Utils.h"
 #include "index/Meta.h"
 
-#ifdef BUILD_DISK_ANN
 #include "index/VectorDiskIndex.h"
-#endif
 
 namespace milvus::index {
 
@@ -76,10 +74,13 @@ IndexFactory::CreateVectorIndex(const CreateIndexInfo& create_index_info,
     auto data_type = create_index_info.field_type;
     auto index_type = create_index_info.index_type;
     auto metric_type = create_index_info.metric_type;
-
-#ifdef BUILD_DISK_ANN
+    bool cloudVersion =
+        create_index_info.version.has_value() &&
+        knowhere::Version(create_index_info.version->c_str()).CloudVersion();
     // create disk index
-    if (is_in_disk_list(index_type)) {
+    if (is_in_disk_list(index_type) ||
+        (index_type == knowhere::IndexEnum::INDEX_HNSW &&
+         data_type == DataType::VECTOR_FLOAT && cloudVersion)) {
         switch (data_type) {
             case DataType::VECTOR_FLOAT: {
                 return std::make_unique<VectorDiskAnnIndex<float>>(
@@ -91,7 +92,6 @@ IndexFactory::CreateVectorIndex(const CreateIndexInfo& create_index_info,
                     std::to_string(int(data_type)));
         }
     }
-#endif
 
     if (is_in_nm_list(index_type)) {
         return std::make_unique<VectorMemNMIndex>(

@@ -135,11 +135,12 @@ appendVecIndex(CLoadIndexInfo c_load_index_info, CBinarySet c_binary_set) {
         auto remote_chunk_manager =
             milvus::storage::RemoteChunkManagerSingleton::GetInstance()
                 .GetRemoteChunkManager();
-        auto file_manager =
-            milvus::storage::CreateFileManager(index_info.index_type,
-                                               field_meta,
-                                               index_meta,
-                                               remote_chunk_manager);
+        auto file_manager = milvus::storage::CreateFileManager(
+            index_info.index_type,
+            load_index_info->index_node_engine_version,
+            field_meta,
+            index_meta,
+            remote_chunk_manager);
         AssertInfo(file_manager != nullptr, "create file manager failed!");
 
         auto config = milvus::index::ParseConfigFromIndexParams(
@@ -241,17 +242,19 @@ AppendIndexV2(CLoadIndexInfo c_load_index_info) {
         auto remote_chunk_manager =
             milvus::storage::RemoteChunkManagerSingleton::GetInstance()
                 .GetRemoteChunkManager();
-        auto file_manager =
-            milvus::storage::CreateFileManager(index_info.index_type,
-                                               field_meta,
-                                               index_meta,
-                                               remote_chunk_manager);
+        auto file_manager = milvus::storage::CreateFileManager(
+            index_info.index_type,
+            load_index_info->index_node_engine_version,
+            field_meta,
+            index_meta,
+            remote_chunk_manager);
         AssertInfo(file_manager != nullptr, "create file manager failed!");
 
         auto config = milvus::index::ParseConfigFromIndexParams(
             load_index_info->index_params);
         config["index_files"] = load_index_info->index_files;
-        config[VERSION_CODE] = load_index_info->index_node_engine_version;
+        config[milvus::index::VERSION_CODE] =
+            load_index_info->index_node_engine_version;
 
         load_index_info->index =
             milvus::index::IndexFactory::GetInstance().CreateIndex(
