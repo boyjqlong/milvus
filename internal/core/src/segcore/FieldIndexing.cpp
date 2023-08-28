@@ -34,7 +34,8 @@ VectorFieldIndexing::VectorFieldIndexing(const FieldMeta& field_meta,
       config_(std::make_unique<VecIndexConfig>(
           segment_max_row_count, field_index_meta, segcore_config)) {
     index_ = std::make_unique<index::VectorMemIndex>(config_->GetIndexType(),
-                                                     config_->GetMetricType());
+                                                     config_->GetMetricType(),
+                                                     knowhere::Version::GetCurrentVersion().VersionCode());
 }
 
 void
@@ -54,7 +55,8 @@ VectorFieldIndexing::BuildIndexRange(int64_t ack_beg,
     for (int chunk_id = ack_beg; chunk_id < ack_end; chunk_id++) {
         const auto& chunk = source->get_chunk(chunk_id);
         auto indexing = std::make_unique<index::VectorMemIndex>(
-            knowhere::IndexEnum::INDEX_FAISS_IVFFLAT, knowhere::metric::L2);
+            knowhere::IndexEnum::INDEX_FAISS_IVFFLAT, knowhere::metric::L2,
+            knowhere::Version::GetCurrentVersion().VersionCode());
         auto dataset = knowhere::GenDataSet(
             source->get_size_per_chunk(), dim, chunk.data());
         indexing->BuildWithDataset(dataset, conf);

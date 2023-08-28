@@ -236,6 +236,7 @@ type SegmentIndex struct {
 	CreateTime           uint64              `protobuf:"varint,13,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
 	SerializeSize        uint64              `protobuf:"varint,14,opt,name=serialize_size,json=serializeSize,proto3" json:"serialize_size,omitempty"`
 	WriteHandoff         bool                `protobuf:"varint,15,opt,name=write_handoff,json=writeHandoff,proto3" json:"write_handoff,omitempty"`
+	IndexEngineVersion   string              `protobuf:"bytes,16,opt,name=index_engine_version,json=indexEngineVersion,proto3" json:"index_engine_version,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
 	XXX_unrecognized     []byte              `json:"-"`
 	XXX_sizecache        int32               `json:"-"`
@@ -369,6 +370,13 @@ func (m *SegmentIndex) GetWriteHandoff() bool {
 		return m.WriteHandoff
 	}
 	return false
+}
+
+func (m *SegmentIndex) GetIndexEngineVersion() string {
+	if m != nil {
+		return m.IndexEngineVersion
+	}
+	return ""
 }
 
 type RegisterNodeRequest struct {
@@ -893,6 +901,7 @@ type IndexFilePathInfo struct {
 	SerializedSize       uint64                   `protobuf:"varint,8,opt,name=serialized_size,json=serializedSize,proto3" json:"serialized_size,omitempty"`
 	IndexVersion         int64                    `protobuf:"varint,9,opt,name=index_version,json=indexVersion,proto3" json:"index_version,omitempty"`
 	NumRows              int64                    `protobuf:"varint,10,opt,name=num_rows,json=numRows,proto3" json:"num_rows,omitempty"`
+	IndexEngineVersion   string                   `protobuf:"bytes,11,opt,name=index_engine_version,json=indexEngineVersion,proto3" json:"index_engine_version,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
 	XXX_unrecognized     []byte                   `json:"-"`
 	XXX_sizecache        int32                    `json:"-"`
@@ -991,6 +1000,13 @@ func (m *IndexFilePathInfo) GetNumRows() int64 {
 		return m.NumRows
 	}
 	return 0
+}
+
+func (m *IndexFilePathInfo) GetIndexEngineVersion() string {
+	if m != nil {
+		return m.IndexEngineVersion
+	}
+	return ""
 }
 
 type SegmentInfo struct {
@@ -1517,6 +1533,7 @@ type CreateJobRequest struct {
 	IndexParams          []*commonpb.KeyValuePair `protobuf:"bytes,9,rep,name=index_params,json=indexParams,proto3" json:"index_params,omitempty"`
 	TypeParams           []*commonpb.KeyValuePair `protobuf:"bytes,10,rep,name=type_params,json=typeParams,proto3" json:"type_params,omitempty"`
 	NumRows              int64                    `protobuf:"varint,11,opt,name=num_rows,json=numRows,proto3" json:"num_rows,omitempty"`
+	IndexEngineVersion   string                   `protobuf:"bytes,12,opt,name=index_engine_version,json=indexEngineVersion,proto3" json:"index_engine_version,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
 	XXX_unrecognized     []byte                   `json:"-"`
 	XXX_sizecache        int32                    `json:"-"`
@@ -1622,6 +1639,13 @@ func (m *CreateJobRequest) GetNumRows() int64 {
 		return m.NumRows
 	}
 	return 0
+}
+
+func (m *CreateJobRequest) GetIndexEngineVersion() string {
+	if m != nil {
+		return m.IndexEngineVersion
+	}
+	return ""
 }
 
 type QueryJobsRequest struct {

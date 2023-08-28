@@ -25,6 +25,7 @@
 #include "index/Utils.h"
 #include "pb/index_cgo_msg.pb.h"
 #include "storage/Util.h"
+#include "index/Meta.h"
 
 using namespace milvus;
 CStatus
@@ -54,7 +55,9 @@ CreateIndex(enum CDataType dtype,
 
         auto& index_factory = milvus::indexbuilder::IndexFactory::GetInstance();
         auto index =
-            index_factory.CreateIndex(milvus::DataType(dtype), config, nullptr);
+            index_factory.CreateIndex(milvus::DataType(dtype),
+                                      config,
+                                      milvus::storage::FileManagerContext());
 
         *res_index = index.release();
         status.error_code = Success;
@@ -83,6 +86,8 @@ CreateIndexV2(CIndex* res_index, CBuildIndexInfo c_build_index_info) {
             config, "index_type");
         AssertInfo(index_type.has_value(), "index type is empty");
         index_info.index_type = index_type.value();
+        config[milvus::index::VERSION_CODE] =
+            build_index_info->index_engine_version;
 
         // get metric type
         if (milvus::datatype_is_vector(field_type)) {
@@ -104,13 +109,13 @@ CreateIndexV2(CIndex* res_index, CBuildIndexInfo c_build_index_info) {
                                               build_index_info->index_version};
         auto chunk_manager = milvus::storage::CreateChunkManager(
             build_index_info->storage_config);
-        auto file_manager = milvus::storage::CreateFileManager(
-            index_info.index_type, field_meta, index_meta, chunk_manager);
-        AssertInfo(file_manager != nullptr, "create file manager failed!");
+
+        milvus::storage::FileManagerContext fileManagerContext(
+            field_meta, index_meta, chunk_manager);
 
         auto index =
             milvus::indexbuilder::IndexFactory::GetInstance().CreateIndex(
-                build_index_info->field_type, config, file_manager);
+                build_index_info->field_type, config, fileManagerContext);
         index->Build();
         *res_index = index.release();
         auto status = CStatus();
@@ -431,6 +436,26 @@ AppendInsertFilePath(CBuildIndexInfo c_build_index_info,
         auto build_index_info = (BuildIndexInfo*)c_build_index_info;
         std::string insert_file_path(c_file_path);
         build_index_info->insert_files.emplace_back(insert_file_path);
+
+        auto status = CStatus();
+        status.error_code = Success;
+        status.error_msg = "";
+        return status;
+    } catch (std::exception& e) {
+        auto status = CStatus();
+        status.error_code = UnexpectedError;
+        status.error_msg = strdup(e.what());
+        return status;
+    }
+}
+
+CStatus
+AppendIndexEngineVersionToBuildInfo(CBuildIndexInfo c_load_index_info,
+                                    const char* c_index_engine_version) {
+    try {
+        auto build_index_info = (BuildIndexInfo*)c_load_index_info;
+        std::string index_engine_version(c_index_engine_version);
+        build_index_info->index_engine_version = index_engine_version;
 
         auto status = CStatus();
         status.error_code = Success;

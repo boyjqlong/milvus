@@ -90,7 +90,7 @@ TEST(Sealed, without_predicate) {
     create_index_info.index_type = knowhere::IndexEnum::INDEX_FAISS_IVFFLAT;
 
     auto indexing = milvus::index::IndexFactory::GetInstance().CreateIndex(
-        create_index_info, nullptr);
+        create_index_info, milvus::storage::FileManagerContext());
 
     auto build_conf =
         knowhere::Json{{knowhere::meta::METRIC_TYPE, knowhere::metric::L2},
@@ -202,7 +202,7 @@ TEST(Sealed, with_predicate) {
     create_index_info.metric_type = knowhere::metric::L2;
     create_index_info.index_type = knowhere::IndexEnum::INDEX_FAISS_IVFFLAT;
     auto indexing = milvus::index::IndexFactory::GetInstance().CreateIndex(
-        create_index_info, nullptr);
+        create_index_info, milvus::storage::FileManagerContext());
 
     auto build_conf =
         knowhere::Json{{knowhere::meta::METRIC_TYPE, knowhere::metric::L2},
@@ -306,7 +306,7 @@ TEST(Sealed, with_predicate_filter_all) {
     create_index_info.metric_type = knowhere::metric::L2;
     create_index_info.index_type = knowhere::IndexEnum::INDEX_FAISS_IVFFLAT;
     auto ivf_indexing = milvus::index::IndexFactory::GetInstance().CreateIndex(
-        create_index_info, nullptr);
+        create_index_info, milvus::storage::FileManagerContext());
 
     auto ivf_build_conf =
         knowhere::Json{{knowhere::meta::DIM, std::to_string(dim)},
@@ -344,7 +344,7 @@ TEST(Sealed, with_predicate_filter_all) {
     create_index_info.metric_type = knowhere::metric::L2;
     create_index_info.index_type = knowhere::IndexEnum::INDEX_HNSW;
     auto hnsw_indexing = milvus::index::IndexFactory::GetInstance().CreateIndex(
-        create_index_info, nullptr);
+        create_index_info, milvus::storage::FileManagerContext());
     hnsw_indexing->BuildWithDataset(database, hnsw_conf);
 
     auto hnsw_vec_index =

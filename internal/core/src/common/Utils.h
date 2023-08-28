@@ -193,8 +193,8 @@ KnowhereStatusString(knowhere::Status status) {
             return "malloc error";
         case knowhere::Status::diskann_inner_error:
             return "diskann inner error";
-        case knowhere::Status::diskann_file_error:
-            return "diskann file error";
+        case knowhere::Status::handle_file_error:
+            return "handle file error";
         case knowhere::Status::invalid_value_in_json:
             return "invalid value in json";
         case knowhere::Status::arithmetic_overflow:

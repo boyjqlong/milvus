@@ -105,8 +105,9 @@ BUILD_DISK_ANN="OFF"
 USE_ASAN="OFF"
 OPEN_SIMD="OFF"
 USE_DYNAMIC_SIMD="OFF"
+BUILD_CARDINAL="OFF"
 
-while getopts "p:d:t:s:f:n:i:y:a:ulrcghzmeb" arg; do
+while getopts "p:d:t:s:f:n:i:y:a:x:ulrcghzmeb" arg; do
   case $arg in
   f)
     CUSTOM_THIRDPARTY_PATH=$OPTARG
@@ -166,6 +167,9 @@ while getopts "p:d:t:s:f:n:i:y:a:ulrcghzmeb" arg; do
     ;;
   y)
     USE_DYNAMIC_SIMD=$OPTARG
+    ;;
+  x)
+    BUILD_CARDINAL=$OPTARG
     ;;
   h) # help
     echo "
@@ -266,6 +270,7 @@ ${CMAKE_EXTRA_ARGS} \
 -DOPEN_SIMD=${OPEN_SIMD} \
 -DUSE_DYNAMIC_SIMD=${USE_DYNAMIC_SIMD}
 -DCPU_ARCH=${CPU_ARCH} \
+-DBUILD_CARDINAL=${BUILD_CARDINAL} \
 ${CPP_SRC_DIR}"
 
 echo "CC $CC"

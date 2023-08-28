@@ -247,7 +247,7 @@ generate_index(void* raw_data,
                int64_t N) {
     CreateIndexInfo create_index_info{field_type, index_type, metric_type};
     auto indexing = milvus::index::IndexFactory::GetInstance().CreateIndex(
-        create_index_info, nullptr);
+        create_index_info, milvus::storage::FileManagerContext());
 
     auto database = knowhere::GenDataSet(N, dim, raw_data);
     auto build_config = generate_build_conf(index_type, metric_type);
@@ -1593,7 +1593,8 @@ TEST(CApiTest, LoadIndexInfo) {
     auto N = 1024 * 10;
     auto [raw_data, timestamps, uids] = generate_data(N);
     auto indexing = knowhere::IndexFactory::Instance().Create(
-        knowhere::IndexEnum::INDEX_FAISS_IVFSQ8);
+        knowhere::IndexEnum::INDEX_FAISS_IVFSQ8,
+        knowhere::Version::GetCurrentVersion().ToString());
     auto conf =
         knowhere::Json{{knowhere::meta::METRIC_TYPE, knowhere::metric::L2},
                        {knowhere::meta::DIM, DIM},
@@ -1639,7 +1640,8 @@ TEST(CApiTest, LoadIndexSearch) {
     auto num_query = 100;
     auto [raw_data, timestamps, uids] = generate_data(N);
     auto indexing = knowhere::IndexFactory::Instance().Create(
-        knowhere::IndexEnum::INDEX_FAISS_IVFSQ8);
+        knowhere::IndexEnum::INDEX_FAISS_IVFSQ8,
+        knowhere::Version::GetCurrentVersion().ToString());
     auto conf =
         knowhere::Json{{knowhere::meta::METRIC_TYPE, knowhere::metric::L2},
                        {knowhere::meta::DIM, DIM},
@@ -1663,7 +1665,9 @@ TEST(CApiTest, LoadIndexSearch) {
     auto& index_params = load_index_info.index_params;
     index_params["index_type"] = knowhere::IndexEnum::INDEX_FAISS_IVFSQ8;
     load_index_info.index = std::make_unique<VectorMemIndex>(
-        index_params["index_type"], knowhere::metric::L2);
+        index_params["index_type"],
+        knowhere::metric::L2,
+        knowhere::Version::GetCurrentVersion().ToString());
     load_index_info.index->Load(binary_set);
 
     // search

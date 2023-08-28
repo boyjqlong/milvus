@@ -11,7 +11,14 @@
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 #-------------------------------------------------------------------------------
 
-set( KNOWHERE_VERSION 0a1443e )
+set( KNOWHERE_VERSION add_version_support )
+set( GIT_REPOSITORY  "https://github.com/zilliztech/knowhere.git")
+if ( BUILD_CARDINAL STREQUAL "ON" )
+    set( KNOWHERE_VERSION submit_test_cardinal_cloud_retrieve)
+    set( GIT_REPOSITORY  "https://github.com/zilliztech/knowhere-cloud.git")
+endif()
+message(STATUS "Knowhere repo: ${GIT_REPOSITORY}")
+message(STATUS "Knowhere version: ${KNOWHERE_VERSION}")
 
 message(STATUS "Building knowhere-${KNOWHERE_SOURCE_VER} from source")
 message(STATUS ${CMAKE_BUILD_TYPE})
@@ -30,7 +37,7 @@ endif ()
 set( CMAKE_PREFIX_PATH ${CONAN_BOOST_ROOT} )
 FetchContent_Declare(
         knowhere
-        GIT_REPOSITORY  "https://github.com/zilliztech/knowhere.git"
+        GIT_REPOSITORY  ${GIT_REPOSITORY}
         GIT_TAG         ${KNOWHERE_VERSION}
         SOURCE_DIR      ${CMAKE_CURRENT_BINARY_DIR}/knowhere-src
         BINARY_DIR      ${CMAKE_CURRENT_BINARY_DIR}/knowhere-build

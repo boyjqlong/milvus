@@ -251,7 +251,7 @@ func (SyncType) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_aab7cc9a69ed26e8, []int{6}
 }
 
-// --------------------QueryCoord grpc request and response proto------------------
+//--------------------QueryCoord grpc request and response proto------------------
 type ShowCollectionsRequest struct {
 	Base *commonpb.MsgBase `protobuf:"bytes,1,opt,name=base,proto3" json:"base,omitempty"`
 	// Not useful for now
@@ -1336,7 +1336,7 @@ func (m *SyncNewCreatedPartitionRequest) GetPartitionID() int64 {
 	return 0
 }
 
-// -----------------query node grpc request and response proto----------------
+//-----------------query node grpc request and response proto----------------
 type LoadMetaInfo struct {
 	LoadType             LoadType `protobuf:"varint,1,opt,name=load_type,json=loadType,proto3,enum=milvus.proto.query.LoadType" json:"load_type,omitempty"`
 	CollectionID         int64    `protobuf:"varint,2,opt,name=collectionID,proto3" json:"collectionID,omitempty"`
@@ -1771,6 +1771,7 @@ type FieldIndexInfo struct {
 	IndexSize            int64                    `protobuf:"varint,8,opt,name=index_size,json=indexSize,proto3" json:"index_size,omitempty"`
 	IndexVersion         int64                    `protobuf:"varint,9,opt,name=index_version,json=indexVersion,proto3" json:"index_version,omitempty"`
 	NumRows              int64                    `protobuf:"varint,10,opt,name=num_rows,json=numRows,proto3" json:"num_rows,omitempty"`
+	IndexEngineVersion   string                   `protobuf:"bytes,11,opt,name=index_engine_version,json=indexEngineVersion,proto3" json:"index_engine_version,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
 	XXX_unrecognized     []byte                   `json:"-"`
 	XXX_sizecache        int32                    `json:"-"`
@@ -1869,6 +1870,13 @@ func (m *FieldIndexInfo) GetNumRows() int64 {
 		return m.NumRows
 	}
 	return 0
+}
+
+func (m *FieldIndexInfo) GetIndexEngineVersion() string {
+	if m != nil {
+		return m.IndexEngineVersion
+	}
+	return ""
 }
 
 type LoadSegmentsRequest struct {
@@ -2488,7 +2496,7 @@ func (m *GetLoadInfoResponse) GetPartitions() []int64 {
 	return nil
 }
 
-// ----------------request auto triggered by QueryCoord-----------------
+//----------------request auto triggered by QueryCoord-----------------
 type HandoffSegmentsRequest struct {
 	Base                 *commonpb.MsgBase `protobuf:"bytes,1,opt,name=base,proto3" json:"base,omitempty"`
 	SegmentInfos         []*SegmentInfo    `protobuf:"bytes,2,rep,name=segmentInfos,proto3" json:"segmentInfos,omitempty"`
@@ -3185,7 +3193,7 @@ func (m *UnsubscribeChannelInfo) GetCollectionChannels() []*UnsubscribeChannels 
 	return nil
 }
 
-// ---- synchronize messages proto between QueryCoord and QueryNode -----
+//---- synchronize messages proto between QueryCoord and QueryNode -----
 type SegmentChangeInfo struct {
 	OnlineNodeID         int64          `protobuf:"varint,1,opt,name=online_nodeID,json=onlineNodeID,proto3" json:"online_nodeID,omitempty"`
 	OnlineSegments       []*SegmentInfo `protobuf:"bytes,2,rep,name=online_segments,json=onlineSegments,proto3" json:"online_segments,omitempty"`

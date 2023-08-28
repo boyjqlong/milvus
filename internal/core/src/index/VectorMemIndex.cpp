@@ -48,17 +48,20 @@
 
 namespace milvus::index {
 
-VectorMemIndex::VectorMemIndex(const IndexType& index_type,
-                               const MetricType& metric_type,
-                               storage::FileManagerImplPtr file_manager)
+VectorMemIndex::VectorMemIndex(
+    const IndexType& index_type,
+    const MetricType& metric_type,
+    const std::string& version,
+    const storage::FileManagerContext& file_manager_context)
     : VectorIndex(index_type, metric_type) {
     AssertInfo(!is_unsupported(index_type, metric_type),
                index_type + " doesn't support metric: " + metric_type);
-    if (file_manager != nullptr) {
-        file_manager_ = std::dynamic_pointer_cast<storage::MemFileManagerImpl>(
-            file_manager);
+    if (file_manager_context.Valid()) {
+        file_manager_ =
+            std::make_shared<storage::MemFileManagerImpl>(file_manager_context);
+        AssertInfo(file_manager_ != nullptr, "create file manager failed!");
     }
-    index_ = knowhere::IndexFactory::Instance().Create(GetIndexType());
+    index_ = knowhere::IndexFactory::Instance().Create(GetIndexType(), version);
 }
 
 BinarySet
@@ -91,7 +94,7 @@ VectorMemIndex::Serialize(const Config& config) {
 void
 VectorMemIndex::LoadWithoutAssemble(const BinarySet& binary_set,
                                     const Config& config) {
-    auto stat = index_.Deserialize(binary_set);
+    auto stat = index_.Deserialize(binary_set, config);
     if (stat != knowhere::Status::success)
         PanicCodeInfo(
             ErrorCode::UnexpectedError,
@@ -107,6 +110,8 @@ VectorMemIndex::Load(const BinarySet& binary_set, const Config& config) {
 
 void
 VectorMemIndex::Load(const Config& config) {
+    CheckCompatible(config);
+
     if (config.contains(kMmapFilepath)) {
         return LoadFromFile(config);
     }
@@ -225,6 +230,7 @@ VectorMemIndex::BuildWithDataset(const DatasetPtr& dataset,
     SetDim(dataset->GetDim());
 
     knowhere::TimeRecorder rc("BuildWithoutIds", 1);
+    CheckCompatible(index_config);
     auto stat = index_.Build(*dataset, index_config);
     if (stat != knowhere::Status::success)
         PanicCodeInfo(ErrorCode::IndexBuildError,
