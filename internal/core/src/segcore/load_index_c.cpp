@@ -331,12 +331,12 @@ AppendIndexEngineVersionToLoadInfo(CLoadIndexInfo c_load_index_info,
         load_index_info->index_engine_version = index_engine_version;
 
         auto status = CStatus();
-        status.error_code = Success;
+        status.error_code = milvus::Success;
         status.error_msg = "";
         return status;
     } catch (std::exception& e) {
         auto status = CStatus();
-        status.error_code = UnexpectedError;
+        status.error_code = milvus::UnexpectedError;
         status.error_msg = strdup(e.what());
         return status;
     }

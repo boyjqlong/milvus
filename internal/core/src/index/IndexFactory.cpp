@@ -18,7 +18,7 @@
 #include "index/VectorMemIndex.h"
 #include "index/Utils.h"
 #include "index/Meta.h"
-#include "knowhere/route.h"
+#include "knowhere/utils.h"
 
 #include "index/VectorDiskIndex.h"
 

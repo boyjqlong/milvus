@@ -12,7 +12,7 @@
 #-------------------------------------------------------------------------------
 
 set( KNOWHERE_VERSION add_version_support )
-set( GIT_REPOSITORY  "https://github.com/zilliztech/knowhere.git")
+set( GIT_REPOSITORY  "https://github.com/foxspy/knowhere.git")
 if ( BUILD_CARDINAL STREQUAL "ON" )
     set( KNOWHERE_VERSION submit_test_cardinal_cloud_retrieve)
     set( GIT_REPOSITORY  "https://github.com/zilliztech/knowhere-cloud.git")
