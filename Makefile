@@ -37,7 +37,7 @@ MOCKERY_VERSION := 2.32.4
 MOCKERY_OUTPUT := $(shell $(INSTALL_PATH)/mockery --version 2>/dev/null)
 INSTALL_MOCKERY := $(findstring $(MOCKERY_VERSION),$(MOCKERY_OUTPUT))
 
-build_cardinal = OFF
+build_cardinal = ON
 
 export GIT_BRANCH=master
 
