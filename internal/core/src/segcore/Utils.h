@@ -123,6 +123,7 @@ get_deleted_bitmap(int64_t del_barrier,
                                     : delete_timestamps[pk];
     }
 
+    int64_t counter = 0;
     for (auto& [pk, timestamp] : delete_timestamps) {
         auto segOffsets = insert_record.search_pk(pk, insert_barrier);
         for (auto offset : segOffsets) {
@@ -131,12 +132,20 @@ get_deleted_bitmap(int64_t del_barrier,
             // The deletion record do not take effect in search/query,
             // and reset bitmap to 0
             if (timestamp > query_timestamp) {
+                std::cout << "[debug] enter 133" << std::endl;
                 bitmap->reset(insert_row_offset);
                 continue;
             }
             // Insert after delete with same pk, delete will not task effect on this insert record,
             // and reset bitmap to 0
             if (insert_record.timestamps_[insert_row_offset] >= timestamp) {
+//                std::stringstream ss;
+//                ss << "insert_row_offset: " << insert_row_offset << std::endl;
+//                ss << "pk: " << std::get<int64_t>(pk) << std::endl;
+//                ss << "insert_record.timestamps_[insert_row_offset]: " << insert_record.timestamps_[insert_row_offset] << std::endl;
+//                ss << "timestamp: " << timestamp << std::endl;
+//                std::cout << ss.str() << std::endl;
+                counter++;
                 bitmap->reset(insert_row_offset);
                 continue;
             }
@@ -144,6 +153,9 @@ get_deleted_bitmap(int64_t del_barrier,
             bitmap->set(insert_row_offset);
         }
     }
+    std::stringstream ss;
+    ss << "insert after delete counter: " << counter << std::endl;
+    std::cout << ss.str();
 
     delete_record.insert_lru_entry(current);
     return current;

@@ -57,6 +57,33 @@ SegmentGrowingImpl::mask_with_delete(BitsetType& bitset,
     AssertInfo(delete_bitset.size() == bitset.size(),
                "Deleted bitmap size not equal to filtered bitmap size");
     bitset |= delete_bitset;
+
+    std::map<int64_t, int64_t> diff;
+    std::map<int64_t, int64_t> all;
+    auto& deleted_pks = get_deleted_record().pks();
+    auto l = get_deleted_record().size();
+    for (int64_t i = 0; i < l; i++) {
+        auto pk = deleted_pks[i];
+        auto offsets = insert_record_.search_pk(pk, ins_barrier);
+        for (auto offset : offsets) {
+            all[offset.get()] = std::get<int64_t>(pk);
+            if (!bitset[offset.get()]) {
+                diff[offset.get()] = std::get<int64_t>(pk);
+            }
+        }
+    }
+    std::stringstream ss;
+    ss << "[debug][growing] all filtered out: " << all.size() << std::endl;
+    ss << "bitset.size: " << bitset.size() << ", delete_bitset.size: " << delete_bitset.size() << std::endl;
+    ss << "bitset.count: " << bitset.count() << ", delete_bitset.count: " << delete_bitset.count() << std::endl;
+//    for (auto [offset, pk] : all) {
+//        ss << "offset: " << offset << "\t\t\tpk: " << pk << std::endl;
+//    }
+//    ss << "has diff:" << std::endl;
+//    for (auto [offset, pk] : diff) {
+//        ss << "offset: " << offset << "\t\t\tpk: " << pk << std::endl;
+//    }
+    std::cout << ss.str() << std::endl;
 }
 
 void
@@ -144,6 +171,10 @@ SegmentGrowingImpl::Insert(int64_t reserved_offset,
     // step 5: update small indexes
     insert_record_.ack_responder_.AddSegment(reserved_offset,
                                              reserved_offset + num_rows);
+
+    std::stringstream ss;
+    ss << "[debug] insert " << num_rows << " rows" << std::endl;
+    std::cout << ss.str() << std::endl;
 }
 
 void
@@ -261,6 +292,9 @@ SegmentGrowingImpl::Delete(int64_t reserved_begin,
 
     // step 2: fill delete record
     deleted_record_.push(sort_pks, sort_timestamps.data());
+    std::stringstream ss;
+    ss << "[debug][growing segment] delete " << size << " rows" << std::endl;
+    std::cout << ss.str() << std::endl;
     return SegcoreError::success();
 }
 

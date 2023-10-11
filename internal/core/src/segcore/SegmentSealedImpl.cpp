@@ -594,9 +594,36 @@ SegmentSealedImpl::mask_with_delete(BitsetType& bitset,
     AssertInfo(delete_bitset.size() == bitset.size(),
                "Deleted bitmap size not equal to filtered bitmap size");
     bitset |= delete_bitset;
+
+    std::map<int64_t, int64_t> diff;
+    std::map<int64_t, int64_t> all;
+    auto& deleted_pks = get_deleted_record().pks();
+    auto l = get_deleted_record().size();
+    for (int64_t i = 0; i < l; i++) {
+        auto pk = deleted_pks[i];
+        auto offsets = insert_record_.search_pk(pk, ins_barrier);
+        for (auto offset : offsets) {
+            all[offset.get()] = std::get<int64_t>(pk);
+            if (!bitset[offset.get()]) {
+                diff[offset.get()] = std::get<int64_t>(pk);
+            }
+        }
+    }
+    std::stringstream ss;
+    ss << "[debug][sealed] all filtered out: " << all.size() << std::endl;
+    for (auto [offset, pk] : all) {
+        ss << "offset: " << offset << "\t\t\tpk: " << pk << std::endl;
+    }
+    if (!diff.empty()) {
+        ss << "has diff:" << std::endl;
+        for (auto [offset, pk] : diff) {
+            ss << "offset: " << offset << "\t\t\tpk: " << pk << std::endl;
+        }
+    }
+//    std::cout << ss.str() << std::endl;
 }
 
-void
+    void
 SegmentSealedImpl::vector_search(SearchInfo& search_info,
                                  const void* query_data,
                                  int64_t query_count,
@@ -1164,13 +1191,17 @@ SegmentSealedImpl::Delete(int64_t reserved_offset,  // deprecated
     std::vector<PkType> sort_pks(size);
     std::vector<Timestamp> sort_timestamps(size);
 
+    std::stringstream ss;
+    ss << "[debug][sealed segment] delete " << size << " rows" << std::endl;
     for (int i = 0; i < size; i++) {
         auto [t, pk] = ordering[i];
         sort_timestamps[i] = t;
         sort_pks[i] = pk;
+//        ss << "ts: " << t << "\tpk: " << std::get<int64_t>(pk) << std::endl;
     }
 
     deleted_record_.push(sort_pks, sort_timestamps.data());
+    std::cout << ss.str() << std::endl;
     return SegcoreError::success();
 }
 

@@ -147,6 +147,9 @@ ExecPlanNodeVisitor::visit(RetrievePlanNode& node) {
     RetrieveResult retrieve_result;
 
     auto active_count = segment->get_active_count(timestamp_);
+    std::stringstream ss;
+    ss << "timestamp: " << timestamp_ << std::endl;
+    ss << "active_count: " << active_count << std::endl;
 
     if (active_count == 0 && !node.is_count_) {
         retrieve_result_opt_ = std::move(retrieve_result);
@@ -172,7 +175,14 @@ ExecPlanNodeVisitor::visit(RetrievePlanNode& node) {
         bitset_holder.flip();
     }
 
+    auto calc_cnt = [](const BitsetType& bitset) {
+        return bitset.size() - bitset.count();
+    };
+
+    ss << "count after filter: " << calc_cnt(bitset_holder) << std::endl;
+
     segment->mask_with_timestamps(bitset_holder, timestamp_);
+    ss << "count after ts filter: " << calc_cnt(bitset_holder) << std::endl;
 
     segment->mask_with_delete(bitset_holder, active_count, timestamp_);
     // if bitset_holder is all 1's, we got empty result
@@ -185,6 +195,9 @@ ExecPlanNodeVisitor::visit(RetrievePlanNode& node) {
         auto cnt = bitset_holder.size() - bitset_holder.count();
         retrieve_result = *(wrap_num_entities(cnt));
         retrieve_result_opt_ = std::move(retrieve_result);
+        ss << "real count: " << cnt << std::endl;
+        ss << "filtered_count: " << bitset_holder.count() << std::endl;
+        std::cout << ss.str() << std::endl;
         return;
     }
 
