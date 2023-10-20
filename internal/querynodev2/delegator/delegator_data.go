@@ -329,6 +329,9 @@ func (sd *shardDelegator) LoadGrowing(ctx context.Context, infos []*querypb.Segm
 
 // LoadSegments load segments local or remotely depends on the target node.
 func (sd *shardDelegator) LoadSegments(ctx context.Context, req *querypb.LoadSegmentsRequest) error {
+	sd.deleteMut.Lock()
+	defer sd.deleteMut.Unlock()
+
 	log := sd.getLogger(ctx)
 
 	targetNodeID := req.GetDstNodeID()
@@ -430,9 +433,6 @@ func (sd *shardDelegator) loadStreamDelete(ctx context.Context,
 	idCandidates := lo.SliceToMap(candidates, func(candidate *pkoracle.BloomFilterSet) (int64, *pkoracle.BloomFilterSet) {
 		return candidate.ID(), candidate
 	})
-
-	sd.deleteMut.Lock()
-	defer sd.deleteMut.Unlock()
 	// apply buffered delete for new segments
 	// no goroutines here since qnv2 has no load merging logic
 	for i, info := range infos {

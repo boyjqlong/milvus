@@ -148,6 +148,8 @@ ExecPlanNodeVisitor::visit(RetrievePlanNode& node) {
 
     auto active_count = segment->get_active_count(timestamp_);
     std::stringstream ss;
+    ss << "segment: " << segment->get_segment_id() << std::endl;
+    ss << segment->debug();
     ss << "timestamp: " << timestamp_ << std::endl;
     ss << "active_count: " << active_count << std::endl;
 
