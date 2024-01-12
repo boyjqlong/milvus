@@ -17,6 +17,8 @@
 #include "segcore/SegmentGrowing.h"
 #include <utility>
 #include "PlanNodeVisitor.h"
+#include "common/time_recorder.h"
+
 
 namespace milvus::query {
 

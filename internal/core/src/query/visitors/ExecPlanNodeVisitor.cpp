@@ -24,6 +24,7 @@
 #include "exec/Task.h"
 #include "segcore/SegmentInterface.h"
 #include "query/GroupByOperator.h"
+#include "segcore/SegmentSealedImpl.h"
 
 namespace milvus::query {
 
@@ -218,6 +219,7 @@ wrap_num_entities(int64_t cnt) {
     return retrieve_result;
 }
 
+
 void
 ExecPlanNodeVisitor::visit(RetrievePlanNode& node) {
     assert(!retrieve_result_opt_.has_value());
@@ -250,12 +252,22 @@ ExecPlanNodeVisitor::visit(RetrievePlanNode& node) {
     bool get_cache_offset = false;
     std::vector<int64_t> cache_offsets;
     if (node.filter_plannode_.has_value()) {
+        TimeRecorder tr("ExecuteExprNodeInternal");
         ExecuteExprNodeInternal(node.filter_plannode_.value(),
                                 segment,
                                 active_count,
                                 bitset_holder,
                                 get_cache_offset,
                                 cache_offsets);
+        auto t = tr.RecordSection("done") * 0.001;
+        auto seal_segment = (segcore::SegmentSealedImpl*)(segment);
+        auto k = node.filter_plannode_.value()->ToString();
+        auto& time_records = seal_segment->time_records_;
+        if (time_records.find(k) != time_records.end()) {
+            time_records[k].push_back(t);
+        } else {
+            time_records[k] = {t};
+        }
         bitset_holder.flip();
     }
 

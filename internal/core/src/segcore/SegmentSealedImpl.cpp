@@ -980,6 +980,16 @@ SegmentSealedImpl::~SegmentSealedImpl() {
             cc->Remove(binlog);
         }
     }
+
+    for (const auto& [k, v]: time_records_) {
+        auto l = v.size();
+        double sum = 0;
+        for (auto t: v) {
+            sum += t;
+        }
+        auto average = sum / l;
+        printf("run %s %ld times cost %lf, average time: %lf\n\n", k.c_str(), l, sum, average);
+    }
 }
 
 void

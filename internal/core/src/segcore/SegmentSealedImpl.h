@@ -35,6 +35,7 @@
 #include "sys/mman.h"
 #include "common/Types.h"
 #include "common/IndexMeta.h"
+#include "common/time_recorder.h"
 
 namespace milvus::segcore {
 
@@ -300,6 +301,8 @@ class SegmentSealedImpl : public SegmentSealed {
     SegcoreConfig segcore_config_;
     std::unordered_map<FieldId, std::unique_ptr<VecIndexConfig>>
         vec_binlog_config_;
+        public:
+    std::map<std::string, std::vector<double>> time_records_;
 };
 
 inline SegmentSealedUPtr

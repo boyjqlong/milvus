@@ -59,7 +59,7 @@ tikv:
   kvSubPath: kv # kvRootPath = rootPath + '/' + kvSubPath
 
 localStorage:
-  path: /var/lib/milvus/data/ # please adjust in embedded Milvus: /tmp/milvus/data/
+  path: /tmp/var/lib/milvus/data/ # please adjust in embedded Milvus: /tmp/milvus/data/
 
 # Related configuration of MinIO/S3/GCS or any other service supports S3 API, which is responsible for data persistence for Milvus.
 # We refer to the storage service as MinIO/S3 in the following description for simplicity.
@@ -373,7 +373,7 @@ dataCoord:
     balanceSilentDuration: 300 # The duration before the channelBalancer on datacoord to run
     balanceInterval: 360 #The interval for the channelBalancer on datacoord to check balance status
   segment:
-    maxSize: 512 # Maximum size of a segment in MB
+    maxSize: 5120000 # Maximum size of a segment in MB
     diskSegmentMaxSize: 2048 # Maximum size of a segment in MB for collection which has Disk index
     sealProportion: 0.23
     # The time of the assignment expiration in ms
