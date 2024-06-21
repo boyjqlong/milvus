@@ -24,6 +24,8 @@ extern "C" {
 
 void free_rust_array(RustArray array);
 
+void print_vector_of_strings(const char *const *ptr, uintptr_t len);
+
 void *tantivy_load_index(const char *path);
 
 void tantivy_free_index_reader(void *ptr);
@@ -76,6 +78,8 @@ RustArray tantivy_prefix_query_keyword(void *ptr, const char *prefix);
 
 RustArray tantivy_regex_query(void *ptr, const char *pattern);
 
+RustArray tantivy_match_query(void *ptr, const char *query);
+
 void *tantivy_create_index(const char *field_name, TantivyDataType data_type, const char *path);
 
 void tantivy_free_index_writer(void *ptr);
@@ -114,12 +118,8 @@ void tantivy_index_add_multi_bools(void *ptr, const bool *array, uintptr_t len);
 
 void tantivy_index_add_multi_keywords(void *ptr, const char *const *array, uintptr_t len);
 
-bool tantivy_index_exist(const char *path);
-
-void print_vector_of_strings(const char *const *ptr, uintptr_t len);
-
 void *tantivy_create_default_text_writer(const char *field_name, const char *path);
 
-RustArray tantivy_match_query(void *ptr, const char *query);
+bool tantivy_index_exist(const char *path);
 
 } // extern "C"

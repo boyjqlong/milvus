@@ -128,8 +128,7 @@ struct TantivyIndexWrapper {
     }
 
     // create index writer for text type.
-    TantivyIndexWrapper(const char* field_name,
-                        const char* path) {
+    TantivyIndexWrapper(const char* field_name, const char* path) {
         writer_ = tantivy_create_default_text_writer(field_name, path);
         path_ = std::string(path);
     }
