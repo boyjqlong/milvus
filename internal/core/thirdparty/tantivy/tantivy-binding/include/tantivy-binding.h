@@ -7,6 +7,7 @@
 #include <new>
 
 enum class TantivyDataType : uint8_t {
+  Text,
   Keyword,
   I64,
   F64,
@@ -95,7 +96,7 @@ void tantivy_index_add_f64s(void *ptr, const double *array, uintptr_t len);
 
 void tantivy_index_add_bools(void *ptr, const bool *array, uintptr_t len);
 
-void tantivy_index_add_keyword(void *ptr, const char *s);
+void tantivy_index_add_string(void *ptr, const char *s);
 
 void tantivy_index_add_multi_int8s(void *ptr, const int8_t *array, uintptr_t len);
 
@@ -116,5 +117,9 @@ void tantivy_index_add_multi_keywords(void *ptr, const char *const *array, uintp
 bool tantivy_index_exist(const char *path);
 
 void print_vector_of_strings(const char *const *ptr, uintptr_t len);
+
+void *tantivy_create_default_text_writer(const char *field_name, const char *path);
+
+RustArray tantivy_match_query(void *ptr, const char *query);
 
 } // extern "C"

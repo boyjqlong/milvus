@@ -81,6 +81,7 @@ guess_data_type() {
                       typeid(T).name());
 }
 
+// TODO: should split this into IndexWriter & IndexReader.
 struct TantivyIndexWrapper {
     using IndexWriter = void*;
     using IndexReader = void*;
@@ -118,6 +119,7 @@ struct TantivyIndexWrapper {
         return *this;
     }
 
+    // create index writer for non-text type.
     TantivyIndexWrapper(const char* field_name,
                         TantivyDataType data_type,
                         const char* path) {
@@ -125,6 +127,14 @@ struct TantivyIndexWrapper {
         path_ = std::string(path);
     }
 
+    // create index writer for text type.
+    TantivyIndexWrapper(const char* field_name,
+                        const char* path) {
+        writer_ = tantivy_create_default_text_writer(field_name, path);
+        path_ = std::string(path);
+    }
+
+    // load index. create index reader.
     explicit TantivyIndexWrapper(const char* path) {
         assert(tantivy_index_exist(path));
         reader_ = tantivy_load_index(path);
@@ -178,7 +188,7 @@ struct TantivyIndexWrapper {
         if constexpr (std::is_same_v<T, std::string>) {
             // TODO: not very efficient, a lot of overhead due to rust-ffi call.
             for (uintptr_t i = 0; i < len; i++) {
-                tantivy_index_add_keyword(
+                tantivy_index_add_string(
                     writer_, static_cast<const std::string*>(array)[i].c_str());
             }
             return;
@@ -395,6 +405,12 @@ struct TantivyIndexWrapper {
     RustArrayWrapper
     regex_query(const std::string& pattern) {
         auto array = tantivy_regex_query(reader_, pattern.c_str());
+        return RustArrayWrapper(array);
+    }
+
+    RustArrayWrapper
+    match_query(const std::string& query) {
+        auto array = tantivy_match_query(reader_, query.c_str());
         return RustArrayWrapper(array);
     }
 

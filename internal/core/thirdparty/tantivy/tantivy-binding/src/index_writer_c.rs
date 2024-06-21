@@ -117,10 +117,10 @@ pub extern "C" fn tantivy_index_add_bools(ptr: *mut c_void, array: *const bool, 
 // TODO: this is not a very efficient way, since we must call this function many times, which
 // will bring a lot of overhead caused by the rust binding.
 #[no_mangle]
-pub extern "C" fn tantivy_index_add_keyword(ptr: *mut c_void, s: *const c_char) {
+pub extern "C" fn tantivy_index_add_string(ptr: *mut c_void, s: *const c_char) {
     let real = ptr as *mut IndexWriterWrapper;
     let c_str = unsafe { CStr::from_ptr(s) };
-    unsafe { (*real).add_keyword(c_str.to_str().unwrap()) }
+    unsafe { (*real).add_string(c_str.to_str().unwrap()) }
 }
 
 // --------------------------------------------- array ------------------------------------------

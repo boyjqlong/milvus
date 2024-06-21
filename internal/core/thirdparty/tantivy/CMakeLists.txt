@@ -77,3 +77,10 @@ target_link_libraries(ffi_demo
         tantivy_binding
         dl
         )
+
+add_executable(text_demo text_demo.cpp)
+target_link_libraries(text_demo
+        tantivy_binding
+        boost_filesystem
+        dl
+        )

@@ -11,14 +11,15 @@ use crate::util::make_bounds;
 use crate::vec_collector::VecCollector;
 
 pub struct IndexReaderWrapper {
-    pub field_name: String,
-    pub field: Field,
-    pub reader: IndexReader,
-    pub cnt: u32,
+    field_name: String,
+    pub(crate) field: Field,
+    reader: IndexReader,
+    cnt: u32,
+    pub(crate) index: Index,
 }
 
 impl IndexReaderWrapper {
-    pub fn new(index: &Index, field_name: &String, field: Field) -> IndexReaderWrapper {
+    pub fn new(index: Index, field_name: &String, field: Field) -> IndexReaderWrapper {
         init_log();
 
         let reader = index
@@ -37,6 +38,7 @@ impl IndexReaderWrapper {
             field,
             reader,
             cnt: sum,
+            index,
         }
     }
 
@@ -46,14 +48,14 @@ impl IndexReaderWrapper {
         let field = index.schema().fields().next().unwrap().0;
         let schema = index.schema();
         let field_name = schema.get_field_name(field);
-        IndexReaderWrapper::new(&index, &String::from_str(field_name).unwrap(), field)
+        IndexReaderWrapper::new(index, &String::from_str(field_name).unwrap(), field)
     }
 
     pub fn count(&self) -> u32 {
         self.cnt
     }
 
-    fn search(&self, q: &dyn Query) -> Vec<u32> {
+    pub(crate) fn search(&self, q: &dyn Query) -> Vec<u32> {
         let searcher = self.reader.searcher();
         let hits = searcher.search(q, &VecCollector).unwrap();
         hits

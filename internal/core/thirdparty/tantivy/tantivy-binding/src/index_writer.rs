@@ -41,6 +41,9 @@ impl IndexWriterWrapper {
                 field = schema_builder.add_text_field(&field_name, text_options);
                 use_raw_tokenizer = true;
             }
+            TantivyDataType::Text => {
+                panic!("text should be indexed with analyzer");
+            },
         }
         let schema = schema_builder.build();
         let index = Index::create_in_dir(path.clone(), schema).unwrap();
@@ -93,7 +96,7 @@ impl IndexWriterWrapper {
             .unwrap();
     }
 
-    pub fn add_keyword(&mut self, data: &str) {
+    pub fn add_string(&mut self, data: &str) {
         self.index_writer
             .add_document(doc!(self.field => data))
             .unwrap();
