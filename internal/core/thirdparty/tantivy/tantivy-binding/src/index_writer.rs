@@ -2,7 +2,7 @@ use std::ffi::CStr;
 
 use libc::c_char;
 use tantivy::schema::{Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, INDEXED};
-use tantivy::{doc, tokenizer, Index, SingleSegmentIndexWriter, Document};
+use tantivy::{doc, tokenizer, Document, Index, SingleSegmentIndexWriter};
 
 use crate::data_type::TantivyDataType;
 
@@ -43,7 +43,7 @@ impl IndexWriterWrapper {
             }
             TantivyDataType::Text => {
                 panic!("text should be indexed with analyzer");
-            },
+            }
         }
         let schema = schema_builder.build();
         let index = Index::create_in_dir(path.clone(), schema).unwrap();
@@ -161,9 +161,7 @@ impl IndexWriterWrapper {
     pub fn add_multi_keywords(&mut self, datas: &[*const c_char]) {
         let mut document = Document::default();
         for element in datas {
-            let data = unsafe {
-                CStr::from_ptr(*element)
-            };
+            let data = unsafe { CStr::from_ptr(*element) };
             document.add_field_value(self.field, data.to_str().unwrap());
         }
         self.index_writer.add_document(document).unwrap();

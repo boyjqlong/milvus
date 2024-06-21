@@ -1,6 +1,6 @@
-use std::ffi::CStr;
 use std::ffi::c_char;
 use std::ffi::c_void;
+use std::ffi::CStr;
 
 use crate::index_writer::IndexWriterWrapper;
 use crate::util::create_binding;

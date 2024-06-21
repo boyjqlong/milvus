@@ -10,7 +10,7 @@ impl IndexReaderWrapper {
         let mut tokenizer = self
             .index
             .tokenizer_for_field(self.field)
-			.unwrap_or(default_tokenizer()) // TODO: register the runtime tokenizer.
+            .unwrap_or(default_tokenizer()) // TODO: register the runtime tokenizer.
             .clone();
         let mut token_stream = tokenizer.token_stream(q);
         let mut terms: Vec<Term> = Vec::new();
