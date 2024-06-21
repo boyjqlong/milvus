@@ -28,6 +28,7 @@
 #include "index/BoolIndex.h"
 #include "index/InvertedIndexTantivy.h"
 #include "index/HybridScalarIndex.h"
+#include "TextMatchIndex.h"
 
 namespace milvus::index {
 
@@ -66,6 +67,9 @@ IndexFactory::CreatePrimitiveScalarIndex<std::string>(
         return std::make_unique<HybridScalarIndex<std::string>>(
             file_manager_context);
     }
+    if (index_type == FTS_INDEX_TYPE) {
+        return std::make_unique<TextMatchIndex>(file_manager_context);
+    }
     return CreateStringIndexMarisa(file_manager_context);
 #else
     throw SegcoreError(Unsupported, "unsupported platform");
@@ -103,6 +107,9 @@ IndexFactory::CreatePrimitiveScalarIndex<std::string>(
     if (index_type == BITMAP_INDEX_TYPE) {
         return std::make_unique<HybridScalarIndex<std::string>>(
             file_manager_context, space);
+    }
+    if (index_type == FTS_INDEX_TYPE) {
+        PanicInfo(Unsupported, "full-text-search not supported on storage-v2");
     }
     return CreateStringIndexMarisa(file_manager_context, space);
 #else

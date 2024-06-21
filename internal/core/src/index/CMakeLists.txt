@@ -21,7 +21,7 @@ set(INDEX_FILES
         InvertedIndexTantivy.cpp
         BitmapIndex.cpp
         HybridScalarIndex.cpp
-        )
+        TextMatchIndex.cpp TextMatchIndex.h)
 
 milvus_add_pkg_config("milvus_index")
 add_library(milvus_index SHARED ${INDEX_FILES})

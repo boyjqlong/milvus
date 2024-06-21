@@ -24,7 +24,7 @@ impl IndexReaderWrapper {
 
         let reader = index
             .reader_builder()
-            .reload_policy(ReloadPolicy::Manual)
+            .reload_policy(ReloadPolicy::OnCommit) // OnCommit serve for growing segment.
             .try_into()
             .unwrap();
         let metas = index.searchable_segment_metas().unwrap();

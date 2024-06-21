@@ -34,6 +34,7 @@
 #include "sys/mman.h"
 #include "common/Types.h"
 #include "common/IndexMeta.h"
+#include "index/TextMatchIndex.h"
 
 namespace milvus::segcore {
 
@@ -319,6 +320,9 @@ class SegmentSealedImpl : public SegmentSealed {
     // for sparse vector unit test only! Once a type of sparse index that
     // doesn't has raw data is added, this should be removed.
     bool TEST_skip_index_for_retrieve_ = false;
+
+    // text-indexes used to do match.
+    std::unordered_map<FieldId, std::unique_ptr<index::TextMatchIndex>> text_indexes_;
 };
 
 inline SegmentSealedUPtr

@@ -1008,6 +1008,48 @@ func separateIndexAndBinlog(loadInfo *querypb.SegmentLoadInfo) (map[int64]*Index
 	return indexedFieldInfos, fieldBinlogs
 }
 
+func IsTextIndex(indexParams []*commonpb.KeyValuePair) bool {
+	indexType, err := funcutil.GetAttrByKeyFromRepeatedKV(common.IndexTypeKey, indexParams)
+	if err != nil {
+		return false
+	}
+	return indexType == "FTS"
+}
+
+func separateLoadInfo(loadInfo *querypb.SegmentLoadInfo, schema *typeutil.SchemaHelper) (map[int64]*IndexedFieldInfo, []*datapb.FieldBinlog) {
+	fieldID2IndexInfo := make(map[int64]*querypb.FieldIndexInfo, len(loadInfo.GetIndexInfos()))
+	textIndexes := make(map[int64]*querypb.FieldIndexInfo, len(loadInfo.GetIndexInfos()))
+	for _, indexInfo := range loadInfo.IndexInfos {
+		if len(indexInfo.GetIndexFilePaths()) > 0 {
+			fieldID := indexInfo.FieldID
+			if IsTextIndex(indexInfo.GetIndexParams()) {
+				textIndexes[fieldID] = indexInfo
+			} else {
+				fieldID2IndexInfo[fieldID] = indexInfo
+			}
+		}
+	}
+
+	indexedFieldInfos := make(map[int64]*IndexedFieldInfo)
+	fieldBinlogs := make([]*datapb.FieldBinlog, 0, len(loadInfo.BinlogPaths))
+
+	for _, fieldBinlog := range loadInfo.BinlogPaths {
+		fieldID := fieldBinlog.FieldID
+		// check num rows of data meta and index meta are consistent
+		if indexInfo, ok := fieldID2IndexInfo[fieldID]; ok {
+			fieldInfo := &IndexedFieldInfo{
+				FieldBinlog: fieldBinlog,
+				IndexInfo:   indexInfo,
+			}
+			indexedFieldInfos[fieldID] = fieldInfo
+		} else {
+			fieldBinlogs = append(fieldBinlogs, fieldBinlog)
+		}
+	}
+
+	return indexedFieldInfos, fieldBinlogs
+}
+
 func (loader *segmentLoader) loadSealedSegment(ctx context.Context, loadInfo *querypb.SegmentLoadInfo, segment *LocalSegment) (err error) {
 	// TODO: we should create a transaction-like api to load segment for segment interface,
 	// but not do many things in segment loader.
