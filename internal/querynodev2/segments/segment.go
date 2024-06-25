@@ -1379,7 +1379,11 @@ func (s *LocalSegment) UpdateIndexInfo(ctx context.Context, indexInfo *querypb.F
 
 	var status C.CStatus
 	GetDynamicPool().Submit(func() (any, error) {
-		status = C.UpdateSealedSegmentIndex(s.ptr, info.cLoadIndexInfo)
+		if IsTextIndex(indexInfo.GetIndexParams()) {
+			status = C.UpdateSealedSegmentIndex(s.ptr, info.cLoadIndexInfo)
+		} else {
+			status = C.UpdateSealedSegmentTextIndex(s.ptr, info.cLoadIndexInfo)
+		}
 		return nil, nil
 	}).Await()
 
@@ -1391,13 +1395,15 @@ func (s *LocalSegment) UpdateIndexInfo(ctx context.Context, indexInfo *querypb.F
 		return err
 	}
 
-	s.fieldIndexes.Insert(indexInfo.GetFieldID(), &IndexedFieldInfo{
-		FieldBinlog: &datapb.FieldBinlog{
-			FieldID: indexInfo.GetFieldID(),
-		},
-		IndexInfo: indexInfo,
-		IsLoaded:  true,
-	})
+	if !IsTextIndex(indexInfo.GetIndexParams()) {
+		s.fieldIndexes.Insert(indexInfo.GetFieldID(), &IndexedFieldInfo{
+			FieldBinlog: &datapb.FieldBinlog{
+				FieldID: indexInfo.GetFieldID(),
+			},
+			IndexInfo: indexInfo,
+			IsLoaded:  true,
+		})
+	}
 	log.Info("updateSegmentIndex done")
 	return nil
 }
@@ -1471,6 +1477,22 @@ func (s *LocalSegment) UpdateFieldRawDataSize(ctx context.Context, numRows int64
 	}
 
 	log.Ctx(ctx).Info("updateFieldRawDataSize done", zap.Int64("segmentID", s.ID()))
+
+	return nil
+}
+
+func (s *LocalSegment) CreateTextIndex(ctx context.Context, fieldID int64) error {
+	var status C.CStatus
+	GetDynamicPool().Submit(func() (any, error) {
+		status = C.CreateTextIndex(s.ptr, C.int64_t(fieldID))
+		return nil, nil
+	}).Await()
+
+	if err := HandleCStatus(ctx, &status, "CreateTextIndex failed"); err != nil {
+		return err
+	}
+
+	log.Ctx(ctx).Info("CreateTextIndex done", zap.Int64("segmentID", s.ID()), zap.Int64("fieldID", fieldID))
 
 	return nil
 }

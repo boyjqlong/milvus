@@ -43,6 +43,9 @@ class SegmentSealed : public SegmentInternalInterface {
     virtual void
     WarmupChunkCache(const FieldId field_id) = 0;
 
+    virtual void
+    LoadTextIndex(LoadIndexInfo& info) = 0;
+
     SegmentType
     type() const override {
         return SegmentType::Sealed;

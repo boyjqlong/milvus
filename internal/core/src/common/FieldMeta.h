@@ -89,6 +89,13 @@ class FieldMeta {
         return string_info_->max_length;
     }
 
+    bool
+    enable_match() const {
+        Assert(IsStringDataType(type_));
+        Assert(string_info_.has_value());
+        return string_info_->enable_match;
+    }
+
     std::optional<knowhere::MetricType>
     get_metric_type() const {
         Assert(IsVectorDataType(type_));
@@ -151,6 +158,7 @@ class FieldMeta {
     };
     struct StringInfo {
         int64_t max_length;
+        bool enable_match;
     };
     FieldName name_;
     FieldId id_;

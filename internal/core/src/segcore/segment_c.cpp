@@ -45,6 +45,7 @@ NewSegment(CCollection collection,
             case Growing: {
                 auto seg = milvus::segcore::CreateGrowingSegment(
                     col->get_schema(), col->get_index_meta(), segment_id);
+                seg->CreateTextIndexes();
                 segment = std::move(seg);
                 break;
             }
@@ -421,6 +422,24 @@ UpdateSealedSegmentIndex(CSegmentInterface c_segment,
 }
 
 CStatus
+UpdateSealedSegmentTextIndex(CSegmentInterface c_segment,
+                             CLoadIndexInfo c_load_index_info) {
+    try {
+        auto segment_interface =
+            reinterpret_cast<milvus::segcore::SegmentInterface*>(c_segment);
+        auto segment =
+            dynamic_cast<milvus::segcore::SegmentSealed*>(segment_interface);
+        AssertInfo(segment != nullptr, "segment conversion failed");
+        auto load_index_info =
+            static_cast<milvus::segcore::LoadIndexInfo*>(c_load_index_info);
+        segment->LoadTextIndex(*load_index_info);
+        return milvus::SuccessCStatus();
+    } catch (std::exception& e) {
+        return milvus::FailureCStatus(&e);
+    }
+}
+
+CStatus
 UpdateFieldRawDataSize(CSegmentInterface c_segment,
                        int64_t field_id,
                        int64_t num_rows,
@@ -505,4 +524,16 @@ RemoveFieldFile(CSegmentInterface c_segment, int64_t field_id) {
     auto segment =
         reinterpret_cast<milvus::segcore::SegmentSealedImpl*>(c_segment);
     segment->RemoveFieldFile(milvus::FieldId(field_id));
+}
+
+CStatus
+CreateTextIndex(CSegmentInterface c_segment, int64_t field_id) {
+    try {
+        auto segment_interface =
+            reinterpret_cast<milvus::segcore::SegmentInterface*>(c_segment);
+        segment_interface->CreateTextIndex(milvus::FieldId(field_id));
+        return milvus::SuccessCStatus();
+    } catch (std::exception& e) {
+        return milvus::FailureCStatus(milvus::UnexpectedError, e.what());
+    }
 }

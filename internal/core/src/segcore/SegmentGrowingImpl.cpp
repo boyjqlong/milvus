@@ -137,6 +137,18 @@ SegmentGrowingImpl::Insert(int64_t reserved_offset,
                 insert_record_);
         }
 
+        // index text.
+        if (field_meta.enable_match()) {
+            AddTexts(field_id,
+                     reinterpret_cast<const std::string*>(
+                         insert_record_proto->fields_data(data_offset)
+                             .scalars()
+                             .string_data()
+                             .data()
+                             .data()),
+                     num_rows);
+        }
+
         // update average row data size
         auto field_data_size = GetRawDataSizeOfDataArray(
             &insert_record_proto->fields_data(data_offset),
@@ -835,6 +847,37 @@ void
 SegmentGrowingImpl::mask_with_timestamps(BitsetType& bitset_chunk,
                                          Timestamp timestamp) const {
     // DO NOTHING
+}
+
+void
+SegmentGrowingImpl::CreateTextIndex(FieldId field_id) {
+    std::unique_lock lock(mutex_);
+    const auto& field_meta = schema_->operator[](field_id);
+    AssertInfo(IsStringDataType(field_meta.get_data_type()),
+               "cannot create text index on non-string type");
+    auto index = std::make_unique<index::TextMatchIndex>();
+    index->CreateReader();
+    text_indexes_[field_id] = std::move(index);
+}
+
+void
+SegmentGrowingImpl::CreateTextIndexes() {
+    for (auto [field_id, field_meta] : schema_->get_fields()) {
+        if (IsStringDataType(field_meta.get_data_type()) &&
+            field_meta.enable_match()) {
+            CreateTextIndex(FieldId(field_id));
+        }
+    }
+}
+
+void
+SegmentGrowingImpl::AddTexts(milvus::FieldId field_id,
+                             const std::string* texts,
+                             size_t n) {
+    std::shared_lock lock(mutex_);
+    auto iter = text_indexes_.find(field_id);
+    AssertInfo(iter != text_indexes_.end(), "text index not found");
+    iter->second->AddTexts(n, texts);
 }
 
 }  // namespace milvus::segcore

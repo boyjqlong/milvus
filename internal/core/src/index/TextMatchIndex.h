@@ -19,6 +19,24 @@
 namespace milvus::index {
 class TextMatchIndex : public InvertedIndexTantivy<std::string> {
  public:
-    TextMatchIndex(const storage::FileManagerContext& ctx);
+    explicit TextMatchIndex();
+    explicit TextMatchIndex(const storage::FileManagerContext& ctx);
+
+ public:
+    void
+    AddText(const std::string& text);
+
+    void
+    AddTexts(size_t n, const std::string* texts);
+
+    void
+    Finish();
+
+ public:
+    void
+    CreateReader();
+
+ private:
+    std::shared_ptr<TantivyIndexWrapper> reader_;
 };
 }  // namespace milvus::index
