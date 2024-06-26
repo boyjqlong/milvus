@@ -30,4 +30,9 @@ set(MILVUS_EXEC_SRCS
 
 add_library(milvus_exec STATIC ${MILVUS_EXEC_SRCS})
 
-target_link_libraries(milvus_exec milvus_common milvus-storage ${CONAN_LIBS})
+target_link_libraries(milvus_exec
+        milvus_index
+        milvus_common
+        milvus-storage
+        ${CONAN_LIBS}
+        )

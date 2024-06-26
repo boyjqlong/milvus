@@ -1008,14 +1008,6 @@ func separateIndexAndBinlog(loadInfo *querypb.SegmentLoadInfo) (map[int64]*Index
 	return indexedFieldInfos, fieldBinlogs
 }
 
-func IsTextIndex(indexParams []*commonpb.KeyValuePair) bool {
-	indexType, err := funcutil.GetAttrByKeyFromRepeatedKV(common.IndexTypeKey, indexParams)
-	if err != nil {
-		return false
-	}
-	return indexType == "FTS"
-}
-
 func separateLoadInfo(loadInfo *querypb.SegmentLoadInfo, schema *typeutil.SchemaHelper) (
 	map[int64]*IndexedFieldInfo, // indexed info
 	[]*datapb.FieldBinlog, // fields info
@@ -1027,7 +1019,7 @@ func separateLoadInfo(loadInfo *querypb.SegmentLoadInfo, schema *typeutil.Schema
 	for _, indexInfo := range loadInfo.IndexInfos {
 		if len(indexInfo.GetIndexFilePaths()) > 0 {
 			fieldID := indexInfo.FieldID
-			if IsTextIndex(indexInfo.GetIndexParams()) {
+			if funcutil.IsTextIndex(indexInfo.GetIndexParams()) {
 				textIndexes[fieldID] = indexInfo
 			} else {
 				fieldID2IndexInfo[fieldID] = indexInfo

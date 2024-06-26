@@ -1379,7 +1379,7 @@ func (s *LocalSegment) UpdateIndexInfo(ctx context.Context, indexInfo *querypb.F
 
 	var status C.CStatus
 	GetDynamicPool().Submit(func() (any, error) {
-		if IsTextIndex(indexInfo.GetIndexParams()) {
+		if funcutil.IsTextIndex(indexInfo.GetIndexParams()) {
 			status = C.UpdateSealedSegmentIndex(s.ptr, info.cLoadIndexInfo)
 		} else {
 			status = C.UpdateSealedSegmentTextIndex(s.ptr, info.cLoadIndexInfo)
@@ -1395,7 +1395,7 @@ func (s *LocalSegment) UpdateIndexInfo(ctx context.Context, indexInfo *querypb.F
 		return err
 	}
 
-	if !IsTextIndex(indexInfo.GetIndexParams()) {
+	if !funcutil.IsTextIndex(indexInfo.GetIndexParams()) {
 		s.fieldIndexes.Insert(indexInfo.GetFieldID(), &IndexedFieldInfo{
 			FieldBinlog: &datapb.FieldBinlog{
 				FieldID: indexInfo.GetFieldID(),

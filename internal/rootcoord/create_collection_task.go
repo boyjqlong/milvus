@@ -525,6 +525,17 @@ func (t *createCollectionTask) Execute(ctx context.Context) error {
 			},
 		},
 	}, &nullStep{})
+	undoTask.AddStep(&nullStep{}, &dropIndexStep{
+		baseStep: baseStep{core: t.core},
+		collID:   collID,
+		partIDs:  nil,
+	})
+	undoTask.AddStep(&createTextIndexStep{
+		baseStep:     baseStep{core: t.core},
+		collectionID: collID,
+		schema:       t.schema,
+		ts:           ts,
+	}, &nullStep{})
 	undoTask.AddStep(&changeCollectionStateStep{
 		baseStep:     baseStep{core: t.core},
 		collectionID: collID,

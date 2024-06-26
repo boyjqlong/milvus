@@ -19,6 +19,10 @@ package rootcoord
 import (
 	"context"
 	"fmt"
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+	"github.com/milvus-io/milvus/internal/proto/indexpb"
+	"github.com/milvus-io/milvus/pkg/util/funcutil"
+	"github.com/milvus-io/milvus/pkg/util/typeutil"
 	"time"
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/milvuspb"
@@ -160,6 +164,43 @@ func (s *unwatchChannelsStep) Desc() string {
 }
 
 func (s *unwatchChannelsStep) Weight() stepPriority {
+	return stepPriorityNormal
+}
+
+type createTextIndexStep struct {
+	baseStep
+	collectionID UniqueID
+	schema       *schemapb.CollectionSchema
+	ts           Timestamp
+}
+
+func (s *createTextIndexStep) Execute(ctx context.Context) ([]nestedStep, error) {
+	for _, field := range s.schema.GetFields() {
+		h := typeutil.CreateFieldSchemaHelper(field)
+		if h.EnableMatch() {
+			req := &indexpb.CreateIndexRequest{
+				CollectionID:    s.collectionID,
+				FieldID:         field.GetFieldID(),
+				IndexName:       funcutil.ComposeTextIndexName(s.collectionID, field.GetFieldID(), s.schema.GetName()),
+				TypeParams:      nil,
+				IndexParams:     nil,
+				Timestamp:       s.ts,
+				IsAutoIndex:     false,
+				UserIndexParams: nil,
+			}
+			if err := s.baseStep.core.broker.CreateIndex(ctx, req); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return nil, nil
+}
+
+func (s *createTextIndexStep) Desc() string {
+	return fmt.Sprintf("create text index for collection: %d", s.collectionID)
+}
+
+func (s *createTextIndexStep) Weight() stepPriority {
 	return stepPriorityNormal
 }
 
