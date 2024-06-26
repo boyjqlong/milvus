@@ -17,3 +17,9 @@ func IsTextIndex(indexParams []*commonpb.KeyValuePair) bool {
 func ComposeTextIndexName(collectionID, fieldID int64, collectionName string) string {
 	return fmt.Sprintf("_internal_fts_%s_%d_%d", collectionName, collectionID, fieldID)
 }
+
+func ComposeTextIndexParams() []*commonpb.KeyValuePair {
+	return []*commonpb.KeyValuePair{
+		{Key: common.IndexTypeKey, Value: "internal_fts"},
+	}
+}

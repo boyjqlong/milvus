@@ -54,6 +54,18 @@ class FieldMeta {
     FieldMeta(const FieldName& name,
               FieldId id,
               DataType type,
+              int64_t max_length,
+              bool enable_match)
+        : name_(name),
+          id_(id),
+          type_(type),
+          string_info_(StringInfo{max_length, enable_match}) {
+        Assert(IsStringDataType(type_));
+    }
+
+    FieldMeta(const FieldName& name,
+              FieldId id,
+              DataType type,
               DataType element_type)
         : name_(name), id_(id), type_(type), element_type_(element_type) {
         Assert(IsArrayDataType(type_));
@@ -91,7 +103,9 @@ class FieldMeta {
 
     bool
     enable_match() const {
-        Assert(IsStringDataType(type_));
+        if (!IsStringDataType(type_)) {
+            return false;
+        }
         Assert(string_info_.has_value());
         return string_info_->enable_match;
     }

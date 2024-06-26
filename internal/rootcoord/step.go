@@ -183,7 +183,7 @@ func (s *createTextIndexStep) Execute(ctx context.Context) ([]nestedStep, error)
 				FieldID:         field.GetFieldID(),
 				IndexName:       funcutil.ComposeTextIndexName(s.collectionID, field.GetFieldID(), s.schema.GetName()),
 				TypeParams:      nil,
-				IndexParams:     nil,
+				IndexParams:     funcutil.ComposeTextIndexParams(),
 				Timestamp:       s.ts,
 				IsAutoIndex:     false,
 				UserIndexParams: nil,

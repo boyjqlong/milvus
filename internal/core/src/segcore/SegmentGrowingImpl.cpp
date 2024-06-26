@@ -139,14 +139,19 @@ SegmentGrowingImpl::Insert(int64_t reserved_offset,
 
         // index text.
         if (field_meta.enable_match()) {
-            AddTexts(field_id,
-                     reinterpret_cast<const std::string*>(
-                         insert_record_proto->fields_data(data_offset)
-                             .scalars()
-                             .string_data()
-                             .data()
-                             .data()),
-                     num_rows);
+            // TODO: iterate texts and call `AddText` instead of `AddTexts`. This may cost much more memory.
+            std::vector<std::string> texts(
+                insert_record_proto->fields_data(data_offset)
+                    .scalars()
+                    .string_data()
+                    .data()
+                    .begin(),
+                insert_record_proto->fields_data(data_offset)
+                    .scalars()
+                    .string_data()
+                    .data()
+                    .end());
+            AddTexts(field_id, texts.data(), num_rows);
         }
 
         // update average row data size
