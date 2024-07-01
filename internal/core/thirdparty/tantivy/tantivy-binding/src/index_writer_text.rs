@@ -1,13 +1,13 @@
-use std::collections::HashMap;
-use std::ffi::CStr;
 
-use libc::c_char;
-use tantivy::schema::{Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, INDEXED};
+
+
+
+use tantivy::schema::{IndexRecordOption, Schema, TextFieldIndexing, TextOptions};
 use tantivy::tokenizer::TextAnalyzer;
-use tantivy::{doc, tokenizer, Document, Index, SingleSegmentIndexWriter};
+use tantivy::{Index, SingleSegmentIndexWriter};
 
 use crate::data_type::TantivyDataType;
-use crate::tokenizer::{default_tokenizer, create_tokenizer};
+use crate::tokenizer::{default_tokenizer};
 use crate::{index_writer::IndexWriterWrapper, log::init_log};
 
 impl IndexWriterWrapper {

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::ffi::{CStr, CString};
-use std::os::raw::{c_char, c_int};
+use std::ffi::{CStr};
+use std::os::raw::{c_char};
 
 use libc::c_void;
 

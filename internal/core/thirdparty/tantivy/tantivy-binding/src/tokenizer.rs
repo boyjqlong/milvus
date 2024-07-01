@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use log::{info, warn};
+use log::{info};
 use tantivy::tokenizer::{TextAnalyzer, TokenizerManager};
 
 pub(crate) fn default_tokenizer() -> TextAnalyzer {

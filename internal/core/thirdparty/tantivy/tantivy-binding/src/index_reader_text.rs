@@ -1,6 +1,6 @@
 use tantivy::{query::BooleanQuery, tokenizer::{TokenStream, TextAnalyzer}, Term};
 
-use crate::{index_reader::IndexReaderWrapper, tokenizer::{default_tokenizer, self}};
+use crate::{index_reader::IndexReaderWrapper, tokenizer::{default_tokenizer}};
 
 impl IndexReaderWrapper {
     // split the query string into multiple tokens using index's default tokenizer,
