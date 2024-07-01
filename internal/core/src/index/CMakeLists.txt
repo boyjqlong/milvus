@@ -9,19 +9,8 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under the License
 
-set(INDEX_FILES
-        StringIndexMarisa.cpp
-        Utils.cpp
-        VectorMemIndex.cpp
-        IndexFactory.cpp
-        VectorDiskIndex.cpp
-        ScalarIndex.cpp
-        ScalarIndexSort.cpp
-        SkipIndex.cpp
-        InvertedIndexTantivy.cpp
-        BitmapIndex.cpp
-        HybridScalarIndex.cpp
-        TextMatchIndex.cpp TextMatchIndex.h)
+file(GLOB_RECURSE INDEX_FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 
 milvus_add_pkg_config("milvus_index")
 add_library(milvus_index SHARED ${INDEX_FILES})

@@ -80,6 +80,8 @@ RustArray tantivy_regex_query(void *ptr, const char *pattern);
 
 RustArray tantivy_match_query(void *ptr, const char *query);
 
+void tantivy_register_tokenizer(void *ptr, const char *tokenizer_name, void *tokenizer_params);
+
 void *tantivy_create_index(const char *field_name, TantivyDataType data_type, const char *path);
 
 void tantivy_free_index_writer(void *ptr);
@@ -120,6 +122,17 @@ void tantivy_index_add_multi_keywords(void *ptr, const char *const *array, uintp
 
 void *tantivy_create_default_text_writer(const char *field_name, const char *path);
 
+void *tantivy_create_text_writer(const char *field_name,
+                                 const char *path,
+                                 const char *tokenizer_name,
+                                 void *tokenizer_params);
+
 bool tantivy_index_exist(const char *path);
+
+void *create_hashmap();
+
+void set_value(void *map, const char *key, const char *value);
+
+void free_hashmap(void *map);
 
 } // extern "C"
