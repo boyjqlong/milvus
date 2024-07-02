@@ -107,9 +107,10 @@ class Schema {
              const FieldId id,
              DataType data_type,
              int64_t max_length,
-             bool enable_match) {
+             bool enable_match,
+             std::map<std::string, std::string>& params) {
         auto field_meta =
-            FieldMeta(name, id, data_type, max_length, enable_match);
+            FieldMeta(name, id, data_type, max_length, enable_match, params);
         this->AddField(std::move(field_meta));
     }
 

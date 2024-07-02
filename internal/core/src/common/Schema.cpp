@@ -75,7 +75,7 @@ Schema::ParseFrom(const milvus::proto::schema::CollectionSchema& schema_proto) {
                 enable_match =
                     boost::lexical_cast<bool>(type_map.at("enable_match"));
             }
-            schema->AddField(name, field_id, data_type, max_len, enable_match);
+            schema->AddField(name, field_id, data_type, max_len, enable_match, type_map);
         } else if (IsArrayDataType(data_type)) {
             schema->AddField(
                 name, field_id, data_type, DataType(child.element_type()));

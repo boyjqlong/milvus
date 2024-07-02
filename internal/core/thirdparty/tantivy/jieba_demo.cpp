@@ -20,7 +20,7 @@ main(int argc, char* argv[]) {
     boost::filesystem::create_directories(path);
 
     std::string tokenizer_name = "jieba";
-    std::unordered_map<std::string, std::string> tokenizer_params;
+    std::map<std::string, std::string> tokenizer_params;
     tokenizer_params["tokenizer"] = tokenizer_name;
 
     auto text_writer = TantivyIndexWrapper(

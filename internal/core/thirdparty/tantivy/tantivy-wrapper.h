@@ -2,6 +2,7 @@
 #include <fmt/format.h>
 #include <set>
 #include <iostream>
+#include <map>
 #include "tantivy-binding.h"
 
 namespace milvus::tantivy {
@@ -75,7 +76,7 @@ struct RustHashMap {
     }
 
     void
-    from(const std::unordered_map<std::string, std::string>& m) {
+    from(const std::map<std::string, std::string>& m) {
         for (const auto& [k, v] : m) {
             set(k, v);
         }
@@ -182,7 +183,7 @@ struct TantivyIndexWrapper {
         const char* field_name,
         const char* path,
         const char* tokenizer_name,
-        const std::unordered_map<std::string, std::string>& tokenizer_params) {
+        const std::map<std::string, std::string>& tokenizer_params) {
         RustHashMap m;
         m.from(tokenizer_params);
         writer_ = tantivy_create_text_writer(
@@ -197,7 +198,7 @@ struct TantivyIndexWrapper {
     void
     register_tokenizer(
         const char* tokenizer_name,
-        const std::unordered_map<std::string, std::string>& tokenizer_params) {
+        const std::map<std::string, std::string>& tokenizer_params) {
         RustHashMap m;
         m.from(tokenizer_params);
         tantivy_register_tokenizer(reader_, tokenizer_name, m.get_pointer());

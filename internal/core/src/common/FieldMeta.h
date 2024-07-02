@@ -55,11 +55,12 @@ class FieldMeta {
               FieldId id,
               DataType type,
               int64_t max_length,
-              bool enable_match)
+              bool enable_match,
+              std::map<std::string, std::string>& params)
         : name_(name),
           id_(id),
           type_(type),
-          string_info_(StringInfo{max_length, enable_match}) {
+          string_info_(StringInfo{max_length, enable_match, std::move(params)}) {
         Assert(IsStringDataType(type_));
     }
 
@@ -108,6 +109,13 @@ class FieldMeta {
         }
         Assert(string_info_.has_value());
         return string_info_->enable_match;
+    }
+
+    std::unordered_map<std::string, std::string>
+    get_string_params() const {
+        Assert(IsStringDataType(type_));
+        Assert(string_info_.has_value());
+        return string_info_->params;
     }
 
     std::optional<knowhere::MetricType>
@@ -173,6 +181,7 @@ class FieldMeta {
     struct StringInfo {
         int64_t max_length;
         bool enable_match;
+        std::map<std::string, std::string> params;
     };
     FieldName name_;
     FieldId id_;
