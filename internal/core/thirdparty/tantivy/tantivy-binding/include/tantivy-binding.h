@@ -131,7 +131,7 @@ bool tantivy_index_exist(const char *path);
 
 void *create_hashmap();
 
-void set_value(void *map, const char *key, const char *value);
+void hashmap_set_value(void *map, const char *key, const char *value);
 
 void free_hashmap(void *map);
 

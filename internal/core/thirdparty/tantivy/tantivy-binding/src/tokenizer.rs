@@ -1,10 +1,14 @@
 use std::collections::HashMap;
 
-use log::{info};
+use log::info;
 use tantivy::tokenizer::{TextAnalyzer, TokenizerManager};
 
 pub(crate) fn default_tokenizer() -> TextAnalyzer {
     TokenizerManager::default().get("default").unwrap()
+}
+
+fn jieba_tokenizer() -> TextAnalyzer {
+    tantivy_jieba::JiebaTokenizer{}.into()
 }
 
 pub(crate) fn create_tokenizer(params: &HashMap<String, String>) -> Option<TextAnalyzer> {
@@ -12,6 +16,9 @@ pub(crate) fn create_tokenizer(params: &HashMap<String, String>) -> Option<TextA
         Some(tokenizer_name) => match tokenizer_name.as_str() {
             "default" => {
                 return Some(default_tokenizer());
+            }
+            "jieba" => {
+                return Some(jieba_tokenizer())
             }
             _ => {
                 return None;

@@ -84,3 +84,10 @@ target_link_libraries(text_demo
         boost_filesystem
         dl
         )
+
+add_executable(jieba_demo jieba_demo.cpp)
+target_link_libraries(jieba_demo
+        tantivy_binding
+        boost_filesystem
+        dl
+        )

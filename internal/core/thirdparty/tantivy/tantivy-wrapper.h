@@ -62,6 +62,43 @@ struct RustArrayWrapper {
     }
 };
 
+struct RustHashMap {
+ public:
+    RustHashMap() {
+        ptr_ = create_hashmap();
+    }
+
+    ~RustHashMap() {
+        if (ptr_ != nullptr) {
+            free_hashmap(ptr_);
+        }
+    }
+
+    void
+    from(const std::unordered_map<std::string, std::string>& m) {
+        for (const auto& [k, v] : m) {
+            set(k, v);
+        }
+    }
+
+    RustHashMap(RustHashMap&) = delete;
+    RustHashMap&
+    operator=(RustHashMap&) = delete;
+
+    void*
+    get_pointer() {
+        return ptr_;
+    }
+
+    void
+    set(const std::string& k, const std::string& v) {
+        hashmap_set_value(ptr_, k.c_str(), v.c_str());
+    }
+
+ private:
+    void* ptr_ = nullptr;
+};
+
 template <typename T>
 inline TantivyDataType
 guess_data_type() {
@@ -127,12 +164,6 @@ struct TantivyIndexWrapper {
         path_ = std::string(path);
     }
 
-    // create index writer for text type.
-    TantivyIndexWrapper(const char* field_name, const char* path) {
-        writer_ = tantivy_create_default_text_writer(field_name, path);
-        path_ = std::string(path);
-    }
-
     // load index. create index reader.
     explicit TantivyIndexWrapper(const char* path) {
         assert(tantivy_index_exist(path));
@@ -140,8 +171,36 @@ struct TantivyIndexWrapper {
         path_ = std::string(path);
     }
 
+    // create index writer for text type.
+    TantivyIndexWrapper(const char* field_name, const char* path) {
+        writer_ = tantivy_create_default_text_writer(field_name, path);
+        path_ = std::string(path);
+    }
+
+    // create index writer for text type with tokenizer.
+    TantivyIndexWrapper(
+        const char* field_name,
+        const char* path,
+        const char* tokenizer_name,
+        const std::unordered_map<std::string, std::string>& tokenizer_params) {
+        RustHashMap m;
+        m.from(tokenizer_params);
+        writer_ = tantivy_create_text_writer(
+            field_name, path, tokenizer_name, m.get_pointer());
+        path_ = std::string(path);
+    }
+
     ~TantivyIndexWrapper() {
         free();
+    }
+
+    void
+    register_tokenizer(
+        const char* tokenizer_name,
+        const std::unordered_map<std::string, std::string>& tokenizer_params) {
+        RustHashMap m;
+        m.from(tokenizer_params);
+        tantivy_register_tokenizer(reader_, tokenizer_name, m.get_pointer());
     }
 
     template <typename T>
