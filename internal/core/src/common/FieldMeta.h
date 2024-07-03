@@ -60,7 +60,8 @@ class FieldMeta {
         : name_(name),
           id_(id),
           type_(type),
-          string_info_(StringInfo{max_length, enable_match, std::move(params)}) {
+          string_info_(
+              StringInfo{max_length, enable_match, std::move(params)}) {
         Assert(IsStringDataType(type_));
     }
 
@@ -111,7 +112,7 @@ class FieldMeta {
         return string_info_->enable_match;
     }
 
-    std::unordered_map<std::string, std::string>
+    const auto&
     get_string_params() const {
         Assert(IsStringDataType(type_));
         Assert(string_info_.has_value());

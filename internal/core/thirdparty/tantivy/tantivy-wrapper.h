@@ -6,13 +6,16 @@
 #include "tantivy-binding.h"
 
 namespace milvus::tantivy {
+#define NO_COPY_OR_ASSIGN(ClassName)      \
+    ClassName(const ClassName&) = delete; \
+    ClassName&                            \
+    operator=(const ClassName&) = delete;
+
 struct RustArrayWrapper {
+    NO_COPY_OR_ASSIGN(RustArrayWrapper);
+
     explicit RustArrayWrapper(RustArray array) : array_(array) {
     }
-
-    RustArrayWrapper(RustArrayWrapper&) = delete;
-    RustArrayWrapper&
-    operator=(RustArrayWrapper&) = delete;
 
     RustArrayWrapper(RustArrayWrapper&& other) noexcept {
         array_.array = other.array_.array;
@@ -65,6 +68,8 @@ struct RustArrayWrapper {
 
 struct RustHashMap {
  public:
+    NO_COPY_OR_ASSIGN(RustHashMap);
+
     RustHashMap() {
         ptr_ = create_hashmap();
     }
@@ -81,10 +86,6 @@ struct RustHashMap {
             set(k, v);
         }
     }
-
-    RustHashMap(RustHashMap&) = delete;
-    RustHashMap&
-    operator=(RustHashMap&) = delete;
 
     void*
     get_pointer() {
@@ -124,11 +125,9 @@ struct TantivyIndexWrapper {
     using IndexWriter = void*;
     using IndexReader = void*;
 
-    TantivyIndexWrapper() = default;
+    NO_COPY_OR_ASSIGN(TantivyIndexWrapper);
 
-    TantivyIndexWrapper(TantivyIndexWrapper&) = delete;
-    TantivyIndexWrapper&
-    operator=(TantivyIndexWrapper&) = delete;
+    TantivyIndexWrapper() = default;
 
     TantivyIndexWrapper(TantivyIndexWrapper&& other) noexcept {
         writer_ = other.writer_;
