@@ -885,7 +885,7 @@ void
 SegmentGrowingImpl::AddTexts(milvus::FieldId field_id,
                              const std::string* texts,
                              size_t n) {
-    std::shared_lock lock(mutex_);
+    std::unique_lock lock(mutex_);
     auto iter = text_indexes_.find(field_id);
     AssertInfo(iter != text_indexes_.end(), "text index not found");
     iter->second->AddTexts(n, texts);

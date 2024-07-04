@@ -130,6 +130,9 @@ class SegmentInterface {
 
     virtual void
     CreateTextIndex(FieldId field_id) = 0;
+
+    virtual index::TextMatchIndex*
+    GetTextIndex(FieldId field_id) const = 0;
 };
 
 // internal API for DSL calculation
@@ -257,6 +260,9 @@ class SegmentInternalInterface : public SegmentInterface {
 
     virtual DataType
     GetFieldDataType(FieldId fieldId) const = 0;
+
+    index::TextMatchIndex*
+    GetTextIndex(FieldId field_id) const override;
 
  public:
     virtual void

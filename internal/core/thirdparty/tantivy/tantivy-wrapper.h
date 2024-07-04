@@ -8,8 +8,7 @@
 namespace milvus::tantivy {
 #define NO_COPY_OR_ASSIGN(ClassName)      \
     ClassName(const ClassName&) = delete; \
-    ClassName&                            \
-    operator=(const ClassName&) = delete;
+    ClassName& operator=(const ClassName&) = delete;
 
 struct RustArrayWrapper {
     NO_COPY_OR_ASSIGN(RustArrayWrapper);
