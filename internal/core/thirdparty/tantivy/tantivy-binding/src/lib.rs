@@ -15,6 +15,9 @@ mod util;
 mod util_c;
 mod vec_collector;
 mod hashmap_c;
+mod token_stream_c;
+mod tokenizer_c;
+mod string_c;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right

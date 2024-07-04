@@ -135,4 +135,18 @@ void hashmap_set_value(void *map, const char *key, const char *value);
 
 void free_hashmap(void *map);
 
+void *tantivy_create_token_stream(void *tokenizer, const char *text);
+
+void tantivy_free_token_stream(void *token_stream);
+
+bool tantivy_token_stream_advance(void *token_stream);
+
+const char *tantivy_token_stream_get_token(void *token_stream);
+
+void *tantivy_create_tokenizer(void *tokenizer_params);
+
+void tantivy_free_tokenizer(void *tokenizer);
+
+void free_rust_string(const char *ptr);
+
 } // extern "C"

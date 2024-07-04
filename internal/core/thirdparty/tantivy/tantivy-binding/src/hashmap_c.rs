@@ -4,10 +4,12 @@ use std::os::raw::c_char;
 
 use libc::c_void;
 
+use crate::util::{free_binding, create_binding};
+
 #[no_mangle]
 pub extern "C" fn create_hashmap() -> *mut c_void {
     let map: HashMap<String, String> = HashMap::new();
-    Box::into_raw(Box::new(map)) as *mut c_void
+    create_binding(map)
 }
 
 #[no_mangle]
@@ -22,5 +24,5 @@ pub extern "C" fn hashmap_set_value(map: *mut c_void, key: *const c_char, value:
 
 #[no_mangle]
 pub extern "C" fn free_hashmap(map: *mut c_void) {
-    let _ = unsafe { Box::from_raw(map as *mut HashMap<String, String>) };
+    free_binding::<HashMap<String, String>>(map);
 }

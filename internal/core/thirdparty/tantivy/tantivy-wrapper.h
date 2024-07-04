@@ -3,102 +3,13 @@
 #include <set>
 #include <iostream>
 #include <map>
+
 #include "tantivy-binding.h"
+#include "rust-binding.h"
+#include "rust-array.h"
+#include "rust-hashmap.h"
 
 namespace milvus::tantivy {
-#define NO_COPY_OR_ASSIGN(ClassName)      \
-    ClassName(const ClassName&) = delete; \
-    ClassName& operator=(const ClassName&) = delete;
-
-struct RustArrayWrapper {
-    NO_COPY_OR_ASSIGN(RustArrayWrapper);
-
-    explicit RustArrayWrapper(RustArray array) : array_(array) {
-    }
-
-    RustArrayWrapper(RustArrayWrapper&& other) noexcept {
-        array_.array = other.array_.array;
-        array_.len = other.array_.len;
-        array_.cap = other.array_.cap;
-        other.array_.array = nullptr;
-        other.array_.len = 0;
-        other.array_.cap = 0;
-    }
-
-    RustArrayWrapper&
-    operator=(RustArrayWrapper&& other) noexcept {
-        if (this != &other) {
-            free();
-            array_.array = other.array_.array;
-            array_.len = other.array_.len;
-            array_.cap = other.array_.cap;
-            other.array_.array = nullptr;
-            other.array_.len = 0;
-            other.array_.cap = 0;
-        }
-        return *this;
-    }
-
-    ~RustArrayWrapper() {
-        free();
-    }
-
-    void
-    debug() {
-        std::stringstream ss;
-        ss << "[ ";
-        for (int i = 0; i < array_.len; i++) {
-            ss << array_.array[i] << " ";
-        }
-        ss << "]";
-        std::cout << ss.str() << std::endl;
-    }
-
-    RustArray array_;
-
- private:
-    void
-    free() {
-        if (array_.array != nullptr) {
-            free_rust_array(array_);
-        }
-    }
-};
-
-struct RustHashMap {
- public:
-    NO_COPY_OR_ASSIGN(RustHashMap);
-
-    RustHashMap() {
-        ptr_ = create_hashmap();
-    }
-
-    ~RustHashMap() {
-        if (ptr_ != nullptr) {
-            free_hashmap(ptr_);
-        }
-    }
-
-    void
-    from(const std::map<std::string, std::string>& m) {
-        for (const auto& [k, v] : m) {
-            set(k, v);
-        }
-    }
-
-    void*
-    get_pointer() {
-        return ptr_;
-    }
-
-    void
-    set(const std::string& k, const std::string& v) {
-        hashmap_set_value(ptr_, k.c_str(), v.c_str());
-    }
-
- private:
-    void* ptr_ = nullptr;
-};
 
 template <typename T>
 inline TantivyDataType
