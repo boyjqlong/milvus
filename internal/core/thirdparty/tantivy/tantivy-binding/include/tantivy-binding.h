@@ -28,8 +28,6 @@ void print_vector_of_strings(const char *const *ptr, uintptr_t len);
 
 void *tantivy_load_index(const char *path);
 
-void *tantivy_create_reader_from_writer(void *ptr);
-
 void tantivy_free_index_reader(void *ptr);
 
 uint32_t tantivy_index_count(void *ptr);

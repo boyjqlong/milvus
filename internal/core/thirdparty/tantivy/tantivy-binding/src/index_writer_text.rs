@@ -40,7 +40,6 @@ impl IndexWriterWrapper {
             data_type,
             path,
             index_writer,
-            index: Rc::new(index),
         }
     }
 

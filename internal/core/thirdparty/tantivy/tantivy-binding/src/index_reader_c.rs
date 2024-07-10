@@ -17,13 +17,6 @@ pub extern "C" fn tantivy_load_index(path: *const c_char) -> *mut c_void {
 }
 
 #[no_mangle]
-pub extern "C" fn tantivy_create_reader_from_writer(ptr: *mut c_void) -> *mut c_void {
-    let real = ptr as *mut IndexWriterWrapper;
-    let reader = unsafe { (*real).create_reader() };
-    create_binding(reader)
-}
-
-#[no_mangle]
 pub extern "C" fn tantivy_free_index_reader(ptr: *mut c_void) {
     free_binding::<IndexReaderWrapper>(ptr);
 }
