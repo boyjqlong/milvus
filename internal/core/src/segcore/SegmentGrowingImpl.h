@@ -78,9 +78,6 @@ class SegmentGrowingImpl : public SegmentGrowing {
     void
     CreateTextIndex(FieldId field_id) override;
 
-    void
-    CreateTextIndexes() override;
-
  public:
     const InsertRecord<>&
     get_insert_record() const {
@@ -236,6 +233,7 @@ class SegmentGrowingImpl : public SegmentGrowing {
                 storage::MmapManager::GetInstance().GetMmapChunkManager();
             mcm->Register(mmap_descriptor_);
         }
+        this->CreateTextIndexes();
     }
 
     ~SegmentGrowingImpl() {
@@ -343,6 +341,9 @@ class SegmentGrowingImpl : public SegmentGrowing {
  private:
     void
     AddTexts(FieldId field_id, const std::string* texts, size_t n);
+
+    void
+    CreateTextIndexes();
 
  private:
     storage::MmapChunkDescriptorPtr mmap_descriptor_ = nullptr;

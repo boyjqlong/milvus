@@ -1,4 +1,5 @@
 use std::ffi::CStr;
+use std::rc::Rc;
 
 use libc::c_char;
 use tantivy::schema::{Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, INDEXED};
@@ -6,14 +7,16 @@ use tantivy::{doc, tokenizer, Document, Index, SingleSegmentIndexWriter};
 
 use crate::data_type::TantivyDataType;
 
+use crate::index_reader::IndexReaderWrapper;
 use crate::log::init_log;
 
 pub struct IndexWriterWrapper {
-    pub field_name: String,
-    pub field: Field,
-    pub data_type: TantivyDataType,
-    pub path: String,
-    pub index_writer: SingleSegmentIndexWriter,
+    pub(crate) field_name: String,
+    pub(crate) field: Field,
+    pub(crate) data_type: TantivyDataType,
+    pub(crate) path: String,
+    pub(crate) index_writer: SingleSegmentIndexWriter,
+    pub(crate) index: Rc<Index>,
 }
 
 impl IndexWriterWrapper {
@@ -59,7 +62,16 @@ impl IndexWriterWrapper {
             data_type,
             path,
             index_writer,
+            index: Rc::new(index),
         }
+    }
+
+    pub(crate) fn get_index(self) -> Rc<Index> {
+        self.index.clone()
+    }
+
+    pub(crate) fn create_reader(self) -> IndexReaderWrapper {
+        IndexReaderWrapper::new(self.index.clone(), self.field_name, self.field)
     }
 
     pub fn add_i8(&mut self, data: i8) {

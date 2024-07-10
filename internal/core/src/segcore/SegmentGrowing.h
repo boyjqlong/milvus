@@ -39,9 +39,6 @@ class SegmentGrowing : public SegmentInternalInterface {
         return SegmentType::Growing;
     }
 
-    virtual void
-    CreateTextIndexes() = 0;
-
     // virtual int64_t
     // PreDelete(int64_t size) = 0;
 

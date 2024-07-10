@@ -1,4 +1,5 @@
 use std::ops::Bound;
+use std::rc::Rc;
 use std::str::FromStr;
 
 use tantivy::directory::MmapDirectory;
@@ -14,31 +15,24 @@ pub struct IndexReaderWrapper {
     field_name: String,
     pub(crate) field: Field,
     reader: IndexReader,
-    cnt: u32,
-    pub(crate) index: Index,
+    pub(crate) index: Rc<Index>,
 }
 
 impl IndexReaderWrapper {
-    pub fn new(index: Index, field_name: &String, field: Field) -> IndexReaderWrapper {
+    pub fn new(index: Rc<Index>, field_name: String, field: Field) -> IndexReaderWrapper {
         init_log();
 
         let reader = index
             .reader_builder()
-            .reload_policy(ReloadPolicy::OnCommit) // OnCommit serve for growing segment.
+            .reload_policy(ReloadPolicy::OnCommitWithDelay) // OnCommit serve for growing segment.
             .try_into()
             .unwrap();
-        let metas = index.searchable_segment_metas().unwrap();
-        let mut sum: u32 = 0;
-        for meta in metas {
-            sum += meta.max_doc();
-        }
         reader.reload().unwrap();
         IndexReaderWrapper {
             field_name: field_name.to_string(),
             field,
             reader,
-            cnt: sum,
-            index,
+            index: index.clone(),
         }
     }
 
@@ -48,11 +42,20 @@ impl IndexReaderWrapper {
         let field = index.schema().fields().next().unwrap().0;
         let schema = index.schema();
         let field_name = schema.get_field_name(field);
-        IndexReaderWrapper::new(index, &String::from_str(field_name).unwrap(), field)
+        IndexReaderWrapper::new(Rc::new(index), String::from_str(field_name).unwrap(), field)
     }
 
     pub fn count(&self) -> u32 {
-        self.cnt
+        if false {
+            return 2
+        }
+
+        let metas = self.index.searchable_segment_metas().unwrap();
+        let mut sum: u32 = 0;
+        for meta in metas {
+            sum += meta.max_doc();
+        }
+        sum
     }
 
     pub(crate) fn search(&self, q: &dyn Query) -> Vec<u32> {

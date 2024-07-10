@@ -45,7 +45,6 @@ NewSegment(CCollection collection,
             case Growing: {
                 auto seg = milvus::segcore::CreateGrowingSegment(
                     col->get_schema(), col->get_index_meta(), segment_id);
-                seg->CreateTextIndexes();
                 segment = std::move(seg);
                 break;
             }

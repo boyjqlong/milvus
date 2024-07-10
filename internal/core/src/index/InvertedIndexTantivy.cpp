@@ -13,6 +13,7 @@
 #include "common/Slice.h"
 #include "storage/LocalChunkManagerSingleton.h"
 #include "index/InvertedIndexTantivy.h"
+#include "index/InvertedIndexUtil.h"
 #include "log/Log.h"
 #include "index/Utils.h"
 #include "storage/Util.h"
@@ -20,7 +21,6 @@
 #include <boost/filesystem.hpp>
 #include <boost/uuid/random_generator.hpp>
 #include <boost/uuid/uuid_io.hpp>
-#include "InvertedIndexTantivy.h"
 
 namespace milvus::index {
 inline TantivyDataType
@@ -195,32 +195,6 @@ InvertedIndexTantivy<T>::LoadV2(const Config& config) {
     disk_file_manager_->CacheIndexToDisk();
     auto prefix = disk_file_manager_->GetLocalIndexObjectPrefix();
     wrapper_ = std::make_shared<TantivyIndexWrapper>(prefix.c_str());
-}
-
-inline void
-apply_hits(TargetBitmap& bitset, const RustArrayWrapper& w, bool v) {
-    for (size_t j = 0; j < w.array_.len; j++) {
-        bitset[w.array_.array[j]] = v;
-    }
-}
-
-inline void
-apply_hits_with_filter(TargetBitmap& bitset,
-                       const RustArrayWrapper& w,
-                       const std::function<bool(size_t /* offset */)>& filter) {
-    for (size_t j = 0; j < w.array_.len; j++) {
-        auto the_offset = w.array_.array[j];
-        bitset[the_offset] = filter(the_offset);
-    }
-}
-
-inline void
-apply_hits_with_callback(
-    const RustArrayWrapper& w,
-    const std::function<void(size_t /* offset */)>& callback) {
-    for (size_t j = 0; j < w.array_.len; j++) {
-        callback(w.array_.array[j]);
-    }
 }
 
 template <typename T>

@@ -36,6 +36,9 @@ class TextMatchIndex : public InvertedIndexTantivy<std::string> {
     void
     CreateReader();
 
+    TargetBitmap
+    MatchQuery(const std::string& query);
+
  private:
     std::shared_ptr<TantivyIndexWrapper> reader_;
 };

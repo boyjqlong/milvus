@@ -3,6 +3,7 @@ use std::ffi::{c_char, c_void, CStr};
 use crate::{
     array::RustArray,
     index_reader::IndexReaderWrapper,
+    index_writer::IndexWriterWrapper,
     util::{create_binding, free_binding},
     util_c::tantivy_index_exist,
 };
@@ -13,6 +14,13 @@ pub extern "C" fn tantivy_load_index(path: *const c_char) -> *mut c_void {
     let path_str = unsafe { CStr::from_ptr(path) };
     let wrapper = IndexReaderWrapper::load(path_str.to_str().unwrap());
     create_binding(wrapper)
+}
+
+#[no_mangle]
+pub extern "C" fn tantivy_create_reader_from_writer(ptr: *mut c_void) -> *mut c_void {
+    let real = ptr as *mut IndexWriterWrapper;
+    let reader = unsafe { (*real).create_reader() };
+    create_binding(reader)
 }
 
 #[no_mangle]

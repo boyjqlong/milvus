@@ -13,6 +13,7 @@
 #include <boost/uuid/uuid_io.hpp>
 
 #include "index/TextMatchIndex.h"
+#include "index/InvertedIndexUtil.h"
 
 namespace milvus::index {
 TextMatchIndex::TextMatchIndex() {
@@ -70,5 +71,13 @@ TextMatchIndex::CreateReader() {
                "inverted index not exist: {}",
                path_);
     reader_ = std::make_shared<TantivyIndexWrapper>(path_.c_str());
+}
+
+TargetBitmap
+TextMatchIndex::MatchQuery(const std::string& query) {
+    TargetBitmap bitset(Count());
+    auto hits = reader_->match_query(query);
+    apply_hits(bitset, hits, true);
+    return bitset;
 }
 }  // namespace milvus::index

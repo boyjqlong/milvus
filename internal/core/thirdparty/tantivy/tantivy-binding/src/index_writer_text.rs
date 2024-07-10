@@ -2,12 +2,14 @@
 
 
 
+use std::rc::Rc;
+
 use tantivy::schema::{IndexRecordOption, Schema, TextFieldIndexing, TextOptions};
 use tantivy::tokenizer::TextAnalyzer;
 use tantivy::{Index, SingleSegmentIndexWriter};
 
 use crate::data_type::TantivyDataType;
-use crate::tokenizer::{default_tokenizer};
+use crate::tokenizer::default_tokenizer;
 use crate::{index_writer::IndexWriterWrapper, log::init_log};
 
 impl IndexWriterWrapper {
@@ -38,6 +40,7 @@ impl IndexWriterWrapper {
             data_type,
             path,
             index_writer,
+            index: Rc::new(index),
         }
     }
 
