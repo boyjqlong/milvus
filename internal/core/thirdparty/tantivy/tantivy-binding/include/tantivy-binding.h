@@ -26,6 +26,12 @@ void free_rust_array(RustArray array);
 
 void print_vector_of_strings(const char *const *ptr, uintptr_t len);
 
+void *create_hashmap();
+
+void hashmap_set_value(void *map, const char *key, const char *value);
+
+void free_hashmap(void *map);
+
 void *tantivy_load_index(const char *path);
 
 void tantivy_free_index_reader(void *ptr);
@@ -127,13 +133,7 @@ void *tantivy_create_text_writer(const char *field_name,
                                  const char *tokenizer_name,
                                  void *tokenizer_params);
 
-bool tantivy_index_exist(const char *path);
-
-void *create_hashmap();
-
-void hashmap_set_value(void *map, const char *key, const char *value);
-
-void free_hashmap(void *map);
+void free_rust_string(const char *ptr);
 
 void *tantivy_create_token_stream(void *tokenizer, const char *text);
 
@@ -147,6 +147,6 @@ void *tantivy_create_tokenizer(void *tokenizer_params);
 
 void tantivy_free_tokenizer(void *tokenizer);
 
-void free_rust_string(const char *ptr);
+bool tantivy_index_exist(const char *path);
 
 } // extern "C"

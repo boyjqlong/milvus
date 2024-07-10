@@ -1,4 +1,5 @@
 use std::ffi::CStr;
+use std::rc::Rc;
 
 use libc::c_char;
 use tantivy::schema::{Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, INDEXED};
@@ -6,6 +7,7 @@ use tantivy::{doc, tokenizer, Document, Index, SingleSegmentIndexWriter};
 
 use crate::data_type::TantivyDataType;
 
+use crate::index_reader::IndexReaderWrapper;
 use crate::log::init_log;
 
 pub struct IndexWriterWrapper {
