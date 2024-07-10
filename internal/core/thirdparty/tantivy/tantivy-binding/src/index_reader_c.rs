@@ -3,7 +3,6 @@ use std::ffi::{c_char, c_void, CStr};
 use crate::{
     array::RustArray,
     index_reader::IndexReaderWrapper,
-    index_writer::IndexWriterWrapper,
     util::{create_binding, free_binding},
     util_c::tantivy_index_exist,
 };

@@ -2,7 +2,7 @@
 
 
 
-use std::rc::Rc;
+
 
 use tantivy::schema::{IndexRecordOption, Schema, TextFieldIndexing, TextOptions};
 use tantivy::tokenizer::TextAnalyzer;
