@@ -44,9 +44,9 @@ pub extern "C" fn tantivy_create_text_writer(
                 text_analyzer,
             );
             return create_binding(wrapper);
-        },
+        }
         None => {
             return std::ptr::null_mut();
-        },
+        }
     }
 }

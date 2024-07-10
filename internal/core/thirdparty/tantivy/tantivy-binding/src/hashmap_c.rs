@@ -4,7 +4,7 @@ use std::os::raw::c_char;
 
 use libc::c_void;
 
-use crate::util::{free_binding, create_binding};
+use crate::util::{create_binding, free_binding};
 
 #[no_mangle]
 pub extern "C" fn create_hashmap() -> *mut c_void {

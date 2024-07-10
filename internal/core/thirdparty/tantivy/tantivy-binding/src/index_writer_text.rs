@@ -1,9 +1,3 @@
-
-
-
-
-
-
 use tantivy::schema::{IndexRecordOption, Schema, TextFieldIndexing, TextOptions};
 use tantivy::tokenizer::TextAnalyzer;
 use tantivy::{Index, SingleSegmentIndexWriter};

@@ -8,7 +8,7 @@ pub(crate) fn default_tokenizer() -> TextAnalyzer {
 }
 
 fn jieba_tokenizer() -> TextAnalyzer {
-    tantivy_jieba::JiebaTokenizer{}.into()
+    tantivy_jieba::JiebaTokenizer {}.into()
 }
 
 pub(crate) fn create_tokenizer(params: &HashMap<String, String>) -> Option<TextAnalyzer> {
@@ -17,9 +17,7 @@ pub(crate) fn create_tokenizer(params: &HashMap<String, String>) -> Option<TextA
             "default" => {
                 return Some(default_tokenizer());
             }
-            "jieba" => {
-                return Some(jieba_tokenizer())
-            }
+            "jieba" => return Some(jieba_tokenizer()),
             _ => {
                 return None;
             }

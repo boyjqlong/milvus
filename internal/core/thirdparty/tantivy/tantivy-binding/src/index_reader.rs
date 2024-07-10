@@ -47,7 +47,7 @@ impl IndexReaderWrapper {
 
     pub fn count(&self) -> u32 {
         if false {
-            return 2
+            return 2;
         }
 
         let metas = self.index.searchable_segment_metas().unwrap();

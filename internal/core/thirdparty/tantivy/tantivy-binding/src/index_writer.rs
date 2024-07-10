@@ -1,12 +1,10 @@
 use std::ffi::CStr;
 
-
 use libc::c_char;
 use tantivy::schema::{Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, INDEXED};
 use tantivy::{doc, tokenizer, Document, Index, SingleSegmentIndexWriter};
 
 use crate::data_type::TantivyDataType;
-
 
 use crate::log::init_log;
 

@@ -1,4 +1,8 @@
-use tantivy::{query::BooleanQuery, tokenizer::{TokenStream, TextAnalyzer}, Term};
+use tantivy::{
+    query::BooleanQuery,
+    tokenizer::{TextAnalyzer, TokenStream},
+    Term,
+};
 
 use crate::{index_reader::IndexReaderWrapper, tokenizer::default_tokenizer};
 
@@ -10,7 +14,7 @@ impl IndexReaderWrapper {
         let mut tokenizer = self
             .index
             .tokenizer_for_field(self.field)
-            .unwrap_or(default_tokenizer()) 
+            .unwrap_or(default_tokenizer())
             .clone();
         let mut token_stream = tokenizer.token_stream(q);
         let mut terms: Vec<Term> = Vec::new();
