@@ -64,16 +64,18 @@ type ComponentParam struct {
 	GpuConfig       gpuConfig
 	TraceCfg        traceConfig
 
-	RootCoordCfg  rootCoordConfig
-	ProxyCfg      proxyConfig
-	QueryCoordCfg queryCoordConfig
-	QueryNodeCfg  queryNodeConfig
-	DataCoordCfg  dataCoordConfig
-	DataNodeCfg   dataNodeConfig
-	IndexNodeCfg  indexNodeConfig
-	HTTPCfg       httpConfig
-	LogCfg        logConfig
-	RoleCfg       roleConfig
+	RootCoordCfg      rootCoordConfig
+	ProxyCfg          proxyConfig
+	QueryCoordCfg     queryCoordConfig
+	QueryNodeCfg      queryNodeConfig
+	DataCoordCfg      dataCoordConfig
+	DataNodeCfg       dataNodeConfig
+	IndexNodeCfg      indexNodeConfig
+	HTTPCfg           httpConfig
+	LogCfg            logConfig
+	RoleCfg           roleConfig
+	StreamingCoordCfg streamingCoordConfig
+	StreamingNodeCfg  streamingNodeConfig
 
 	RootCoordGrpcServerCfg  GrpcServerConfig
 	ProxyGrpcServerCfg      GrpcServerConfig
@@ -125,6 +127,8 @@ func (p *ComponentParam) init(bt *BaseTable) {
 	p.LogCfg.init(bt)
 	p.RoleCfg.init(bt)
 	p.GpuConfig.init(bt)
+	p.StreamingCoordCfg.init(bt)
+	p.StreamingNodeCfg.init(bt)
 
 	p.RootCoordGrpcServerCfg.Init("rootCoord", bt)
 	p.ProxyGrpcServerCfg.Init("proxy", bt)
@@ -1325,17 +1329,17 @@ please adjust in embedded Milvus: false`,
 	p.AccessLog.CacheSize = ParamItem{
 		Key:          "proxy.accessLog.cacheSize",
 		Version:      "2.3.2",
-		DefaultValue: "10240",
-		Doc:          "Size of log of memory cache, in B. (Close write cache if szie was 0",
+		DefaultValue: "0",
+		Doc:          "Size of log of write cache, in B. (Close write cache if size was 0",
 		Export:       true,
 	}
 	p.AccessLog.CacheSize.Init(base.mgr)
 
 	p.AccessLog.CacheFlushInterval = ParamItem{
-		Key:          "proxy.accessLog.cacheSize",
+		Key:          "proxy.accessLog.cacheFlushInterval",
 		Version:      "2.4.0",
 		DefaultValue: "3",
-		Doc:          "time interval of auto flush memory cache, in Seconds. (Close auto flush if interval was 0)",
+		Doc:          "time interval of auto flush write cache, in Seconds. (Close auto flush if interval was 0)",
 	}
 	p.AccessLog.CacheFlushInterval.Init(base.mgr)
 
@@ -3712,7 +3716,6 @@ type dataNodeConfig struct {
 	MemoryCheckInterval       ParamItem `refreshable:"true"`
 	MemoryForceSyncWatermark  ParamItem `refreshable:"true"`
 
-	DataNodeTimeTickByRPC ParamItem `refreshable:"false"`
 	// DataNode send timetick interval per collection
 	DataNodeTimeTickInterval ParamItem `refreshable:"false"`
 
@@ -3919,15 +3922,6 @@ func (p *dataNodeConfig) init(base *BaseTable) {
 		DefaultValue: "16",
 	}
 	p.FileReadConcurrency.Init(base.mgr)
-
-	p.DataNodeTimeTickByRPC = ParamItem{
-		Key:          "dataNode.timetick.byRPC",
-		Version:      "2.2.9",
-		PanicIfEmpty: false,
-		DefaultValue: "true",
-		Export:       true,
-	}
-	p.DataNodeTimeTickByRPC.Init(base.mgr)
 
 	p.DataNodeTimeTickInterval = ParamItem{
 		Key:          "dataNode.timetick.interval",
@@ -4176,6 +4170,46 @@ func (p *indexNodeConfig) init(base *BaseTable) {
 		Doc:          "seconds. force stop node without graceful stop",
 	}
 	p.GracefulStopTimeout.Init(base.mgr)
+}
+
+type streamingCoordConfig struct {
+	AutoBalanceTriggerInterval        ParamItem `refreshable:"true"`
+	AutoBalanceBackoffInitialInterval ParamItem `refreshable:"true"`
+	AutoBalanceBackoffMultiplier      ParamItem `refreshable:"true"`
+}
+
+func (p *streamingCoordConfig) init(base *BaseTable) {
+	p.AutoBalanceTriggerInterval = ParamItem{
+		Key:     "streamingCoord.autoBalanceTriggerInterval",
+		Version: "2.5.0",
+		Doc: `The interval of balance task trigger at background, 1 min by default. 
+It's ok to set it into duration string, such as 30s or 1m30s, see time.ParseDuration`,
+		DefaultValue: "1m",
+		Export:       true,
+	}
+	p.AutoBalanceTriggerInterval.Init(base.mgr)
+	p.AutoBalanceBackoffInitialInterval = ParamItem{
+		Key:     "streamingCoord.autoBalanceBackoffInitialInterval",
+		Version: "2.5.0",
+		Doc: `The initial interval of balance task trigger backoff, 50 ms by default. 
+It's ok to set it into duration string, such as 30s or 1m30s, see time.ParseDuration`,
+		DefaultValue: "50ms",
+		Export:       true,
+	}
+	p.AutoBalanceBackoffInitialInterval.Init(base.mgr)
+	p.AutoBalanceBackoffMultiplier = ParamItem{
+		Key:          "streamingCoord.autoBalanceBackoffMultiplier",
+		Version:      "2.5.0",
+		Doc:          "The multiplier of balance task trigger backoff, 2 by default",
+		DefaultValue: "2",
+		Export:       true,
+	}
+	p.AutoBalanceBackoffMultiplier.Init(base.mgr)
+}
+
+type streamingNodeConfig struct{}
+
+func (p *streamingNodeConfig) init(base *BaseTable) {
 }
 
 type runtimeConfig struct {

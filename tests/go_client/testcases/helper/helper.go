@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
 	clientv2 "github.com/milvus-io/milvus/client/v2"
@@ -141,6 +142,7 @@ func (chainTask *CollectionPrepare) InsertData(ctx context.Context, t *testing.T
 	}
 	insertRes, err := mc.Insert(ctx, insertOpt)
 	common.CheckErr(t, err, true)
+	require.Equal(t, option.nb, insertRes.IDs.Len())
 	return chainTask, insertRes
 }
 

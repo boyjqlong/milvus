@@ -36,6 +36,11 @@ const (
 	nullableKey     = "nullable"
 )
 
+const version = "version"
+
+// mark useMultiFieldFormat if there are multi fields in a log file
+const MultiField = "MULTI_FIELD"
+
 type descriptorEventData struct {
 	DescriptorEventDataFixPart
 	ExtraLength       int32

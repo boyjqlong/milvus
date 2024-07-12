@@ -43,8 +43,6 @@ type ROChannelStore interface {
 	// GetNode returns the channel info of a specific node.
 	// Returns nil if the node doesn't belong to the cluster
 	GetNode(nodeID int64) *NodeChannelInfo
-	// HasChannel checks if store already has the channel
-	HasChannel(channel string) bool
 	// GetNodesChannels returns the channels that are assigned to nodes.
 	// without bufferID node
 	GetNodesChannels() []*NodeChannelInfo
@@ -52,12 +50,9 @@ type ROChannelStore interface {
 	GetBufferChannelInfo() *NodeChannelInfo
 	// GetNodes gets all node ids in store.
 	GetNodes() []int64
-	// GetNodeChannelCount
-	GetNodeChannelCount(nodeID int64) int
 	// GetNodeChannels for given collection
 	GetNodeChannelsByCollectionID(collectionID UniqueID) map[UniqueID][]string
 
-	// GetNodeChannelsBy used by channel_store_v2 and channel_manager_v2 only
 	GetNodeChannelsBy(nodeSelector NodeSelector, channelSelectors ...ChannelSelector) []*NodeChannelInfo
 }
 
@@ -113,22 +108,6 @@ func NewChannelOp(ID int64, opType ChannelOpType, channels ...RWChannel) *Channe
 	return &ChannelOp{
 		Type:     opType,
 		NodeID:   ID,
-		Channels: channels,
-	}
-}
-
-func NewAddOp(id int64, channels ...RWChannel) *ChannelOp {
-	return &ChannelOp{
-		NodeID:   id,
-		Type:     Add,
-		Channels: channels,
-	}
-}
-
-func NewDeleteOp(id int64, channels ...RWChannel) *ChannelOp {
-	return &ChannelOp{
-		NodeID:   id,
-		Type:     Delete,
 		Channels: channels,
 	}
 }

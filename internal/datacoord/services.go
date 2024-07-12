@@ -549,12 +549,10 @@ func (s *Server) SaveBinlogPaths(ctx context.Context, req *datapb.SaveBinlogPath
 		s.flushCh <- req.SegmentID
 
 		// notify compaction
-		if paramtable.Get().DataCoordCfg.EnableCompaction.GetAsBool() {
-			err := s.compactionTrigger.triggerSingleCompaction(req.GetCollectionID(), req.GetPartitionID(),
-				req.GetSegmentID(), req.GetChannel(), false)
-			if err != nil {
-				log.Warn("failed to trigger single compaction")
-			}
+		err := s.compactionTrigger.triggerSingleCompaction(req.GetCollectionID(), req.GetPartitionID(),
+			req.GetSegmentID(), req.GetChannel(), false)
+		if err != nil {
+			log.Warn("failed to trigger single compaction")
 		}
 	}
 
@@ -1466,21 +1464,6 @@ func (s *Server) handleDataNodeTtMsg(ctx context.Context, ttMsg *msgpb.DataNodeT
 	}
 
 	return nil
-}
-
-// getDiff returns the difference of base and remove. i.e. all items that are in `base` but not in `remove`.
-func getDiff(base, remove []int64) []int64 {
-	mb := make(map[int64]struct{}, len(remove))
-	for _, x := range remove {
-		mb[x] = struct{}{}
-	}
-	var diff []int64
-	for _, x := range base {
-		if _, found := mb[x]; !found {
-			diff = append(diff, x)
-		}
-	}
-	return diff
 }
 
 // MarkSegmentsDropped marks the given segments as `Dropped`.
