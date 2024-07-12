@@ -1,6 +1,6 @@
 use tantivy::{
     collector::{Collector, SegmentCollector},
-    fastfield::{Column, FastFieldReaders},
+    fastfield::Column,
     DocId, Score, SegmentOrdinal, SegmentReader,
 };
 

@@ -1,6 +1,7 @@
 mod array;
 mod data_type;
 mod demo_c;
+mod docid_collector;
 mod hashmap_c;
 mod index_reader;
 mod index_reader_c;
@@ -18,7 +19,6 @@ mod tokenizer_c;
 mod util;
 mod util_c;
 mod vec_collector;
-mod docid_collector;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right

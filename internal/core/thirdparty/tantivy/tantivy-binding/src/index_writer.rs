@@ -5,7 +5,7 @@ use libc::c_char;
 use tantivy::schema::{
     Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, FAST, INDEXED,
 };
-use tantivy::{doc, tokenizer, Document, Index, IndexWriter, SingleSegmentIndexWriter};
+use tantivy::{doc, tokenizer, Document, Index, IndexWriter};
 
 use crate::data_type::TantivyDataType;
 

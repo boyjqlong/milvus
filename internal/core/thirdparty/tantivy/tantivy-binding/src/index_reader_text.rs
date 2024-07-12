@@ -4,9 +4,7 @@ use tantivy::{
     Term,
 };
 
-use crate::{
-    index_reader::IndexReaderWrapper,  tokenizer::default_tokenizer,
-};
+use crate::{index_reader::IndexReaderWrapper, tokenizer::default_tokenizer};
 
 impl IndexReaderWrapper {
     // split the query string into multiple tokens using index's default tokenizer,

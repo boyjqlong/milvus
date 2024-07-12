@@ -1,6 +1,6 @@
 use tantivy::schema::{IndexRecordOption, Schema, TextFieldIndexing, TextOptions, FAST};
 use tantivy::tokenizer::TextAnalyzer;
-use tantivy::{Index, SingleSegmentIndexWriter};
+use tantivy::Index;
 
 use crate::data_type::TantivyDataType;
 use crate::tokenizer::default_tokenizer;

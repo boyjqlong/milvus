@@ -1,8 +1,5 @@
 use std::ops::Bound;
 
-use std::str::FromStr;
-
-use tantivy::directory::MmapDirectory;
 use tantivy::query::{Query, RangeQuery, RegexQuery, TermQuery};
 use tantivy::schema::{Field, IndexRecordOption};
 use tantivy::{Index, IndexReader, ReloadPolicy, Term};
