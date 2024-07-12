@@ -25,15 +25,17 @@ main(int argc, char* argv[]) {
 
     auto text_writer = TantivyIndexWrapper(
         "text_demo", path, tokenizer_name.c_str(), tokenizer_params);
-    auto write_single_text = [&text_writer](const std::string& s) {
-        text_writer.add_data(&s, 1);
+    auto write_single_text = [&text_writer](const std::string& s,
+                                            int64_t offset) {
+        text_writer.add_data(&s, 1, offset);
     };
 
     {
         write_single_text(
             "张华考上了北京大学；李萍进了中等技术学校；我在百货公司当售货员：我"
-            "们都有光明的前途");
-        write_single_text("测试中文分词器的效果");
+            "们都有光明的前途",
+            0);
+        write_single_text("测试中文分词器的效果", 1);
         text_writer.finish();
     }
 

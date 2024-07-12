@@ -1746,12 +1746,13 @@ SegmentSealedImpl::CreateTextIndex(FieldId field_id) {
     AssertInfo(column != nullptr,
                "failed to create text index, field is not of text type: {}",
                field_id.get());
-    auto index = std::make_unique<index::TextMatchIndex>();
+    auto index = std::make_unique<index::TextMatchIndex>(
+        std::numeric_limits<int64_t>::max());
     {
         // build
         auto n = column->NumRows();
         for (size_t i = 0; i < n; i++) {
-            index->AddText(std::string(column->RawAt(i)));
+            index->AddText(std::string(column->RawAt(i)), i);
         }
         index->Finish();
     }

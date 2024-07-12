@@ -151,7 +151,7 @@ SegmentGrowingImpl::Insert(int64_t reserved_offset,
                     .string_data()
                     .data()
                     .end());
-            AddTexts(field_id, texts.data(), num_rows);
+            AddTexts(field_id, texts.data(), num_rows, reserved_offset);
         }
 
         // update average row data size
@@ -866,7 +866,9 @@ SegmentGrowingImpl::CreateTextIndex(FieldId field_id) {
     const auto& field_meta = schema_->operator[](field_id);
     AssertInfo(IsStringDataType(field_meta.get_data_type()),
                "cannot create text index on non-string type");
-    auto index = std::make_unique<index::TextMatchIndex>();
+    // todo: make this(200) configurable.
+    auto index = std::make_unique<index::TextMatchIndex>(200);
+    index->Commit();
     index->CreateReader();
     text_indexes_[field_id] = std::move(index);
 }
@@ -884,11 +886,12 @@ SegmentGrowingImpl::CreateTextIndexes() {
 void
 SegmentGrowingImpl::AddTexts(milvus::FieldId field_id,
                              const std::string* texts,
-                             size_t n) {
+                             size_t n,
+                             int64_t offset_begin) {
     std::unique_lock lock(mutex_);
     auto iter = text_indexes_.find(field_id);
     AssertInfo(iter != text_indexes_.end(), "text index not found");
-    iter->second->AddTexts(n, texts);
+    iter->second->AddTexts(n, texts, offset_begin);
 }
 
 }  // namespace milvus::segcore

@@ -16,7 +16,9 @@
 #include "index/InvertedIndexUtil.h"
 
 namespace milvus::index {
-TextMatchIndex::TextMatchIndex() {
+TextMatchIndex::TextMatchIndex(int64_t commit_interval_in_ms)
+    : commit_interval_in_ms_(commit_interval_in_ms),
+      last_commit_time_(stdclock::now()) {
     auto uuid = boost::uuids::random_generator()();
     auto uuid_string = boost::uuids::to_string(uuid);
     auto file_name = std::string("/tmp/") + uuid_string;
@@ -28,7 +30,9 @@ TextMatchIndex::TextMatchIndex() {
                                                      path_.c_str());
 }
 
-TextMatchIndex::TextMatchIndex(const storage::FileManagerContext& ctx) {
+TextMatchIndex::TextMatchIndex(const storage::FileManagerContext& ctx)
+    : commit_interval_in_ms_(std::numeric_limits<int64_t>::max()),
+      last_commit_time_(stdclock::now()) {
     space_ = nullptr;
     schema_ = ctx.fieldDataMeta.field_schema;
     mem_file_manager_ = std::make_shared<MemFileManager>(ctx, ctx.space_);
@@ -51,18 +55,42 @@ TextMatchIndex::TextMatchIndex(const storage::FileManagerContext& ctx) {
 }
 
 void
-TextMatchIndex::AddText(const std::string& text) {
-    wrapper_->add_data(&text, 1);
+TextMatchIndex::AddText(const std::string& text, int64_t offset) {
+    AddTexts(1, &text, offset);
 }
 
 void
-TextMatchIndex::AddTexts(size_t n, const std::string* texts) {
-    wrapper_->add_data(texts, n);
+TextMatchIndex::AddTexts(size_t n,
+                         const std::string* texts,
+                         int64_t offset_begin) {
+    wrapper_->add_data(texts, n, offset_begin);
+    if (shouldTriggerCommit()) {
+        Commit();
+    }
 }
 
 void
 TextMatchIndex::Finish() {
     finish();
+}
+
+bool
+TextMatchIndex::shouldTriggerCommit() {
+    auto span = (std::chrono::duration<double, std::micro>(
+                     stdclock::now() - last_commit_time_.load()))
+                    .count();
+    return span > commit_interval_in_ms_ * 1000;
+}
+
+void
+TextMatchIndex::Commit() {
+    wrapper_->commit();
+    last_commit_time_.store(stdclock::now());
+}
+
+void
+TextMatchIndex::Reload() {
+    reader_->reload();
 }
 
 void
@@ -75,7 +103,16 @@ TextMatchIndex::CreateReader() {
 
 TargetBitmap
 TextMatchIndex::MatchQuery(const std::string& query) {
-    TargetBitmap bitset(Count());
+    if (shouldTriggerCommit()) {
+        Commit();
+        Reload();
+    }
+
+    auto cnt = reader_->count();
+    TargetBitmap bitset(cnt);
+    if (bitset.empty()) {
+        return bitset;
+    }
     auto hits = reader_->match_query(query);
     apply_hits(bitset, hits, true);
     return bitset;

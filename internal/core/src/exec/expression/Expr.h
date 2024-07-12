@@ -329,6 +329,11 @@ class SegmentExpr : public Expr {
             auto index = segment_->GetTextIndex(field_id_);
             auto res = std::move(func(index, values...));
             cached_match_res_ = std::make_shared<TargetBitmap>(std::move(res));
+            if (cached_match_res_->size() < active_count_) {
+                // some entities are not visible in inverted index.
+                TargetBitmap tail(active_count_ - cached_match_res_->size());
+                cached_match_res_->append(tail);
+            }
         }
 
         // return batch size, not sure if we should use the data position.

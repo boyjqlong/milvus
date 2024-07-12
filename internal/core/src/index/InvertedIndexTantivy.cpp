@@ -361,11 +361,13 @@ InvertedIndexTantivy<T>::BuildWithRawData(size_t n,
     if (config.find("is_array") != config.end()) {
         // only used in ut.
         auto arr = static_cast<const boost::container::vector<T>*>(values);
+        int64_t offset = 0;
         for (size_t i = 0; i < n; i++) {
-            wrapper_->template add_multi_data(arr[i].data(), arr[i].size());
+            wrapper_->template add_multi_data(
+                arr[i].data(), arr[i].size(), offset++);
         }
     } else {
-        wrapper_->add_data<T>(static_cast<const T*>(values), n);
+        wrapper_->add_data<T>(static_cast<const T*>(values), n, 0);
     }
     finish();
 }
@@ -384,9 +386,12 @@ InvertedIndexTantivy<T>::build_index(
         case proto::schema::DataType::Double:
         case proto::schema::DataType::String:
         case proto::schema::DataType::VarChar: {
+            int64_t offset = 0;
             for (const auto& data : field_datas) {
                 auto n = data->get_num_rows();
-                wrapper_->add_data<T>(static_cast<const T*>(data->Data()), n);
+                wrapper_->add_data<T>(
+                    static_cast<const T*>(data->Data()), n, offset);
+                offset += n;
             }
             break;
         }
@@ -407,6 +412,7 @@ template <typename T>
 void
 InvertedIndexTantivy<T>::build_index_for_array(
     const std::vector<std::shared_ptr<FieldDataBase>>& field_datas) {
+    int64_t offset = 0;
     for (const auto& data : field_datas) {
         auto n = data->get_num_rows();
         auto array_column = static_cast<const Array*>(data->Data());
@@ -415,7 +421,8 @@ InvertedIndexTantivy<T>::build_index_for_array(
                    static_cast<DataType>(schema_.element_type()));
             wrapper_->template add_multi_data(
                 reinterpret_cast<const T*>(array_column[i].data()),
-                array_column[i].length());
+                array_column[i].length(),
+                offset++);
         }
     }
 }
@@ -424,6 +431,7 @@ template <>
 void
 InvertedIndexTantivy<std::string>::build_index_for_array(
     const std::vector<std::shared_ptr<FieldDataBase>>& field_datas) {
+    int64_t offset = 0;
     for (const auto& data : field_datas) {
         auto n = data->get_num_rows();
         auto array_column = static_cast<const Array*>(data->Data());
@@ -435,7 +443,8 @@ InvertedIndexTantivy<std::string>::build_index_for_array(
                 output.push_back(
                     array_column[i].template get_data<std::string>(j));
             }
-            wrapper_->template add_multi_data(output.data(), output.size());
+            wrapper_->template add_multi_data(
+                output.data(), output.size(), offset++);
         }
     }
 }

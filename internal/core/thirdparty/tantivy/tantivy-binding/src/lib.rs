@@ -18,6 +18,7 @@ mod tokenizer_c;
 mod util;
 mod util_c;
 mod vec_collector;
+mod docid_collector;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right

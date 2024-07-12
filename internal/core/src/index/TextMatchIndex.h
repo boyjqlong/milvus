@@ -17,20 +17,28 @@
 #include "index/InvertedIndexTantivy.h"
 
 namespace milvus::index {
+
+using stdclock = std::chrono::high_resolution_clock;
 class TextMatchIndex : public InvertedIndexTantivy<std::string> {
  public:
-    explicit TextMatchIndex();
+    explicit TextMatchIndex(int64_t commit_interval_in_ms);
     explicit TextMatchIndex(const storage::FileManagerContext& ctx);
 
  public:
     void
-    AddText(const std::string& text);
+    AddText(const std::string& text, int64_t offset);
 
     void
-    AddTexts(size_t n, const std::string* texts);
+    AddTexts(size_t n, const std::string* texts, int64_t offset_begin);
 
     void
     Finish();
+
+    void
+    Commit();
+
+    void
+    Reload();
 
  public:
     void
@@ -40,6 +48,14 @@ class TextMatchIndex : public InvertedIndexTantivy<std::string> {
     MatchQuery(const std::string& query);
 
  private:
+    bool
+    shouldTriggerCommit();
+
+ private:
+    // thread-safe was promised by the tantivy.
+    // mutable std::mutex mtx_;
     std::shared_ptr<TantivyIndexWrapper> reader_;
+    std::atomic<stdclock::time_point> last_commit_time_;
+    int64_t commit_interval_in_ms_;
 };
 }  // namespace milvus::index

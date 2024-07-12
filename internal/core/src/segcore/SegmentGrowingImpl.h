@@ -340,7 +340,10 @@ class SegmentGrowingImpl : public SegmentGrowing {
 
  private:
     void
-    AddTexts(FieldId field_id, const std::string* texts, size_t n);
+    AddTexts(FieldId field_id,
+             const std::string* texts,
+             size_t n,
+             int64_t offset_begin);
 
     void
     CreateTextIndexes();

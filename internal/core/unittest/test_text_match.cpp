@@ -25,42 +25,44 @@ using namespace milvus::query;
 using namespace milvus::segcore;
 
 namespace {
-    SchemaPtr
-    GenTestSchema() {
-        auto schema = std::make_shared<Schema>();
-        std::map<std::string, std::string> params;
-        {
-            FieldMeta f(FieldName("str"),
-                        FieldId(101),
-                        DataType::VARCHAR,
-                        65536,
-                        true,
-                        params);
-            schema->AddField(std::move(f));
-        }
-        {
-            FieldMeta f(FieldName("fvec"),
-                        FieldId(102),
-                        DataType::VECTOR_FLOAT,
-                        16,
-                        knowhere::metric::L2);
-            schema->AddField(std::move(f));
-        }
-        {
-            FieldMeta f(FieldName("pk"), FieldId(103), DataType::INT64);
-            schema->AddField(std::move(f));
-            schema->set_primary_field_id(FieldId(103));
-        }
-        return schema;
+SchemaPtr
+GenTestSchema() {
+    auto schema = std::make_shared<Schema>();
+    std::map<std::string, std::string> params;
+    {
+        FieldMeta f(FieldName("str"),
+                    FieldId(101),
+                    DataType::VARCHAR,
+                    65536,
+                    true,
+                    params);
+        schema->AddField(std::move(f));
     }
+    {
+        FieldMeta f(FieldName("fvec"),
+                    FieldId(102),
+                    DataType::VECTOR_FLOAT,
+                    16,
+                    knowhere::metric::L2);
+        schema->AddField(std::move(f));
+    }
+    {
+        FieldMeta f(FieldName("pk"), FieldId(103), DataType::INT64);
+        schema->AddField(std::move(f));
+        schema->set_primary_field_id(FieldId(103));
+    }
+    return schema;
 }
+}  // namespace
 
 TEST(TextMatch, Index) {
     using Index = index::TextMatchIndex;
-    auto index = std::make_unique<Index>();
+    auto index = std::make_unique<Index>(std::numeric_limits<int64_t>::max());
     index->CreateReader();
-    index->AddText("football, basketball, pingpang");
-    index->AddText("swimming, football");
+    index->AddText("football, basketball, pingpang", 0);
+    index->AddText("swimming, football", 1);
+    index->Commit();
+    index->Reload();
     auto res = index->MatchQuery("football");
     ASSERT_TRUE(res[0]);
     ASSERT_TRUE(res[1]);
@@ -69,19 +71,17 @@ TEST(TextMatch, Index) {
 TEST(TextMatch, Naive) {
     auto schema = GenTestSchema();
     auto seg = CreateGrowingSegment(schema, empty_index_meta);
-    std::vector<std::string> raw_str = {
-            "football, basketball, pingpang",
-            "swimming, football"
-    };
+    std::vector<std::string> raw_str = {"football, basketball, pingpang",
+                                        "swimming, football"};
 
     int64_t N = 2;
     uint64_t seed = 19190504;
     auto raw_data = DataGen(schema, N, seed);
     auto str_col = raw_data.raw_->mutable_fields_data()
-            ->at(0)
-            .mutable_scalars()
-            ->mutable_string_data()
-            ->mutable_data();
+                       ->at(0)
+                       .mutable_scalars()
+                       ->mutable_string_data()
+                       ->mutable_data();
     for (int64_t i = 0; i < N; i++) {
         str_col->at(i) = raw_str[i];
     }
@@ -93,21 +93,24 @@ TEST(TextMatch, Naive) {
                 raw_data.timestamps_.data(),
                 raw_data.raw_);
 
+    std::this_thread::sleep_for(std::chrono::milliseconds(200) * 2);
+
     auto get_text_match_expr = [&schema](const std::string& query) -> auto {
         const auto& str_meta = schema->operator[](FieldName("str"));
         auto column_info = test::GenColumnInfo(str_meta.get_id().get(),
                                                proto::schema::DataType::VarChar,
                                                false,
                                                false);
-        auto unary_range_expr = test::GenUnaryRangeExpr(OpType::TextMatch, query);
+        auto unary_range_expr =
+            test::GenUnaryRangeExpr(OpType::TextMatch, query);
         unary_range_expr->set_allocated_column_info(column_info);
         auto expr = test::GenExpr();
         expr->set_allocated_unary_range_expr(unary_range_expr);
 
         auto parser = ProtoParser(*schema);
         auto typed_expr = parser.ParseExprs(*expr);
-        auto parsed =
-                std::make_shared<plan::FilterBitsNode>(DEFAULT_PLANNODE_ID, typed_expr);
+        auto parsed = std::make_shared<plan::FilterBitsNode>(
+            DEFAULT_PLANNODE_ID, typed_expr);
         return parsed;
     };
 

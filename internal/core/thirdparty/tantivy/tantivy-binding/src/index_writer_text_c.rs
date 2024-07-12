@@ -11,12 +11,16 @@ use crate::util::create_binding;
 pub extern "C" fn tantivy_create_default_text_writer(
     field_name: *const c_char,
     path: *const c_char,
+    num_threads: usize,
+    overall_memory_budget_in_bytes: usize,
 ) -> *mut c_void {
     let field_name_str = unsafe { CStr::from_ptr(field_name) };
     let path_str = unsafe { CStr::from_ptr(path) };
     let wrapper = IndexWriterWrapper::from_text_default(
         String::from(field_name_str.to_str().unwrap()),
         String::from(path_str.to_str().unwrap()),
+        num_threads,
+        overall_memory_budget_in_bytes,
     );
     create_binding(wrapper)
 }
@@ -27,6 +31,8 @@ pub extern "C" fn tantivy_create_text_writer(
     path: *const c_char,
     tokenizer_name: *const c_char,
     tokenizer_params: *mut c_void,
+    num_threads: usize,
+    overall_memory_budget_in_bytes: usize,
 ) -> *mut c_void {
     let field_name_str = unsafe { CStr::from_ptr(field_name) };
     let path_str = unsafe { CStr::from_ptr(path) };
@@ -42,6 +48,8 @@ pub extern "C" fn tantivy_create_text_writer(
                 String::from(path_str.to_str().unwrap()),
                 String::from(tokenizer_name_str.to_str().unwrap()),
                 text_analyzer,
+                num_threads,
+                overall_memory_budget_in_bytes,
             );
             return create_binding(wrapper);
         }

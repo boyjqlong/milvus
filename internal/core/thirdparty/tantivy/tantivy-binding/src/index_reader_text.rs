@@ -4,12 +4,14 @@ use tantivy::{
     Term,
 };
 
-use crate::{index_reader::IndexReaderWrapper, tokenizer::default_tokenizer};
+use crate::{
+    index_reader::IndexReaderWrapper,  tokenizer::default_tokenizer,
+};
 
 impl IndexReaderWrapper {
     // split the query string into multiple tokens using index's default tokenizer,
     // and then execute the disconjunction of term query.
-    pub fn match_query(&self, q: &str) -> Vec<u32> {
+    pub(crate) fn match_query(&self, q: &str) -> Vec<u32> {
         // clone the tokenizer to make `match_query` thread-safe.
         let mut tokenizer = self
             .index
@@ -26,7 +28,7 @@ impl IndexReaderWrapper {
         self.search(&query)
     }
 
-    pub fn register_tokenizer(&self, tokenizer_name: String, tokenizer: TextAnalyzer) {
+    pub(crate) fn register_tokenizer(&self, tokenizer_name: String, tokenizer: TextAnalyzer) {
         self.index.tokenizers().register(&tokenizer_name, tokenizer)
     }
 }

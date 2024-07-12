@@ -20,13 +20,14 @@ main(int argc, char* argv[]) {
     boost::filesystem::create_directories(path);
 
     auto text_writer = TantivyIndexWrapper("text_demo", path);
-    auto write_single_text = [&text_writer](const std::string& s) {
-        text_writer.add_data(&s, 1);
+    auto write_single_text = [&text_writer](const std::string& s,
+                                            int64_t offset) {
+        text_writer.add_data(&s, 1, offset);
     };
 
     {
-        write_single_text("football, basketball, pingpang");
-        write_single_text("swimming, football");
+        write_single_text("football, basketball, pingpang", 0);
+        write_single_text("swimming, football", 1);
         text_writer.finish();
     }
 

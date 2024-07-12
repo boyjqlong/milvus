@@ -1,7 +1,13 @@
 use std::ffi::c_void;
 use std::ops::Bound;
 
-use tantivy::{directory::MmapDirectory, Index};
+use tantivy::{
+    directory::MmapDirectory,
+    query::{BooleanQuery, Query},
+    schema::Field,
+    tokenizer::TextAnalyzer,
+    Index, Term,
+};
 
 pub fn index_exist(path: &str) -> bool {
     let dir = MmapDirectory::open(path).unwrap();

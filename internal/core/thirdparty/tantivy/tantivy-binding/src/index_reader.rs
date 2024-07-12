@@ -7,20 +7,31 @@ use tantivy::query::{Query, RangeQuery, RegexQuery, TermQuery};
 use tantivy::schema::{Field, IndexRecordOption};
 use tantivy::{Index, IndexReader, ReloadPolicy, Term};
 
+use crate::docid_collector::DocIdCollector;
 use crate::log::init_log;
 use crate::util::make_bounds;
 use crate::vec_collector::VecCollector;
 
-pub struct IndexReaderWrapper {
-    field_name: String,
+pub(crate) struct IndexReaderWrapper {
+    pub(crate) field_name: String,
     pub(crate) field: Field,
-    reader: IndexReader,
+    pub(crate) reader: IndexReader,
     pub(crate) index: Index,
+    pub(crate) id_field: Option<Field>,
 }
 
 impl IndexReaderWrapper {
-    pub fn new(index: Index, field_name: String, field: Field) -> IndexReaderWrapper {
+    pub fn load(path: &str) -> IndexReaderWrapper {
         init_log();
+
+        let index = Index::open_in_dir(path).unwrap();
+        let field = index.schema().fields().next().unwrap().0;
+        let schema = index.schema();
+        let field_name = String::from(schema.get_field_name(field));
+        let id_field: Option<Field> = match schema.get_field("doc_id") {
+            Ok(field) => Some(field),
+            Err(_) => None,
+        };
 
         let reader = index
             .reader_builder()
@@ -28,28 +39,21 @@ impl IndexReaderWrapper {
             .try_into()
             .unwrap();
         reader.reload().unwrap();
+
         IndexReaderWrapper {
-            field_name: field_name.to_string(),
+            field_name,
             field,
             reader,
             index,
+            id_field,
         }
     }
 
-    pub fn load(path: &str) -> IndexReaderWrapper {
-        let dir = MmapDirectory::open(path).unwrap();
-        let index = Index::open(dir).unwrap();
-        let field = index.schema().fields().next().unwrap().0;
-        let schema = index.schema();
-        let field_name = schema.get_field_name(field);
-        IndexReaderWrapper::new(index, String::from_str(field_name).unwrap(), field)
+    pub fn reload(&self) {
+        self.reader.reload().unwrap();
     }
 
     pub fn count(&self) -> u32 {
-        if false {
-            return 2;
-        }
-
         let metas = self.index.searchable_segment_metas().unwrap();
         let mut sum: u32 = 0;
         for meta in metas {
@@ -60,8 +64,16 @@ impl IndexReaderWrapper {
 
     pub(crate) fn search(&self, q: &dyn Query) -> Vec<u32> {
         let searcher = self.reader.searcher();
-        let hits = searcher.search(q, &VecCollector).unwrap();
-        hits
+        match self.id_field {
+            Some(_) => {
+                // newer version with doc_id.
+                searcher.search(q, &DocIdCollector {}).unwrap()
+            }
+            None => {
+                // older version without doc_id, only one segment.
+                searcher.search(q, &VecCollector {}).unwrap()
+            }
+        }
     }
 
     pub fn term_query_i64(&self, term: i64) -> Vec<u32> {

@@ -11,6 +11,10 @@
 
 namespace milvus::tantivy {
 
+static constexpr uintptr_t DEFAULT_NUM_THREADS = 4;
+static constexpr uintptr_t DEFAULT_OVERALL_MEMORY_BUDGET_IN_BYTES =
+    DEFAULT_NUM_THREADS * 15 * 1024 * 1024;
+
 template <typename T>
 inline TantivyDataType
 guess_data_type() {
@@ -69,8 +73,15 @@ struct TantivyIndexWrapper {
     // create index writer for non-text type.
     TantivyIndexWrapper(const char* field_name,
                         TantivyDataType data_type,
-                        const char* path) {
-        writer_ = tantivy_create_index(field_name, data_type, path);
+                        const char* path,
+                        uintptr_t num_threads = DEFAULT_NUM_THREADS,
+                        uintptr_t overall_memory_budget_in_bytes =
+                            DEFAULT_OVERALL_MEMORY_BUDGET_IN_BYTES) {
+        writer_ = tantivy_create_index(field_name,
+                                       data_type,
+                                       path,
+                                       num_threads,
+                                       overall_memory_budget_in_bytes);
         path_ = std::string(path);
     }
 
@@ -82,8 +93,13 @@ struct TantivyIndexWrapper {
     }
 
     // create index writer for text type.
-    TantivyIndexWrapper(const char* field_name, const char* path) {
-        writer_ = tantivy_create_default_text_writer(field_name, path);
+    TantivyIndexWrapper(const char* field_name,
+                        const char* path,
+                        uintptr_t num_threads = DEFAULT_NUM_THREADS,
+                        uintptr_t overall_memory_budget_in_bytes =
+                            DEFAULT_OVERALL_MEMORY_BUDGET_IN_BYTES) {
+        writer_ = tantivy_create_default_text_writer(
+            field_name, path, num_threads, overall_memory_budget_in_bytes);
         path_ = std::string(path);
     }
 
@@ -92,11 +108,18 @@ struct TantivyIndexWrapper {
         const char* field_name,
         const char* path,
         const char* tokenizer_name,
-        const std::map<std::string, std::string>& tokenizer_params) {
+        const std::map<std::string, std::string>& tokenizer_params,
+        uintptr_t num_threads = DEFAULT_NUM_THREADS,
+        uintptr_t overall_memory_budget_in_bytes =
+            DEFAULT_OVERALL_MEMORY_BUDGET_IN_BYTES) {
         RustHashMap m;
         m.from(tokenizer_params);
-        writer_ = tantivy_create_text_writer(
-            field_name, path, tokenizer_name, m.get_pointer());
+        writer_ = tantivy_create_text_writer(field_name,
+                                             path,
+                                             tokenizer_name,
+                                             m.get_pointer(),
+                                             num_threads,
+                                             overall_memory_budget_in_bytes);
         path_ = std::string(path);
     }
 
@@ -115,41 +138,41 @@ struct TantivyIndexWrapper {
 
     template <typename T>
     void
-    add_data(const T* array, uintptr_t len) {
+    add_data(const T* array, uintptr_t len, int64_t offset_begin) {
         assert(!finished_);
 
         if constexpr (std::is_same_v<T, bool>) {
-            tantivy_index_add_bools(writer_, array, len);
+            tantivy_index_add_bools(writer_, array, len, offset_begin);
             return;
         }
 
         if constexpr (std::is_same_v<T, int8_t>) {
-            tantivy_index_add_int8s(writer_, array, len);
+            tantivy_index_add_int8s(writer_, array, len, offset_begin);
             return;
         }
 
         if constexpr (std::is_same_v<T, int16_t>) {
-            tantivy_index_add_int16s(writer_, array, len);
+            tantivy_index_add_int16s(writer_, array, len, offset_begin);
             return;
         }
 
         if constexpr (std::is_same_v<T, int32_t>) {
-            tantivy_index_add_int32s(writer_, array, len);
+            tantivy_index_add_int32s(writer_, array, len, offset_begin);
             return;
         }
 
         if constexpr (std::is_same_v<T, int64_t>) {
-            tantivy_index_add_int64s(writer_, array, len);
+            tantivy_index_add_int64s(writer_, array, len, offset_begin);
             return;
         }
 
         if constexpr (std::is_same_v<T, float>) {
-            tantivy_index_add_f32s(writer_, array, len);
+            tantivy_index_add_f32s(writer_, array, len, offset_begin);
             return;
         }
 
         if constexpr (std::is_same_v<T, double>) {
-            tantivy_index_add_f64s(writer_, array, len);
+            tantivy_index_add_f64s(writer_, array, len, offset_begin);
             return;
         }
 
@@ -157,7 +180,9 @@ struct TantivyIndexWrapper {
             // TODO: not very efficient, a lot of overhead due to rust-ffi call.
             for (uintptr_t i = 0; i < len; i++) {
                 tantivy_index_add_string(
-                    writer_, static_cast<const std::string*>(array)[i].c_str());
+                    writer_,
+                    static_cast<const std::string*>(array)[i].c_str(),
+                    offset_begin + i);
             }
             return;
         }
@@ -168,41 +193,41 @@ struct TantivyIndexWrapper {
 
     template <typename T>
     void
-    add_multi_data(const T* array, uintptr_t len) {
+    add_multi_data(const T* array, uintptr_t len, int64_t offset) {
         assert(!finished_);
 
         if constexpr (std::is_same_v<T, bool>) {
-            tantivy_index_add_multi_bools(writer_, array, len);
+            tantivy_index_add_multi_bools(writer_, array, len, offset);
             return;
         }
 
         if constexpr (std::is_same_v<T, int8_t>) {
-            tantivy_index_add_multi_int8s(writer_, array, len);
+            tantivy_index_add_multi_int8s(writer_, array, len, offset);
             return;
         }
 
         if constexpr (std::is_same_v<T, int16_t>) {
-            tantivy_index_add_multi_int16s(writer_, array, len);
+            tantivy_index_add_multi_int16s(writer_, array, len, offset);
             return;
         }
 
         if constexpr (std::is_same_v<T, int32_t>) {
-            tantivy_index_add_multi_int32s(writer_, array, len);
+            tantivy_index_add_multi_int32s(writer_, array, len, offset);
             return;
         }
 
         if constexpr (std::is_same_v<T, int64_t>) {
-            tantivy_index_add_multi_int64s(writer_, array, len);
+            tantivy_index_add_multi_int64s(writer_, array, len, offset);
             return;
         }
 
         if constexpr (std::is_same_v<T, float>) {
-            tantivy_index_add_multi_f32s(writer_, array, len);
+            tantivy_index_add_multi_f32s(writer_, array, len, offset);
             return;
         }
 
         if constexpr (std::is_same_v<T, double>) {
-            tantivy_index_add_multi_f64s(writer_, array, len);
+            tantivy_index_add_multi_f64s(writer_, array, len, offset);
             return;
         }
 
@@ -211,7 +236,8 @@ struct TantivyIndexWrapper {
             for (uintptr_t i = 0; i < len; i++) {
                 views.push_back(array[i].c_str());
             }
-            tantivy_index_add_multi_keywords(writer_, views.data(), len);
+            tantivy_index_add_multi_keywords(
+                writer_, views.data(), len, offset);
             return;
         }
 
@@ -227,6 +253,18 @@ struct TantivyIndexWrapper {
             writer_ = nullptr;
             reader_ = tantivy_load_index(path_.c_str());
             finished_ = true;
+        }
+    }
+
+    inline void
+    commit() {
+        tantivy_commit_index(writer_);
+    }
+
+    inline void
+    reload() {
+        if (reader_ != nullptr) {
+            tantivy_reload_index(reader_);
         }
     }
 
