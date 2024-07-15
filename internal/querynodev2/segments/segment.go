@@ -1380,9 +1380,9 @@ func (s *LocalSegment) UpdateIndexInfo(ctx context.Context, indexInfo *querypb.F
 	var status C.CStatus
 	GetDynamicPool().Submit(func() (any, error) {
 		if funcutil.IsTextIndex(indexInfo.GetIndexParams()) {
-			status = C.UpdateSealedSegmentIndex(s.ptr, info.cLoadIndexInfo)
-		} else {
 			status = C.UpdateSealedSegmentTextIndex(s.ptr, info.cLoadIndexInfo)
+		} else {
+			status = C.UpdateSealedSegmentIndex(s.ptr, info.cLoadIndexInfo)
 		}
 		return nil, nil
 	}).Await()
