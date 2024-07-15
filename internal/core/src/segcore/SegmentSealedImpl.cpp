@@ -1758,6 +1758,7 @@ SegmentSealedImpl::CreateTextIndex(FieldId field_id) {
         index->Finish();
     }
     index->CreateReader();
+    index->Reload();
     text_indexes_[field_id] = std::move(index);
 }
 

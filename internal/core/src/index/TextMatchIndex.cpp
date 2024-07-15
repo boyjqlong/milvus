@@ -76,10 +76,10 @@ TextMatchIndex::Finish() {
 
 bool
 TextMatchIndex::shouldTriggerCommit() {
-    auto span = (std::chrono::duration<double, std::micro>(
+    auto span = (std::chrono::duration<double, std::milli>(
                      stdclock::now() - last_commit_time_.load()))
                     .count();
-    return span > commit_interval_in_ms_ * 1000;
+    return span > commit_interval_in_ms_;
 }
 
 void

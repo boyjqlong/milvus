@@ -30,6 +30,11 @@ GenTestSchema() {
     auto schema = std::make_shared<Schema>();
     std::map<std::string, std::string> params;
     {
+        FieldMeta f(FieldName("pk"), FieldId(100), DataType::INT64);
+        schema->AddField(std::move(f));
+        schema->set_primary_field_id(FieldId(100));
+    }
+    {
         FieldMeta f(FieldName("str"),
                     FieldId(101),
                     DataType::VARCHAR,
@@ -45,11 +50,6 @@ GenTestSchema() {
                     16,
                     knowhere::metric::L2);
         schema->AddField(std::move(f));
-    }
-    {
-        FieldMeta f(FieldName("pk"), FieldId(103), DataType::INT64);
-        schema->AddField(std::move(f));
-        schema->set_primary_field_id(FieldId(103));
     }
     return schema;
 }
@@ -68,7 +68,7 @@ TEST(TextMatch, Index) {
     ASSERT_TRUE(res[1]);
 }
 
-TEST(TextMatch, Naive) {
+TEST(TextMatch, GrowingNaive) {
     auto schema = GenTestSchema();
     auto seg = CreateGrowingSegment(schema, empty_index_meta);
     std::vector<std::string> raw_str = {"football, basketball, pingpang",
@@ -78,7 +78,7 @@ TEST(TextMatch, Naive) {
     uint64_t seed = 19190504;
     auto raw_data = DataGen(schema, N, seed);
     auto str_col = raw_data.raw_->mutable_fields_data()
-                       ->at(0)
+                       ->at(1)
                        .mutable_scalars()
                        ->mutable_string_data()
                        ->mutable_data();
@@ -94,6 +94,77 @@ TEST(TextMatch, Naive) {
                 raw_data.raw_);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200) * 2);
+
+    auto get_text_match_expr = [&schema](const std::string& query) -> auto {
+        const auto& str_meta = schema->operator[](FieldName("str"));
+        auto column_info = test::GenColumnInfo(str_meta.get_id().get(),
+                                               proto::schema::DataType::VarChar,
+                                               false,
+                                               false);
+        auto unary_range_expr =
+            test::GenUnaryRangeExpr(OpType::TextMatch, query);
+        unary_range_expr->set_allocated_column_info(column_info);
+        auto expr = test::GenExpr();
+        expr->set_allocated_unary_range_expr(unary_range_expr);
+
+        auto parser = ProtoParser(*schema);
+        auto typed_expr = parser.ParseExprs(*expr);
+        auto parsed = std::make_shared<plan::FilterBitsNode>(
+            DEFAULT_PLANNODE_ID, typed_expr);
+        return parsed;
+    };
+
+    {
+        auto expr = get_text_match_expr("football");
+        query::ExecPlanNodeVisitor visitor(*seg, MAX_TIMESTAMP);
+        BitsetType final;
+        visitor.ExecuteExprNode(expr, seg.get(), N, final);
+        ASSERT_EQ(final.size(), N);
+        ASSERT_TRUE(final[0]);
+        ASSERT_TRUE(final[1]);
+    }
+
+    {
+        auto expr = get_text_match_expr("swimming");
+        query::ExecPlanNodeVisitor visitor(*seg, MAX_TIMESTAMP);
+        BitsetType final;
+        visitor.ExecuteExprNode(expr, seg.get(), N, final);
+        ASSERT_EQ(final.size(), N);
+        ASSERT_FALSE(final[0]);
+        ASSERT_TRUE(final[1]);
+    }
+
+    {
+        auto expr = get_text_match_expr("basketball, swimming");
+        query::ExecPlanNodeVisitor visitor(*seg, MAX_TIMESTAMP);
+        BitsetType final;
+        visitor.ExecuteExprNode(expr, seg.get(), N, final);
+        ASSERT_EQ(final.size(), N);
+        ASSERT_TRUE(final[0]);
+        ASSERT_TRUE(final[1]);
+    }
+}
+
+TEST(TextMatch, SealedNaive) {
+    auto schema = GenTestSchema();
+    auto seg = CreateSealedSegment(schema, empty_index_meta);
+    std::vector<std::string> raw_str = {"football, basketball, pingpang",
+                                        "swimming, football"};
+
+    int64_t N = 2;
+    uint64_t seed = 19190504;
+    auto raw_data = DataGen(schema, N, seed);
+    auto str_col = raw_data.raw_->mutable_fields_data()
+                       ->at(1)
+                       .mutable_scalars()
+                       ->mutable_string_data()
+                       ->mutable_data();
+    for (int64_t i = 0; i < N; i++) {
+        str_col->at(i) = raw_str[i];
+    }
+
+    SealedLoadFieldData(raw_data, *seg);
+    seg->CreateTextIndex(FieldId(101));
 
     auto get_text_match_expr = [&schema](const std::string& query) -> auto {
         const auto& str_meta = schema->operator[](FieldName("str"));

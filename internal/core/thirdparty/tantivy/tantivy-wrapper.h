@@ -258,7 +258,9 @@ struct TantivyIndexWrapper {
 
     inline void
     commit() {
-        tantivy_commit_index(writer_);
+        if (writer_ != nullptr) {
+            tantivy_commit_index(writer_);
+        }
     }
 
     inline void
