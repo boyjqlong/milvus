@@ -24,6 +24,8 @@ class TextMatchIndex : public InvertedIndexTantivy<std::string> {
     explicit TextMatchIndex(int64_t commit_interval_in_ms);
     explicit TextMatchIndex(const storage::FileManagerContext& ctx);
 
+    ~TextMatchIndex();
+
  public:
     void
     AddText(const std::string& text, int64_t offset);

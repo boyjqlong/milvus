@@ -54,6 +54,10 @@ TextMatchIndex::TextMatchIndex(const storage::FileManagerContext& ctx)
     }
 }
 
+TextMatchIndex::~TextMatchIndex() {
+    boost::filesystem::remove_all(path_);
+}
+
 void
 TextMatchIndex::AddText(const std::string& text, int64_t offset) {
     AddTexts(1, &text, offset);
