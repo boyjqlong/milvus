@@ -172,10 +172,10 @@ class InvertedIndexTantivy : public ScalarIndex<T> {
 
  protected:
     void
-    finish();
+    BuildWithFieldData(const std::vector<FieldDataPtr>& datas) override;
 
     void
-    build_index(const std::vector<std::shared_ptr<FieldDataBase>>& field_datas);
+    finish();
 
     void
     build_index_for_array(

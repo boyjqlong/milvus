@@ -41,6 +41,9 @@ IndexFactory::CreatePrimitiveScalarIndex(
         return std::make_unique<InvertedIndexTantivy<T>>(file_manager_context);
     }
     if (index_type == BITMAP_INDEX_TYPE) {
+        return std::make_unique<BitmapIndex<T>>(file_manager_context);
+    }
+    if (index_type == HYBRID_INDEX_TYPE) {
         return std::make_unique<HybridScalarIndex<T>>(file_manager_context);
     }
     return CreateScalarIndexSort<T>(file_manager_context);
@@ -64,6 +67,9 @@ IndexFactory::CreatePrimitiveScalarIndex<std::string>(
             file_manager_context);
     }
     if (index_type == BITMAP_INDEX_TYPE) {
+        return std::make_unique<BitmapIndex<std::string>>(file_manager_context);
+    }
+    if (index_type == HYBRID_INDEX_TYPE) {
         return std::make_unique<HybridScalarIndex<std::string>>(
             file_manager_context);
     }
@@ -87,6 +93,9 @@ IndexFactory::CreatePrimitiveScalarIndex(
                                                          space);
     }
     if (index_type == BITMAP_INDEX_TYPE) {
+        return std::make_unique<BitmapIndex<T>>(file_manager_context, space);
+    }
+    if (index_type == HYBRID_INDEX_TYPE) {
         return std::make_unique<HybridScalarIndex<T>>(file_manager_context,
                                                       space);
     }
@@ -105,6 +114,10 @@ IndexFactory::CreatePrimitiveScalarIndex<std::string>(
             file_manager_context, space);
     }
     if (index_type == BITMAP_INDEX_TYPE) {
+        return std::make_unique<BitmapIndex<std::string>>(file_manager_context,
+                                                          space);
+    }
+    if (index_type == HYBRID_INDEX_TYPE) {
         return std::make_unique<HybridScalarIndex<std::string>>(
             file_manager_context, space);
     }
@@ -186,16 +199,17 @@ IndexBasePtr
 IndexFactory::CreateCompositeScalarIndex(
     IndexType index_type,
     const storage::FileManagerContext& file_manager_context) {
-    if (index_type == BITMAP_INDEX_TYPE) {
+    if (index_type == HYBRID_INDEX_TYPE || index_type == BITMAP_INDEX_TYPE ||
+        index_type == INVERTED_INDEX_TYPE) {
         auto element_type = static_cast<DataType>(
             file_manager_context.fieldDataMeta.field_schema.element_type());
         return CreatePrimitiveScalarIndex(
             element_type, index_type, file_manager_context);
-    } else if (index_type == INVERTED_INDEX_TYPE) {
-        auto element_type = static_cast<DataType>(
-            file_manager_context.fieldDataMeta.field_schema.element_type());
-        return CreatePrimitiveScalarIndex(
-            element_type, index_type, file_manager_context);
+    } else {
+        PanicInfo(
+            Unsupported,
+            fmt::format("index type: {} for composite scalar not supported now",
+                        index_type));
     }
 }
 
