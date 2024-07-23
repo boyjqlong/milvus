@@ -1210,6 +1210,50 @@ func (_c *IMetaTable_GetDatabaseByName_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
+// GetVChannelsByPchannel provides a mock function with given fields: pchannel
+func (_m *IMetaTable) GetVChannelsByPchannel(pchannel string) []string {
+	ret := _m.Called(pchannel)
+
+	var r0 []string
+	if rf, ok := ret.Get(0).(func(string) []string); ok {
+		r0 = rf(pchannel)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	return r0
+}
+
+// IMetaTable_GetVChannelsByPchannel_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVChannelsByPchannel'
+type IMetaTable_GetVChannelsByPchannel_Call struct {
+	*mock.Call
+}
+
+// GetVChannelsByPchannel is a helper method to define mock.On call
+//   - pchannel string
+func (_e *IMetaTable_Expecter) GetVChannelsByPchannel(pchannel interface{}) *IMetaTable_GetVChannelsByPchannel_Call {
+	return &IMetaTable_GetVChannelsByPchannel_Call{Call: _e.mock.On("GetVChannelsByPchannel", pchannel)}
+}
+
+func (_c *IMetaTable_GetVChannelsByPchannel_Call) Run(run func(pchannel string)) *IMetaTable_GetVChannelsByPchannel_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *IMetaTable_GetVChannelsByPchannel_Call) Return(_a0 []string) *IMetaTable_GetVChannelsByPchannel_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *IMetaTable_GetVChannelsByPchannel_Call) RunAndReturn(run func(string) []string) *IMetaTable_GetVChannelsByPchannel_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IsAlias provides a mock function with given fields: db, name
 func (_m *IMetaTable) IsAlias(db string, name string) bool {
 	ret := _m.Called(db, name)
