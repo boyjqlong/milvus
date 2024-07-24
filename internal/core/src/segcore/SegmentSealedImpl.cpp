@@ -1748,17 +1748,27 @@ SegmentSealedImpl::CreateTextIndex(FieldId field_id) {
     AssertInfo(column != nullptr,
                "failed to create text index, field is not of text type: {}",
                field_id.get());
-    auto index = std::make_unique<index::TextMatchIndex>(
-        std::numeric_limits<int64_t>::max());
+
+    auto& cfg = storage::MmapManager::GetInstance().GetMmapConfig();
+    std::unique_ptr<index::TextMatchIndex> index;
+    if (!cfg.GetEnableMmap()) {
+        // build text index in ram.
+        index = std::make_unique<index::TextMatchIndex>(
+                std::numeric_limits<int64_t>::max());
+    } else {
+        // build text index using mmap.
+        index = std::make_unique<index::TextMatchIndex>(cfg.GetMmapPath());
+    }
+
     {
         // build
         auto n = column->NumRows();
         for (size_t i = 0; i < n; i++) {
             index->AddText(std::string(column->RawAt(i)), i);
         }
+        // release the index writer and create index reader.
         index->Finish();
     }
-    index->CreateReader();
     index->Reload();
     text_indexes_[field_id] = std::move(index);
 }

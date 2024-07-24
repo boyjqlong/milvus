@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <sstream>
 #include <fmt/format.h>
 #include <set>
@@ -10,7 +11,10 @@
 #include "rust-hashmap.h"
 
 namespace milvus::tantivy {
+using Map = std::map<std::string, std::string>;
 
+static constexpr const char* DEFAULT_TOKENIZER_NAME = "milvus_tokenizer";
+static Map DEFAULT_TOKENIZER_PARAMS = {};
 static constexpr uintptr_t DEFAULT_NUM_THREADS = 4;
 static constexpr uintptr_t DEFAULT_OVERALL_MEMORY_BUDGET_IN_BYTES =
     DEFAULT_NUM_THREADS * 15 * 1024 * 1024;
@@ -92,26 +96,16 @@ struct TantivyIndexWrapper {
         path_ = std::string(path);
     }
 
-    // create index writer for text type.
+    // create index writer for text type with tokenizer.
     TantivyIndexWrapper(const char* field_name,
+                        bool in_ram,
                         const char* path,
+                        const char* tokenizer_name = DEFAULT_TOKENIZER_NAME,
+                        const std::map<std::string, std::string>&
+                            tokenizer_params = DEFAULT_TOKENIZER_PARAMS,
                         uintptr_t num_threads = DEFAULT_NUM_THREADS,
                         uintptr_t overall_memory_budget_in_bytes =
                             DEFAULT_OVERALL_MEMORY_BUDGET_IN_BYTES) {
-        writer_ = tantivy_create_default_text_writer(
-            field_name, path, num_threads, overall_memory_budget_in_bytes);
-        path_ = std::string(path);
-    }
-
-    // create index writer for text type with tokenizer.
-    TantivyIndexWrapper(
-        const char* field_name,
-        const char* path,
-        const char* tokenizer_name,
-        const std::map<std::string, std::string>& tokenizer_params,
-        uintptr_t num_threads = DEFAULT_NUM_THREADS,
-        uintptr_t overall_memory_budget_in_bytes =
-            DEFAULT_OVERALL_MEMORY_BUDGET_IN_BYTES) {
         RustHashMap m;
         m.from(tokenizer_params);
         writer_ = tantivy_create_text_writer(field_name,
@@ -119,8 +113,15 @@ struct TantivyIndexWrapper {
                                              tokenizer_name,
                                              m.get_pointer(),
                                              num_threads,
-                                             overall_memory_budget_in_bytes);
+                                             overall_memory_budget_in_bytes,
+                                             in_ram);
         path_ = std::string(path);
+    }
+
+    // create reader.
+    void
+    create_reader() {
+        reader_ = tantivy_create_reader_from_writer(writer_);
     }
 
     ~TantivyIndexWrapper() {
@@ -133,7 +134,9 @@ struct TantivyIndexWrapper {
         const std::map<std::string, std::string>& tokenizer_params) {
         RustHashMap m;
         m.from(tokenizer_params);
-        tantivy_register_tokenizer(reader_, tokenizer_name, m.get_pointer());
+        if (reader_ != nullptr) {
+            tantivy_register_tokenizer(reader_, tokenizer_name, m.get_pointer());
+        }
     }
 
     template <typename T>
@@ -248,12 +251,15 @@ struct TantivyIndexWrapper {
 
     inline void
     finish() {
-        if (!finished_) {
-            tantivy_finish_index(writer_);
-            writer_ = nullptr;
-            reader_ = tantivy_load_index(path_.c_str());
-            finished_ = true;
+        if (finished_) {
+            return;
         }
+
+        create_reader();
+        tantivy_finish_index(writer_);
+        writer_ = nullptr;
+        finished_ = true;
+        reload();
     }
 
     inline void

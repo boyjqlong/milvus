@@ -21,10 +21,12 @@ namespace milvus::index {
 using stdclock = std::chrono::high_resolution_clock;
 class TextMatchIndex : public InvertedIndexTantivy<std::string> {
  public:
+    // for growing segment.
     explicit TextMatchIndex(int64_t commit_interval_in_ms);
+    // for sealed segment.
+    explicit TextMatchIndex(const std::string& path);
+    // for building/loading index.
     explicit TextMatchIndex(const storage::FileManagerContext& ctx);
-
-    ~TextMatchIndex();
 
  public:
     void
@@ -54,9 +56,6 @@ class TextMatchIndex : public InvertedIndexTantivy<std::string> {
     shouldTriggerCommit();
 
  private:
-    // thread-safe was promised by the tantivy.
-    // mutable std::mutex mtx_;
-    std::shared_ptr<TantivyIndexWrapper> reader_;
     std::atomic<stdclock::time_point> last_commit_time_;
     int64_t commit_interval_in_ms_;
 };

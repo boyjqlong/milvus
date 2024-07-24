@@ -1,6 +1,8 @@
 use core::slice;
 use std::ffi::{c_char, c_void, CStr};
 
+use futures::lock::MutexLockFuture;
+
 use crate::{
     data_type::TantivyDataType,
     index_writer::IndexWriterWrapper,
@@ -46,6 +48,13 @@ pub extern "C" fn tantivy_commit_index(ptr: *mut c_void) {
     unsafe {
         (*real).commit();
     }
+}
+
+#[no_mangle]
+pub extern "C" fn tantivy_create_reader_from_writer(ptr: *mut c_void) -> *mut c_void {
+    let writer = ptr as *mut IndexWriterWrapper;
+    let reader = unsafe { (*writer).create_reader() };
+    create_binding(reader)
 }
 
 // -------------------------build--------------------

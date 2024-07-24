@@ -1,4 +1,5 @@
 use std::ops::Bound;
+use std::sync::Arc;
 
 use tantivy::query::{Query, RangeQuery, RegexQuery, TermQuery};
 use tantivy::schema::{Field, IndexRecordOption};
@@ -13,7 +14,7 @@ pub(crate) struct IndexReaderWrapper {
     pub(crate) field_name: String,
     pub(crate) field: Field,
     pub(crate) reader: IndexReader,
-    pub(crate) index: Index,
+    pub(crate) index: Arc<Index>,
     pub(crate) id_field: Option<Field>,
 }
 
@@ -22,6 +23,11 @@ impl IndexReaderWrapper {
         init_log();
 
         let index = Index::open_in_dir(path).unwrap();
+
+        IndexReaderWrapper::from_index(Arc::new(index))
+    }
+
+    pub fn from_index(index: Arc<Index>) -> IndexReaderWrapper {
         let field = index.schema().fields().next().unwrap().0;
         let schema = index.schema();
         let field_name = String::from(schema.get_field_name(field));

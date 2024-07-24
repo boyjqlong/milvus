@@ -14,6 +14,7 @@
 
 #include "segcore/token_stream_c.h"
 #include "token-stream.h"
+#include "common/EasyAssert.h"
 
 void
 free_token_stream(CTokenStream token_stream) {
@@ -32,6 +33,7 @@ token_stream_get_token(CTokenStream token_stream) {
     auto token = reinterpret_cast<milvus::tantivy::TokenStream*>(token_stream)
                      ->get_token();
     char* ret = reinterpret_cast<char*>(malloc(token.length() + 1));
+    AssertInfo(ret != nullptr, "failed to allocate memory for token");
     memcpy(ret, token.c_str(), token.length());
     ret[token.length()] = 0;
     return ret;

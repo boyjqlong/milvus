@@ -102,6 +102,8 @@ void tantivy_finish_index(void *ptr);
 
 void tantivy_commit_index(void *ptr);
 
+void *tantivy_create_reader_from_writer(void *ptr);
+
 void tantivy_index_add_int8s(void *ptr, const int8_t *array, uintptr_t len, int64_t offset_begin);
 
 void tantivy_index_add_int16s(void *ptr, const int16_t *array, uintptr_t len, int64_t offset_begin);
@@ -137,17 +139,13 @@ void tantivy_index_add_multi_keywords(void *ptr,
                                       uintptr_t len,
                                       int64_t offset);
 
-void *tantivy_create_default_text_writer(const char *field_name,
-                                         const char *path,
-                                         uintptr_t num_threads,
-                                         uintptr_t overall_memory_budget_in_bytes);
-
 void *tantivy_create_text_writer(const char *field_name,
                                  const char *path,
                                  const char *tokenizer_name,
                                  void *tokenizer_params,
                                  uintptr_t num_threads,
-                                 uintptr_t overall_memory_budget_in_bytes);
+                                 uintptr_t overall_memory_budget_in_bytes,
+                                 bool in_ram);
 
 void free_rust_string(const char *ptr);
 

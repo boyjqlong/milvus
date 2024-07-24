@@ -1,4 +1,5 @@
 use std::ffi::CStr;
+use std::sync::Arc;
 
 use futures::executor::block_on;
 use libc::c_char;
@@ -9,15 +10,14 @@ use tantivy::{doc, tokenizer, Document, Index, IndexWriter};
 
 use crate::data_type::TantivyDataType;
 
+use crate::index_reader::IndexReaderWrapper;
 use crate::log::init_log;
 
 pub(crate) struct IndexWriterWrapper {
-    pub(crate) field_name: String,
     pub(crate) field: Field,
-    pub(crate) data_type: TantivyDataType,
-    pub(crate) path: String,
     pub(crate) index_writer: IndexWriter,
     pub(crate) id_field: Field,
+    pub(crate) index: Arc<Index>,
 }
 
 impl IndexWriterWrapper {
@@ -67,13 +67,15 @@ impl IndexWriterWrapper {
             .writer_with_num_threads(num_threads, overall_memory_budget_in_bytes)
             .unwrap();
         IndexWriterWrapper {
-            field_name,
             field,
-            data_type,
-            path,
             index_writer,
             id_field,
+            index: Arc::new(index),
         }
+    }
+
+    pub fn create_reader(&self) -> IndexReaderWrapper {
+        IndexReaderWrapper::from_index(self.index.clone())
     }
 
     pub fn add_i8(&mut self, data: i8, offset: i64) {

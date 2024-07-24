@@ -19,16 +19,22 @@ namespace milvus::index {
 TextMatchIndex::TextMatchIndex(int64_t commit_interval_in_ms)
     : commit_interval_in_ms_(commit_interval_in_ms),
       last_commit_time_(stdclock::now()) {
-    auto uuid = boost::uuids::random_generator()();
-    auto uuid_string = boost::uuids::to_string(uuid);
-    auto file_name = std::string("/tmp/") + uuid_string;
-    path_ = file_name;
-    boost::filesystem::create_directories(path_);
     d_type_ = TantivyDataType::Text;
     std::string field_name = "tmp_text_index";
     wrapper_ = std::make_shared<TantivyIndexWrapper>(field_name.c_str(),
-                                                     path_.c_str());
+                                                     true,
+                                                     "");
 }
+
+    TextMatchIndex::TextMatchIndex(const std::string& path)
+            : commit_interval_in_ms_(std::numeric_limits<int64_t>::max()),
+              last_commit_time_(stdclock::now()) {
+        d_type_ = TantivyDataType::Text;
+        std::string field_name = "tmp_text_index";
+        wrapper_ = std::make_shared<TantivyIndexWrapper>(field_name.c_str(),
+                                                         false,
+                                                         path_.c_str());
+    }
 
 TextMatchIndex::TextMatchIndex(const storage::FileManagerContext& ctx)
     : commit_interval_in_ms_(std::numeric_limits<int64_t>::max()),
@@ -45,17 +51,14 @@ TextMatchIndex::TextMatchIndex(const storage::FileManagerContext& ctx)
     d_type_ = TantivyDataType::Text;
     if (tantivy_index_exist(path_.c_str())) {
         LOG_INFO(
-            "index {} already exists, which should happen in loading progress",
+            "text index {} already exists, which should happen in loading progress",
             path_);
-        reader_ = std::make_shared<TantivyIndexWrapper>(path_.c_str());
+        wrapper_ = std::make_shared<TantivyIndexWrapper>(path_.c_str());
     } else {
         wrapper_ = std::make_shared<TantivyIndexWrapper>(field_name.c_str(),
+                                                         false,
                                                          path_.c_str());
     }
-}
-
-TextMatchIndex::~TextMatchIndex() {
-    boost::filesystem::remove_all(path_);
 }
 
 void
@@ -94,15 +97,12 @@ TextMatchIndex::Commit() {
 
 void
 TextMatchIndex::Reload() {
-    reader_->reload();
+    wrapper_->reload();
 }
 
 void
 TextMatchIndex::CreateReader() {
-    AssertInfo(tantivy_index_exist(path_.c_str()),
-               "inverted index not exist: {}",
-               path_);
-    reader_ = std::make_shared<TantivyIndexWrapper>(path_.c_str());
+    wrapper_->create_reader();
 }
 
 TargetBitmap
@@ -112,12 +112,12 @@ TextMatchIndex::MatchQuery(const std::string& query) {
         Reload();
     }
 
-    auto cnt = reader_->count();
+    auto cnt = wrapper_->count();
     TargetBitmap bitset(cnt);
     if (bitset.empty()) {
         return bitset;
     }
-    auto hits = reader_->match_query(query);
+    auto hits = wrapper_->match_query(query);
     apply_hits(bitset, hits, true);
     return bitset;
 }
