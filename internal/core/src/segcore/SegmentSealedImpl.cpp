@@ -1768,7 +1768,7 @@ SegmentSealedImpl::CreateTextIndex(FieldId field_id) {
     if (!cfg.GetEnableMmap()) {
         // build text index in ram.
         index = std::make_unique<index::TextMatchIndex>(
-                std::numeric_limits<int64_t>::max());
+            std::numeric_limits<int64_t>::max());
     } else {
         // build text index using mmap.
         index = std::make_unique<index::TextMatchIndex>(cfg.GetMmapPath());

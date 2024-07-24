@@ -122,8 +122,8 @@ class Schema {
              bool nullable,
              bool enable_match,
              std::map<std::string, std::string>& params) {
-        auto field_meta =
-            FieldMeta(name, id, data_type, max_length, nullable, enable_match, params);
+        auto field_meta = FieldMeta(
+            name, id, data_type, max_length, nullable, enable_match, params);
         this->AddField(std::move(field_meta));
     }
 

@@ -154,8 +154,7 @@ struct MmapConfig {
            << ", disk_limit=" << disk_limit / (1024 * 1024) << "MB"
            << ", fix_file_size=" << fix_file_size / (1024 * 1024) << "MB"
            << ", growing_enable_mmap=" << std::boolalpha << growing_enable_mmap
-           << ", enable_mmap=" << std::boolalpha << enable_mmap
-           << "]";
+           << ", enable_mmap=" << std::boolalpha << enable_mmap << "]";
         return ss.str();
     }
 };

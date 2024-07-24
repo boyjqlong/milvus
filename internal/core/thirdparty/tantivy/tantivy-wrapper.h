@@ -135,7 +135,8 @@ struct TantivyIndexWrapper {
         RustHashMap m;
         m.from(tokenizer_params);
         if (reader_ != nullptr) {
-            tantivy_register_tokenizer(reader_, tokenizer_name, m.get_pointer());
+            tantivy_register_tokenizer(
+                reader_, tokenizer_name, m.get_pointer());
         }
     }
 

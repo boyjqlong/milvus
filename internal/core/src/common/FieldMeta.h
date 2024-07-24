@@ -63,13 +63,12 @@ class FieldMeta {
         : name_(name),
           id_(id),
           type_(type),
-          string_info_(
-              StringInfo{max_length, enable_match, std::move(params)}),
-              nullable_(nullable) {
+          string_info_(StringInfo{max_length, enable_match, std::move(params)}),
+          nullable_(nullable) {
         Assert(IsStringDataType(type_));
     }
 
-     FieldMeta(const FieldName& name,
+    FieldMeta(const FieldName& name,
               FieldId id,
               DataType type,
               DataType element_type,

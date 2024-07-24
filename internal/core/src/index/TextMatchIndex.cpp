@@ -21,20 +21,18 @@ TextMatchIndex::TextMatchIndex(int64_t commit_interval_in_ms)
       last_commit_time_(stdclock::now()) {
     d_type_ = TantivyDataType::Text;
     std::string field_name = "tmp_text_index";
-    wrapper_ = std::make_shared<TantivyIndexWrapper>(field_name.c_str(),
-                                                     true,
-                                                     "");
+    wrapper_ =
+        std::make_shared<TantivyIndexWrapper>(field_name.c_str(), true, "");
 }
 
-    TextMatchIndex::TextMatchIndex(const std::string& path)
-            : commit_interval_in_ms_(std::numeric_limits<int64_t>::max()),
-              last_commit_time_(stdclock::now()) {
-        d_type_ = TantivyDataType::Text;
-        std::string field_name = "tmp_text_index";
-        wrapper_ = std::make_shared<TantivyIndexWrapper>(field_name.c_str(),
-                                                         false,
-                                                         path_.c_str());
-    }
+TextMatchIndex::TextMatchIndex(const std::string& path)
+    : commit_interval_in_ms_(std::numeric_limits<int64_t>::max()),
+      last_commit_time_(stdclock::now()) {
+    d_type_ = TantivyDataType::Text;
+    std::string field_name = "tmp_text_index";
+    wrapper_ = std::make_shared<TantivyIndexWrapper>(
+        field_name.c_str(), false, path_.c_str());
+}
 
 TextMatchIndex::TextMatchIndex(const storage::FileManagerContext& ctx)
     : commit_interval_in_ms_(std::numeric_limits<int64_t>::max()),
@@ -51,13 +49,13 @@ TextMatchIndex::TextMatchIndex(const storage::FileManagerContext& ctx)
     d_type_ = TantivyDataType::Text;
     if (tantivy_index_exist(path_.c_str())) {
         LOG_INFO(
-            "text index {} already exists, which should happen in loading progress",
+            "text index {} already exists, which should happen in loading "
+            "progress",
             path_);
         wrapper_ = std::make_shared<TantivyIndexWrapper>(path_.c_str());
     } else {
-        wrapper_ = std::make_shared<TantivyIndexWrapper>(field_name.c_str(),
-                                                         false,
-                                                         path_.c_str());
+        wrapper_ = std::make_shared<TantivyIndexWrapper>(
+            field_name.c_str(), false, path_.c_str());
     }
 }
 
