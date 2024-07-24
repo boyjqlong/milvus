@@ -34,29 +34,35 @@ static int64_t debug_id = START_USER_FIELDID;
 class Schema {
  public:
     FieldId
-    AddDebugField(const std::string& name, DataType data_type) {
+    AddDebugField(const std::string& name,
+                  DataType data_type,
+                  bool nullable = false) {
         auto field_id = FieldId(debug_id);
         debug_id++;
-        this->AddField(FieldName(name), field_id, data_type);
+        this->AddField(FieldName(name), field_id, data_type, nullable);
         return field_id;
     }
 
     FieldId
     AddDebugField(const std::string& name,
                   DataType data_type,
-                  DataType element_type) {
+                  DataType element_type,
+                  bool nullable = false) {
         auto field_id = FieldId(debug_id);
         debug_id++;
-        this->AddField(FieldName(name), field_id, data_type, element_type);
+        this->AddField(
+            FieldName(name), field_id, data_type, element_type, nullable);
         return field_id;
     }
 
     FieldId
-    AddDebugArrayField(const std::string& name, DataType element_type) {
+    AddDebugArrayField(const std::string& name,
+                       DataType element_type,
+                       bool nullable) {
         auto field_id = FieldId(debug_id);
         debug_id++;
         this->AddField(
-            FieldName(name), field_id, DataType::ARRAY, element_type);
+            FieldName(name), field_id, DataType::ARRAY, element_type, nullable);
         return field_id;
     }
 
@@ -68,16 +74,19 @@ class Schema {
                   std::optional<knowhere::MetricType> metric_type) {
         auto field_id = FieldId(debug_id);
         debug_id++;
-        auto field_meta =
-            FieldMeta(FieldName(name), field_id, data_type, dim, metric_type);
+        auto field_meta = FieldMeta(
+            FieldName(name), field_id, data_type, dim, metric_type, false);
         this->AddField(std::move(field_meta));
         return field_id;
     }
 
     // scalar type
     void
-    AddField(const FieldName& name, const FieldId id, DataType data_type) {
-        auto field_meta = FieldMeta(name, id, data_type);
+    AddField(const FieldName& name,
+             const FieldId id,
+             DataType data_type,
+             bool nullable) {
+        auto field_meta = FieldMeta(name, id, data_type, nullable);
         this->AddField(std::move(field_meta));
     }
 
@@ -86,18 +95,10 @@ class Schema {
     AddField(const FieldName& name,
              const FieldId id,
              DataType data_type,
-             DataType element_type) {
-        auto field_meta = FieldMeta(name, id, data_type, element_type);
-        this->AddField(std::move(field_meta));
-    }
-
-    // string type
-    void
-    AddField(const FieldName& name,
-             const FieldId id,
-             DataType data_type,
-             int64_t max_length) {
-        auto field_meta = FieldMeta(name, id, data_type, max_length);
+             DataType element_type,
+             bool nullable) {
+        auto field_meta =
+            FieldMeta(name, id, data_type, element_type, nullable);
         this->AddField(std::move(field_meta));
     }
 
@@ -107,10 +108,22 @@ class Schema {
              const FieldId id,
              DataType data_type,
              int64_t max_length,
+             bool nullable) {
+        auto field_meta = FieldMeta(name, id, data_type, max_length, nullable);
+        this->AddField(std::move(field_meta));
+    }
+
+    // string type
+    void
+    AddField(const FieldName& name,
+             const FieldId id,
+             DataType data_type,
+             int64_t max_length,
+             bool nullable,
              bool enable_match,
              std::map<std::string, std::string>& params) {
         auto field_meta =
-            FieldMeta(name, id, data_type, max_length, enable_match, params);
+            FieldMeta(name, id, data_type, max_length, nullable, enable_match, params);
         this->AddField(std::move(field_meta));
     }
 
@@ -120,8 +133,10 @@ class Schema {
              const FieldId id,
              DataType data_type,
              int64_t dim,
-             std::optional<knowhere::MetricType> metric_type) {
-        auto field_meta = FieldMeta(name, id, data_type, dim, metric_type);
+             std::optional<knowhere::MetricType> metric_type,
+             bool nullable) {
+        auto field_meta =
+            FieldMeta(name, id, data_type, dim, metric_type, false);
         this->AddField(std::move(field_meta));
     }
 

@@ -30,7 +30,7 @@ GenTestSchema() {
     auto schema = std::make_shared<Schema>();
     std::map<std::string, std::string> params;
     {
-        FieldMeta f(FieldName("pk"), FieldId(100), DataType::INT64);
+        FieldMeta f(FieldName("pk"), FieldId(100), DataType::INT64, false);
         schema->AddField(std::move(f));
         schema->set_primary_field_id(FieldId(100));
     }
@@ -39,6 +39,7 @@ GenTestSchema() {
                     FieldId(101),
                     DataType::VARCHAR,
                     65536,
+                    false,
                     true,
                     params);
         schema->AddField(std::move(f));
@@ -48,7 +49,8 @@ GenTestSchema() {
                     FieldId(102),
                     DataType::VECTOR_FLOAT,
                     16,
-                    knowhere::metric::L2);
+                    knowhere::metric::L2,
+                    false);
         schema->AddField(std::move(f));
     }
     return schema;

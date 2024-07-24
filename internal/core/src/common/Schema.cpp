@@ -38,7 +38,7 @@ Schema::ParseFrom(const milvus::proto::schema::CollectionSchema& schema_proto) {
          schema_proto.fields()) {
         auto field_id = FieldId(child.fieldid());
         auto name = FieldName(child.name());
-
+        auto nullable = child.nullable();
         if (field_id.get() < 100) {
             // system field id
             auto is_system =
@@ -60,10 +60,12 @@ Schema::ParseFrom(const milvus::proto::schema::CollectionSchema& schema_proto) {
                 dim = boost::lexical_cast<int64_t>(type_map.at("dim"));
             }
             if (!index_map.count("metric_type")) {
-                schema->AddField(name, field_id, data_type, dim, std::nullopt);
+                schema->AddField(
+                    name, field_id, data_type, dim, std::nullopt, false);
             } else {
                 auto metric_type = index_map.at("metric_type");
-                schema->AddField(name, field_id, data_type, dim, metric_type);
+                schema->AddField(
+                    name, field_id, data_type, dim, metric_type, false);
             }
         } else if (IsStringDataType(data_type)) {
             auto type_map = RepeatedKeyValToMap(child.type_params());
@@ -76,12 +78,15 @@ Schema::ParseFrom(const milvus::proto::schema::CollectionSchema& schema_proto) {
                     boost::lexical_cast<bool>(type_map.at("enable_match"));
             }
             schema->AddField(
-                name, field_id, data_type, max_len, enable_match, type_map);
+                name, field_id, data_type, max_len, nullable, enable_match, type_map);
         } else if (IsArrayDataType(data_type)) {
-            schema->AddField(
-                name, field_id, data_type, DataType(child.element_type()));
+            schema->AddField(name,
+                             field_id,
+                             data_type,
+                             DataType(child.element_type()),
+                             nullable);
         } else {
-            schema->AddField(name, field_id, data_type);
+            schema->AddField(name, field_id, data_type, nullable);
         }
 
         if (child.is_primary_key()) {
@@ -99,6 +104,7 @@ Schema::ParseFrom(const milvus::proto::schema::CollectionSchema& schema_proto) {
 
 const FieldMeta FieldMeta::RowIdMeta(FieldName("RowID"),
                                      RowFieldID,
-                                     DataType::INT64);
+                                     DataType::INT64,
+                                     false);
 
 }  // namespace milvus
