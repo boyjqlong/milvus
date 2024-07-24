@@ -1,8 +1,6 @@
 use core::slice;
 use std::ffi::{c_char, c_void, CStr};
 
-use futures::lock::MutexLockFuture;
-
 use crate::{
     data_type::TantivyDataType,
     index_writer::IndexWriterWrapper,
