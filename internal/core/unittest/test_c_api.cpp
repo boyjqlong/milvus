@@ -68,8 +68,9 @@ CRetrieve(CSegmentInterface c_segment,
           CRetrieveResult** result) {
     auto future = AsyncRetrieve(
         {}, c_segment, c_plan, timestamp, DEFAULT_MAX_OUTPUT_SIZE, false);
-    auto futurePtr = static_cast<milvus::futures::IFuture*>(
-        static_cast<void*>(static_cast<CFuture*>(future)));
+    auto futurePtr = std::unique_ptr<milvus::futures::IFuture>(
+        static_cast<milvus::futures::IFuture*>(
+            static_cast<void*>(static_cast<CFuture*>(future))));
 
     std::mutex mu;
     mu.lock();
@@ -93,8 +94,9 @@ CRetrieveByOffsets(CSegmentInterface c_segment,
                    int64_t len,
                    CRetrieveResult** result) {
     auto future = AsyncRetrieveByOffsets({}, c_segment, c_plan, offsets, len);
-    auto futurePtr = static_cast<milvus::futures::IFuture*>(
-        static_cast<void*>(static_cast<CFuture*>(future)));
+    auto futurePtr = std::unique_ptr<milvus::futures::IFuture>(
+        static_cast<milvus::futures::IFuture*>(
+            static_cast<void*>(static_cast<CFuture*>(future))));
 
     std::mutex mu;
     mu.lock();

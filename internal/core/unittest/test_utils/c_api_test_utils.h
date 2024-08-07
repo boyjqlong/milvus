@@ -182,8 +182,9 @@ CSearch(CSegmentInterface c_segment,
         CSearchResult* result) {
     auto future =
         AsyncSearch({}, c_segment, c_plan, c_placeholder_group, timestamp);
-    auto futurePtr = static_cast<milvus::futures::IFuture*>(
-        static_cast<void*>(static_cast<CFuture*>(future)));
+    auto futurePtr = std::unique_ptr<milvus::futures::IFuture>(
+        static_cast<milvus::futures::IFuture*>(
+            static_cast<void*>(static_cast<CFuture*>(future))));
 
     std::mutex mu;
     mu.lock();
