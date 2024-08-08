@@ -11,6 +11,7 @@
 
 #include "tantivy-binding.h"
 #include "common/Slice.h"
+#include "common/RegexQuery.h"
 #include "storage/LocalChunkManagerSingleton.h"
 #include "index/InvertedIndexTantivy.h"
 #include "index/InvertedIndexUtil.h"
@@ -23,6 +24,8 @@
 #include <boost/uuid/uuid_io.hpp>
 
 namespace milvus::index {
+constexpr const char* TMP_INVERTED_INDEX_PREFIX = "/tmp/milvus/inverted-index/";
+
 inline TantivyDataType
 get_tantivy_data_type(proto::schema::DataType data_type) {
     switch (data_type) {
@@ -65,15 +68,14 @@ get_tantivy_data_type(const proto::schema::FieldSchema& schema) {
 
 template <typename T>
 InvertedIndexTantivy<T>::InvertedIndexTantivy(
-    const storage::FileManagerContext& ctx,
-    std::shared_ptr<milvus_storage::Space> space)
-    : space_(space), schema_(ctx.fieldDataMeta.field_schema) {
-    mem_file_manager_ = std::make_shared<MemFileManager>(ctx, ctx.space_);
-    disk_file_manager_ = std::make_shared<DiskFileManager>(ctx, ctx.space_);
+    const storage::FileManagerContext& ctx)
+    : schema_(ctx.fieldDataMeta.field_schema) {
+    mem_file_manager_ = std::make_shared<MemFileManager>(ctx);
+    disk_file_manager_ = std::make_shared<DiskFileManager>(ctx);
     auto field =
         std::to_string(disk_file_manager_->GetFieldDataMeta().field_id);
-    auto prefix = disk_file_manager_->GetLocalIndexObjectPrefix();
-    path_ = prefix;
+    auto prefix = disk_file_manager_->GetIndexIdentifier();
+    path_ = std::string(TMP_INVERTED_INDEX_PREFIX) + prefix;
     boost::filesystem::create_directories(path_);
     d_type_ = get_tantivy_data_type(schema_);
     if (tantivy_index_exist(path_.c_str())) {
@@ -140,12 +142,6 @@ InvertedIndexTantivy<T>::Upload(const Config& config) {
 }
 
 template <typename T>
-BinarySet
-InvertedIndexTantivy<T>::UploadV2(const Config& config) {
-    return Upload(config);
-}
-
-template <typename T>
 void
 InvertedIndexTantivy<T>::Build(const Config& config) {
     auto insert_files =
@@ -153,28 +149,6 @@ InvertedIndexTantivy<T>::Build(const Config& config) {
     AssertInfo(insert_files.has_value(), "insert_files were empty");
     auto field_datas =
         mem_file_manager_->CacheRawDataToMemory(insert_files.value());
-    BuildWithFieldData(field_datas);
-}
-
-template <typename T>
-void
-InvertedIndexTantivy<T>::BuildV2(const Config& config) {
-    auto field_name = mem_file_manager_->GetIndexMeta().field_name;
-    auto reader = space_->ScanData();
-    std::vector<FieldDataPtr> field_datas;
-    for (auto rec = reader->Next(); rec != nullptr; rec = reader->Next()) {
-        if (!rec.ok()) {
-            PanicInfo(DataFormatBroken, "failed to read data");
-        }
-        auto data = rec.ValueUnsafe();
-        auto total_num_rows = data->num_rows();
-        auto col_data = data->GetColumnByName(field_name);
-        // todo: support nullable index
-        auto field_data = storage::CreateFieldData(
-            DataType(GetDType<T>()), false, 0, total_num_rows);
-        field_data->FillFieldData(col_data);
-        field_datas.push_back(field_data);
-    }
     BuildWithFieldData(field_datas);
 }
 
@@ -201,12 +175,30 @@ InvertedIndexTantivy<T>::Load(milvus::tracer::TraceContext ctx,
     wrapper_ = std::make_shared<TantivyIndexWrapper>(prefix.c_str());
 }
 
-template <typename T>
-void
-InvertedIndexTantivy<T>::LoadV2(const Config& config) {
-    disk_file_manager_->CacheIndexToDisk();
-    auto prefix = disk_file_manager_->GetLocalIndexObjectPrefix();
-    wrapper_ = std::make_shared<TantivyIndexWrapper>(prefix.c_str());
+inline void
+apply_hits(TargetBitmap& bitset, const RustArrayWrapper& w, bool v) {
+    for (size_t j = 0; j < w.array_.len; j++) {
+        bitset[w.array_.array[j]] = v;
+    }
+}
+
+inline void
+apply_hits_with_filter(TargetBitmap& bitset,
+                       const RustArrayWrapper& w,
+                       const std::function<bool(size_t /* offset */)>& filter) {
+    for (size_t j = 0; j < w.array_.len; j++) {
+        auto the_offset = w.array_.array[j];
+        bitset[the_offset] = filter(the_offset);
+    }
+}
+
+inline void
+apply_hits_with_callback(
+    const RustArrayWrapper& w,
+    const std::function<void(size_t /* offset */)>& callback) {
+    for (size_t j = 0; j < w.array_.len; j++) {
+        callback(w.array_.array[j]);
+    }
 }
 
 template <typename T>
@@ -325,9 +317,9 @@ InvertedIndexTantivy<std::string>::Query(const DatasetPtr& dataset) {
 
 template <typename T>
 const TargetBitmap
-InvertedIndexTantivy<T>::RegexQuery(const std::string& pattern) {
+InvertedIndexTantivy<T>::RegexQuery(const std::string& regex_pattern) {
     TargetBitmap bitset(Count());
-    auto array = wrapper_->regex_query(pattern);
+    auto array = wrapper_->regex_query(regex_pattern);
     apply_hits(bitset, array, true);
     return bitset;
 }

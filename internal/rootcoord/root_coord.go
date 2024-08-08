@@ -655,7 +655,7 @@ func (c *Core) restore(ctx context.Context) error {
 				for _, part := range coll.Partitions {
 					switch part.State {
 					case pb.PartitionState_PartitionDropping:
-						go c.garbageCollector.ReDropPartition(coll.DBID, coll.PhysicalChannelNames, part.Clone(), ts)
+						go c.garbageCollector.ReDropPartition(coll.DBID, coll.PhysicalChannelNames, coll.VirtualChannelNames, part.Clone(), ts)
 					case pb.PartitionState_PartitionCreating:
 						go c.garbageCollector.RemoveCreatingPartition(coll.DBID, part.Clone(), ts)
 					default:
@@ -1568,20 +1568,14 @@ func (c *Core) ShowSegments(ctx context.Context, in *milvuspb.ShowSegmentsReques
 	return &milvuspb.ShowSegmentsResponse{Status: merr.Success()}, nil
 }
 
-// GetVChannels returns all vchannels belonging to the pchannel.
-func (c *Core) GetVChannels(ctx context.Context, in *rootcoordpb.GetVChannelsRequest) (*rootcoordpb.GetVChannelsResponse, error) {
+// GetPChannelInfo get pchannel info.
+func (c *Core) GetPChannelInfo(ctx context.Context, in *rootcoordpb.GetPChannelInfoRequest) (*rootcoordpb.GetPChannelInfoResponse, error) {
 	if err := merr.CheckHealthy(c.GetStateCode()); err != nil {
-		return &rootcoordpb.GetVChannelsResponse{
+		return &rootcoordpb.GetPChannelInfoResponse{
 			Status: merr.Status(err),
 		}, nil
 	}
-
-	resp := &rootcoordpb.GetVChannelsResponse{
-		Status: merr.Success(),
-	}
-	vchannels := c.meta.GetVChannelsByPchannel(in.GetPchannel())
-	resp.Vchannels = vchannels
-	return resp, nil
+	return c.meta.GetPChannelInfo(in.GetPchannel()), nil
 }
 
 // AllocTimestamp alloc timestamp

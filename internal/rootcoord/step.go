@@ -304,6 +304,7 @@ func (s *waitForTsSyncedStep) Weight() stepPriority {
 type deletePartitionDataStep struct {
 	baseStep
 	pchans    []string
+	vchans    []string
 	partition *model.Partition
 
 	isSkip bool
@@ -313,7 +314,7 @@ func (s *deletePartitionDataStep) Execute(ctx context.Context) ([]nestedStep, er
 	if s.isSkip {
 		return nil, nil
 	}
-	_, err := s.core.garbageCollector.GcPartitionData(ctx, s.pchans, s.partition)
+	_, err := s.core.garbageCollector.GcPartitionData(ctx, s.pchans, s.vchans, s.partition)
 	return nil, err
 }
 
