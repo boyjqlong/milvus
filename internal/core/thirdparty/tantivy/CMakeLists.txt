@@ -1,24 +1,31 @@
+# In fact, cargo was already installed on our builder environment.
+# Below settings are used to suit for first local development.
+set(HOME_VAR $ENV{HOME})
+set(PATH_VAR $ENV{PATH})
+set(ENV{PATH} ${HOME_VAR}/.cargo/bin:${PATH_VAR})
+message(STATUS "HOME VAR: ${HOME_VAR}")
+message(STATUS "PATH VAR: ${PATH_VAR}")
+message(STATUS "ENV PATH: $ENV{PATH}")
+
+set(CARGO_PATH ${HOME_VAR}/.cargo/bin/cargo)
+
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CARGO_CMD cargo build)
+    set(CARGO_CMD ${CARGO_PATH} build)
     set(TARGET_DIR "debug")
 else ()
-    set(CARGO_CMD cargo build --release)
+    set(CARGO_CMD ${CARGO_PATH} build --release)
     set(TARGET_DIR "release")
 endif ()
 
 set(TANTIVY_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib")
 set(TANTIVY_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include")
 set(TANTIVY_NAME "libtantivy_binding${CMAKE_STATIC_LIBRARY_SUFFIX}")
+message(STATUS "TANTIVY_LIB_DIR: ${TANTIVY_LIB_DIR}")
+message(STATUS "TANTIVY_INCLUDE_DIR: ${TANTIVY_INCLUDE_DIR}")
+message(STATUS "TANTIVY_NAME: ${TANTIVY_NAME}")
 
 set(LIB_FILE "${CMAKE_CURRENT_BINARY_DIR}/${TARGET_DIR}/${TANTIVY_NAME}")
 set(LIB_HEADER_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}/tantivy-binding/include")
-
-# In fact, cargo was already installed on our builder environment.
-# Below settings are used to suit for first local development.
-set(HOME_VAR $ENV{HOME})
-set(PATH_VAR $ENV{PATH})
-set(ENV{PATH} ${HOME_VAR}/.cargo/bin:${PATH_VAR})
-message($ENV{PATH})
 
 add_custom_command(OUTPUT ls_cargo
         COMMENT "ls cargo"

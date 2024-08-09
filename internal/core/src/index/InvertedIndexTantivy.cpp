@@ -175,32 +175,6 @@ InvertedIndexTantivy<T>::Load(milvus::tracer::TraceContext ctx,
     wrapper_ = std::make_shared<TantivyIndexWrapper>(prefix.c_str());
 }
 
-inline void
-apply_hits(TargetBitmap& bitset, const RustArrayWrapper& w, bool v) {
-    for (size_t j = 0; j < w.array_.len; j++) {
-        bitset[w.array_.array[j]] = v;
-    }
-}
-
-inline void
-apply_hits_with_filter(TargetBitmap& bitset,
-                       const RustArrayWrapper& w,
-                       const std::function<bool(size_t /* offset */)>& filter) {
-    for (size_t j = 0; j < w.array_.len; j++) {
-        auto the_offset = w.array_.array[j];
-        bitset[the_offset] = filter(the_offset);
-    }
-}
-
-inline void
-apply_hits_with_callback(
-    const RustArrayWrapper& w,
-    const std::function<void(size_t /* offset */)>& callback) {
-    for (size_t j = 0; j < w.array_.len; j++) {
-        callback(w.array_.array[j]);
-    }
-}
-
 template <typename T>
 const TargetBitmap
 InvertedIndexTantivy<T>::In(size_t n, const T* values) {

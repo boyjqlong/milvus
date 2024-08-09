@@ -24,9 +24,11 @@ set(MILVUS_TEST_FILES
         test_bf_sparse.cpp
         test_binary.cpp
         test_binlog_index.cpp
+        test_bitmap_index.cpp
         test_bool_index.cpp
         test_c_api.cpp
         test_chunk_cache.cpp
+        test_chunk.cpp
         test_chunk_vector.cpp
         test_common.cpp
         test_concurrent_vector.cpp
@@ -41,8 +43,6 @@ set(MILVUS_TEST_FILES
         test_group_by.cpp
         test_growing.cpp
         test_growing_index.cpp
-        test_indexing.cpp
-        test_bitmap_index.cpp
         test_hybrid_index.cpp
         test_index_c_api.cpp
         test_indexing.cpp
@@ -75,17 +75,6 @@ set(MILVUS_TEST_FILES
         test_timestamp_index.cpp
         test_tracer.cpp
         test_utils.cpp
-        test_exec.cpp
-        test_inverted_index.cpp
-        test_group_by.cpp
-        test_regex_query_util.cpp
-        test_regex_query.cpp
-        test_futures.cpp
-        test_array_inverted_index.cpp
-        test_chunk_vector.cpp
-        test_mmap_chunk_manager.cpp
-        test_monitor.cpp
-        test_chunk.cpp
         )
 
 if ( INDEX_ENGINE STREQUAL "cardinal" )

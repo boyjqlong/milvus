@@ -37,10 +37,9 @@ TextMatchIndex::TextMatchIndex(const std::string& path)
 TextMatchIndex::TextMatchIndex(const storage::FileManagerContext& ctx)
     : commit_interval_in_ms_(std::numeric_limits<int64_t>::max()),
       last_commit_time_(stdclock::now()) {
-    space_ = nullptr;
     schema_ = ctx.fieldDataMeta.field_schema;
-    mem_file_manager_ = std::make_shared<MemFileManager>(ctx, ctx.space_);
-    disk_file_manager_ = std::make_shared<DiskFileManager>(ctx, ctx.space_);
+    mem_file_manager_ = std::make_shared<MemFileManager>(ctx);
+    disk_file_manager_ = std::make_shared<DiskFileManager>(ctx);
     std::string field_name =
         std::to_string(disk_file_manager_->GetFieldDataMeta().field_id);
     auto prefix = disk_file_manager_->GetLocalIndexObjectPrefix();
