@@ -237,8 +237,8 @@ CreateIndex(CIndex* res_index,
 
 CStatus
 BuildTextIndex(CBinarySet* c_binary_set,
-            const uint8_t* serialized_build_index_info,
-            const uint64_t len) {
+               const uint8_t* serialized_build_index_info,
+               const uint64_t len) {
     try {
         auto build_index_info =
             std::make_unique<milvus::proto::indexcgo::BuildIndexInfo>();
@@ -277,7 +277,8 @@ BuildTextIndex(CBinarySet* c_binary_set,
         milvus::storage::FileManagerContext fileManagerContext(
             field_meta, index_meta, chunk_manager);
 
-        auto index = std::make_unique<index::TextMatchIndex>(fileManagerContext);
+        auto index =
+            std::make_unique<index::TextMatchIndex>(fileManagerContext);
         index->Build(config);
         auto binary =
             std::make_unique<knowhere::BinarySet>(index->Upload(config));

@@ -493,8 +493,8 @@ GenIndexPathPrefix(ChunkManagerPtr cm,
 
 std::string
 GenTextIndexPathPrefix(ChunkManagerPtr cm,
-                   int64_t build_id,
-                   int64_t index_version) {
+                       int64_t build_id,
+                       int64_t index_version) {
     return cm->GetRootPath() + "/" + std::string(TEXT_LOG_ROOT_PATH) + "/" +
            GenIndexPathIdentifier(build_id, index_version);
 }

@@ -75,7 +75,10 @@ Schema::ParseFrom(const milvus::proto::schema::CollectionSchema& schema_proto) {
             bool enable_match = false;
             if (type_map.count("enable_match")) {
                 auto param_str = type_map.at("enable_match");
-                std::transform(param_str.begin(), param_str.end(), param_str.begin(), ::tolower);
+                std::transform(param_str.begin(),
+                               param_str.end(),
+                               param_str.begin(),
+                               ::tolower);
 
                 auto bool_cast = [](const std::string& arg) -> bool {
                     std::istringstream ss(arg);

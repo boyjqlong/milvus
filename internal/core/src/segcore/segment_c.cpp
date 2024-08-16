@@ -426,10 +426,10 @@ UpdateSealedSegmentTextIndex(CSegmentInterface c_segment,
     }
 }
 
-    CStatus
-    LoadTextIndex(CSegmentInterface c_segment,
-                    const uint8_t* serialized_load_text_index_info,
-                    const uint64_t len) {
+CStatus
+LoadTextIndex(CSegmentInterface c_segment,
+              const uint8_t* serialized_load_text_index_info,
+              const uint64_t len) {
     try {
         auto segment_interface =
             reinterpret_cast<milvus::segcore::SegmentInterface*>(c_segment);
@@ -437,15 +437,15 @@ UpdateSealedSegmentTextIndex(CSegmentInterface c_segment,
             dynamic_cast<milvus::segcore::SegmentSealed*>(segment_interface);
         AssertInfo(segment != nullptr, "segment conversion failed");
 
-        auto info_proto = std::make_unique<milvus::proto::indexcgo::LoadTextIndexInfo>();
+        auto info_proto =
+            std::make_unique<milvus::proto::indexcgo::LoadTextIndexInfo>();
         info_proto->ParseFromArray(serialized_load_text_index_info, len);
 
-        milvus::storage::FieldDataMeta field_meta{
-            info_proto->collectionid(),
-            info_proto->partitionid(),
-            segment->get_segment_id(),
-            info_proto->fieldid(),
-            info_proto->schema()};
+        milvus::storage::FieldDataMeta field_meta{info_proto->collectionid(),
+                                                  info_proto->partitionid(),
+                                                  segment->get_segment_id(),
+                                                  info_proto->fieldid(),
+                                                  info_proto->schema()};
         milvus::storage::IndexMeta index_meta{segment->get_segment_id(),
                                               info_proto->fieldid(),
                                               info_proto->buildid(),
@@ -467,7 +467,8 @@ UpdateSealedSegmentTextIndex(CSegmentInterface c_segment,
         auto index = std::make_unique<milvus::index::TextMatchIndex>(ctx);
         index->Load(config);
 
-        segment->LoadTextIndex(milvus::FieldId(info_proto->fieldid()), std::move(index));
+        segment->LoadTextIndex(milvus::FieldId(info_proto->fieldid()),
+                               std::move(index));
 
         return milvus::SuccessCStatus();
     } catch (std::exception& e) {

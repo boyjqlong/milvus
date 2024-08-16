@@ -47,7 +47,7 @@ class DiskFileManagerImpl : public FileManagerImpl {
     bool
     RemoveFile(const std::string& filename) noexcept override;
 
-public:
+ public:
     bool
     AddTextLog(const std::string& filename) noexcept;
 

@@ -1755,7 +1755,8 @@ SegmentSealedImpl::CreateTextIndex(FieldId field_id) {
 }
 
 void
-SegmentSealedImpl::LoadTextIndex(FieldId field_id, std::unique_ptr<index::TextMatchIndex> index) {
+SegmentSealedImpl::LoadTextIndex(FieldId field_id,
+                                 std::unique_ptr<index::TextMatchIndex> index) {
     std::unique_lock lck(mutex_);
     text_indexes_[field_id] = std::move(index);
 }

@@ -95,7 +95,8 @@ class SegmentSealedImpl : public SegmentSealed {
     CreateTextIndex(FieldId field_id) override;
 
     void
-    LoadTextIndex(FieldId field_id, std::unique_ptr<index::TextMatchIndex> index) override;
+    LoadTextIndex(FieldId field_id,
+                  std::unique_ptr<index::TextMatchIndex> index) override;
 
  public:
     size_t

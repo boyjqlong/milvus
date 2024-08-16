@@ -74,7 +74,7 @@ DiskFileManagerImpl::GetRemoteIndexPath(const std::string& file_name,
 
 std::string
 DiskFileManagerImpl::GetRemoteTextLogPath(const std::string& file_name,
-                                        int64_t slice_num) const {
+                                          int64_t slice_num) const {
     auto remote_prefix = GetRemoteTextLogPrefix();
     return remote_prefix + "/" + file_name + "_" + std::to_string(slice_num);
 }

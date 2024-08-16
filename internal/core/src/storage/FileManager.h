@@ -144,8 +144,8 @@ class FileManagerImpl : public knowhere::FileManager {
 
     virtual std::string
     GetRemoteTextLogPrefix() const {
-        return rcm_->GetRootPath() + "/" + std::string(TEXT_LOG_ROOT_PATH) + "/" +
-               std::to_string(index_meta_.build_id) + "/" +
+        return rcm_->GetRootPath() + "/" + std::string(TEXT_LOG_ROOT_PATH) +
+               "/" + std::to_string(index_meta_.build_id) + "/" +
                std::to_string(index_meta_.index_version) + "/" +
                std::to_string(field_meta_.collection_id) + "/" +
                std::to_string(field_meta_.partition_id) + "/" +
