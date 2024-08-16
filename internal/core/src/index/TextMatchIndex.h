@@ -28,6 +28,13 @@ class TextMatchIndex : public InvertedIndexTantivy<std::string> {
     // for building/loading index.
     explicit TextMatchIndex(const storage::FileManagerContext& ctx);
 
+public:
+   BinarySet
+   Upload(const Config& config) override;
+
+   void
+   Load(const Config& config);
+
  public:
     void
     AddText(const std::string& text, int64_t offset);

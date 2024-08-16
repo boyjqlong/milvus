@@ -203,8 +203,18 @@ impl IndexWriterWrapper {
         self.index_writer.add_document(document).unwrap();
     }
 
+    fn manual_merge(&mut self) {
+        let metas = self.index_writer.index().searchable_segment_metas().unwrap();
+        let policy = self.index_writer.get_merge_policy();
+        let candidates = policy.compute_merge_candidates(metas.as_slice());
+        for candidate in candidates {
+            self.index_writer.merge(candidate.0.as_slice()).wait().unwrap();
+        }
+    }
+
     pub fn finish(mut self) {
         self.index_writer.commit().unwrap();
+        // self.manual_merge();
         block_on(self.index_writer.garbage_collect_files()).unwrap();
         self.index_writer.wait_merging_threads().unwrap();
     }

@@ -14,8 +14,11 @@
 
 #include "index/TextMatchIndex.h"
 #include "index/InvertedIndexUtil.h"
+#include "index/Utils.h"
 
 namespace milvus::index {
+constexpr const char* TMP_TEXT_LOG_PREFIX = "/tmp/milvus/text-log/";
+
 TextMatchIndex::TextMatchIndex(int64_t commit_interval_in_ms)
     : commit_interval_in_ms_(commit_interval_in_ms),
       last_commit_time_(stdclock::now()) {
@@ -28,6 +31,7 @@ TextMatchIndex::TextMatchIndex(int64_t commit_interval_in_ms)
 TextMatchIndex::TextMatchIndex(const std::string& path)
     : commit_interval_in_ms_(std::numeric_limits<int64_t>::max()),
       last_commit_time_(stdclock::now()) {
+    path_ = path;
     d_type_ = TantivyDataType::Text;
     std::string field_name = "tmp_text_index";
     wrapper_ = std::make_shared<TantivyIndexWrapper>(
@@ -40,10 +44,10 @@ TextMatchIndex::TextMatchIndex(const storage::FileManagerContext& ctx)
     schema_ = ctx.fieldDataMeta.field_schema;
     mem_file_manager_ = std::make_shared<MemFileManager>(ctx);
     disk_file_manager_ = std::make_shared<DiskFileManager>(ctx);
-    std::string field_name =
-        std::to_string(disk_file_manager_->GetFieldDataMeta().field_id);
-    auto prefix = disk_file_manager_->GetLocalIndexObjectPrefix();
-    path_ = prefix;
+
+    auto prefix = disk_file_manager_->GetIndexIdentifier();
+    path_ = std::string(TMP_TEXT_LOG_PREFIX) + prefix;
+
     boost::filesystem::create_directories(path_);
     d_type_ = TantivyDataType::Text;
     if (tantivy_index_exist(path_.c_str())) {
@@ -53,9 +57,52 @@ TextMatchIndex::TextMatchIndex(const storage::FileManagerContext& ctx)
             path_);
         wrapper_ = std::make_shared<TantivyIndexWrapper>(path_.c_str());
     } else {
+        std::string field_name =
+            std::to_string(disk_file_manager_->GetFieldDataMeta().field_id);
         wrapper_ = std::make_shared<TantivyIndexWrapper>(
             field_name.c_str(), false, path_.c_str());
     }
+}
+
+BinarySet
+TextMatchIndex::Upload(const Config& config) {
+    finish();
+
+    boost::filesystem::path p(path_);
+    boost::filesystem::directory_iterator end_iter;
+
+    for (boost::filesystem::directory_iterator iter(p); iter != end_iter;
+         iter++) {
+        if (boost::filesystem::is_directory(*iter)) {
+            LOG_WARN("{} is a directory", iter->path().string());
+        } else {
+            LOG_INFO("trying to add text log: {}", iter->path().string());
+            AssertInfo(disk_file_manager_->AddTextLog(iter->path().string()),
+                       "failed to add text log: {}",
+                       iter->path().string());
+            LOG_INFO("text log: {} added", iter->path().string());
+        }
+    }
+
+    BinarySet ret;
+
+    auto remote_paths_to_size = disk_file_manager_->GetRemotePathsToFileSize();
+    for (auto& file : remote_paths_to_size) {
+        ret.Append(file.first, nullptr, file.second);
+    }
+
+    return ret;
+}
+
+void
+TextMatchIndex::Load(const Config& config) {
+    auto index_files =
+        GetValueFromConfig<std::vector<std::string>>(config, "index_files");
+    AssertInfo(index_files.has_value(),
+               "index file paths is empty when load text log index");
+    auto prefix = disk_file_manager_->GetLocalTextIndexPrefix();
+    disk_file_manager_->CacheTextLogToDisk(index_files.value());
+    wrapper_ = std::make_shared<TantivyIndexWrapper>(prefix.c_str());
 }
 
 void

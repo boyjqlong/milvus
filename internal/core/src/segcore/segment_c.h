@@ -120,6 +120,11 @@ CStatus
 UpdateSealedSegmentTextIndex(CSegmentInterface c_segment,
                              CLoadIndexInfo c_load_index_info);
 
+    CStatus
+    LoadTextIndex(CSegmentInterface c_segment,
+                    const uint8_t* serialized_load_text_index_info,
+                    const uint64_t len);
+
 CStatus
 UpdateFieldRawDataSize(CSegmentInterface c_segment,
                        int64_t field_id,

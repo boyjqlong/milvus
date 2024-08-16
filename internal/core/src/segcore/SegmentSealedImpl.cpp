@@ -1755,14 +1755,9 @@ SegmentSealedImpl::CreateTextIndex(FieldId field_id) {
 }
 
 void
-SegmentSealedImpl::LoadTextIndex(LoadIndexInfo& info) {
+SegmentSealedImpl::LoadTextIndex(FieldId field_id, std::unique_ptr<index::TextMatchIndex> index) {
     std::unique_lock lck(mutex_);
-    auto index = boost::dynamic_pointer_cast<index::TextMatchIndex>(
-        std::move(info.index));
-    AssertInfo(index != nullptr,
-               "failed to load text index, field: {}",
-               info.field_id);
-    text_indexes_[FieldId(info.field_id)] = std::move(index);
+    text_indexes_[field_id] = std::move(index);
 }
 
 }  // namespace milvus::segcore

@@ -13,6 +13,8 @@
 
 #include <memory>
 #include <limits>
+#include <pb/cgo_msg.pb.h>
+#include <pb/index_cgo_msg.pb.h>
 
 #include "common/FieldData.h"
 #include "common/LoadInfo.h"
@@ -417,7 +419,56 @@ UpdateSealedSegmentTextIndex(CSegmentInterface c_segment,
         AssertInfo(segment != nullptr, "segment conversion failed");
         auto load_index_info =
             static_cast<milvus::segcore::LoadIndexInfo*>(c_load_index_info);
-        segment->LoadTextIndex(*load_index_info);
+        // segment->LoadTextIndex(*load_index_info);
+        return milvus::SuccessCStatus();
+    } catch (std::exception& e) {
+        return milvus::FailureCStatus(&e);
+    }
+}
+
+    CStatus
+    LoadTextIndex(CSegmentInterface c_segment,
+                    const uint8_t* serialized_load_text_index_info,
+                    const uint64_t len) {
+    try {
+        auto segment_interface =
+            reinterpret_cast<milvus::segcore::SegmentInterface*>(c_segment);
+        auto segment =
+            dynamic_cast<milvus::segcore::SegmentSealed*>(segment_interface);
+        AssertInfo(segment != nullptr, "segment conversion failed");
+
+        auto info_proto = std::make_unique<milvus::proto::indexcgo::LoadTextIndexInfo>();
+        info_proto->ParseFromArray(serialized_load_text_index_info, len);
+
+        milvus::storage::FieldDataMeta field_meta{
+            info_proto->collectionid(),
+            info_proto->partitionid(),
+            segment->get_segment_id(),
+            info_proto->fieldid(),
+            info_proto->schema()};
+        milvus::storage::IndexMeta index_meta{segment->get_segment_id(),
+                                              info_proto->fieldid(),
+                                              info_proto->buildid(),
+                                              info_proto->version()};
+        auto remote_chunk_manager =
+            milvus::storage::RemoteChunkManagerSingleton::GetInstance()
+                .GetRemoteChunkManager();
+
+        milvus::Config config;
+        std::vector<std::string> files;
+        for (const auto& f : info_proto->files()) {
+            files.push_back(f);
+        }
+        config["index_files"] = files;
+
+        milvus::storage::FileManagerContext ctx(
+            field_meta, index_meta, remote_chunk_manager);
+
+        auto index = std::make_unique<milvus::index::TextMatchIndex>(ctx);
+        index->Load(config);
+
+        segment->LoadTextIndex(milvus::FieldId(info_proto->fieldid()), std::move(index));
+
         return milvus::SuccessCStatus();
     } catch (std::exception& e) {
         return milvus::FailureCStatus(&e);

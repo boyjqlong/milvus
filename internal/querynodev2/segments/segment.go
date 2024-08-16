@@ -29,6 +29,7 @@ import "C"
 import (
 	"context"
 	"fmt"
+	"github.com/milvus-io/milvus/internal/proto/indexcgopb"
 	"runtime"
 	"strings"
 	"unsafe"
@@ -1171,6 +1172,40 @@ func (s *LocalSegment) LoadIndex(ctx context.Context, indexInfo *querypb.FieldIn
 	return nil
 }
 
+func (s *LocalSegment) LoadTextIndex(ctx context.Context, textLogs *datapb.FieldStatsLog, schemaHelper *typeutil.SchemaHelper) error {
+	log.Ctx(ctx).Info("load text index", zap.Int64("field id", textLogs.GetFieldID()))
+
+	log.Ctx(ctx).Info("[delete me]", zap.Any("text logs", textLogs))
+
+	f, err := schemaHelper.GetFieldFromID(textLogs.GetFieldID())
+	if err != nil {
+		return err
+	}
+
+	cgoProto := &indexcgopb.LoadTextIndexInfo{
+		FieldID:      textLogs.GetFieldID(),
+		Version:      textLogs.GetVersion(),
+		BuildID:      textLogs.GetBuildID(),
+		Files:        textLogs.GetFiles(),
+		Schema:       f,
+		CollectionID: s.Collection(),
+		PartitionID:  s.Partition(),
+	}
+
+	marshaled, err := proto.Marshal(cgoProto)
+	if err != nil {
+		return err
+	}
+
+	var status C.CStatus
+	_, _ = GetLoadPool().Submit(func() (any, error) {
+		status = C.LoadTextIndex(s.ptr, (*C.uint8_t)(unsafe.Pointer(&marshaled[0])), (C.uint64_t)(len(marshaled)))
+		return nil, nil
+	}).Await()
+
+	return HandleCStatus(ctx, &status, "LoadTextIndex failed")
+}
+
 func (s *LocalSegment) UpdateIndexInfo(ctx context.Context, indexInfo *querypb.FieldIndexInfo, info *LoadIndexInfo) error {
 	log := log.Ctx(ctx).With(
 		zap.Int64("collectionID", s.Collection()),
@@ -1185,11 +1220,7 @@ func (s *LocalSegment) UpdateIndexInfo(ctx context.Context, indexInfo *querypb.F
 
 	var status C.CStatus
 	GetDynamicPool().Submit(func() (any, error) {
-		if funcutil.IsTextIndex(indexInfo.GetIndexParams()) {
-			status = C.UpdateSealedSegmentTextIndex(s.ptr, info.cLoadIndexInfo)
-		} else {
-			status = C.UpdateSealedSegmentIndex(s.ptr, info.cLoadIndexInfo)
-		}
+		status = C.UpdateSealedSegmentIndex(s.ptr, info.cLoadIndexInfo)
 		return nil, nil
 	}).Await()
 

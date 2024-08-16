@@ -44,7 +44,7 @@ class SegmentSealed : public SegmentInternalInterface {
     WarmupChunkCache(const FieldId field_id) = 0;
 
     virtual void
-    LoadTextIndex(LoadIndexInfo& info) = 0;
+    LoadTextIndex(FieldId field_id, std::unique_ptr<index::TextMatchIndex> index) = 0;
 
     SegmentType
     type() const override {

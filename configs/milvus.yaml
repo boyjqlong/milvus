@@ -487,6 +487,8 @@ indexNode:
     clientMaxRecvSize: 536870912 # The maximum size of each RPC request that the clients on indexNode can receive, unit: byte
 
 dataCoord:
+  statsTask:
+    enable: True
   channel:
     watchTimeoutInterval: 300 # Timeout on watching channels (in seconds). Datanode tickler update watch progress will reset timeout timer.
     legacyVersionWithoutRPCWatch: 2.4.1 # Datanodes <= this version are considered as legacy nodes, which doesn't have rpc based watch(). This is only used during rolling upgrade where legacy nodes won't get new channels

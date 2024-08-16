@@ -435,7 +435,8 @@ message FieldBinlog{
 message FieldStatsLog {
   int64 FieldID = 1;
   int64 version = 2;
-  repeated string files = 3;
+  int64 buildID = 3;
+  repeated string files = 4;
 }
 
 message Binlog {

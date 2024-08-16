@@ -74,8 +74,17 @@ Schema::ParseFrom(const milvus::proto::schema::CollectionSchema& schema_proto) {
                 boost::lexical_cast<int64_t>(type_map.at(MAX_LENGTH));
             bool enable_match = false;
             if (type_map.count("enable_match")) {
-                enable_match =
-                    boost::lexical_cast<bool>(type_map.at("enable_match"));
+                auto param_str = type_map.at("enable_match");
+                std::transform(param_str.begin(), param_str.end(), param_str.begin(), ::tolower);
+
+                auto bool_cast = [](const std::string& arg) -> bool {
+                    std::istringstream ss(arg);
+                    bool b;
+                    ss >> std::boolalpha >> b;
+                    return b;
+                };
+
+                enable_match = bool_cast(param_str);
             }
             schema->AddField(name,
                              field_id,
