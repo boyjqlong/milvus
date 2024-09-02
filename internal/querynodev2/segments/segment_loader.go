@@ -664,7 +664,7 @@ func separateLoadInfo(loadInfo *querypb.SegmentLoadInfo, schema *typeutil.Schema
 func separateLoadInfoV2(loadInfo *querypb.SegmentLoadInfo, schema *schemapb.CollectionSchema) (
 	map[int64]*IndexedFieldInfo, // indexed info
 	[]*datapb.FieldBinlog, // fields info
-	map[int64]*datapb.FieldStatsLog, // text indexed info
+	map[int64]*datapb.TextIndexStats, // text indexed info
 	map[int64]struct{}, // unindexed text fields
 ) {
 	fieldID2IndexInfo := make(map[int64]*querypb.FieldIndexInfo)
@@ -692,8 +692,8 @@ func separateLoadInfoV2(loadInfo *querypb.SegmentLoadInfo, schema *schemapb.Coll
 		}
 	}
 
-	textIndexedInfo := make(map[int64]*datapb.FieldStatsLog, len(loadInfo.GetFieldStatsLog()))
-	for _, fieldStatsLog := range loadInfo.GetFieldStatsLog() {
+	textIndexedInfo := make(map[int64]*datapb.TextIndexStats, len(loadInfo.GetTextStatsLogs()))
+	for _, fieldStatsLog := range loadInfo.GetTextStatsLogs() {
 		textLog, ok := textIndexedInfo[fieldStatsLog.FieldID]
 		if !ok {
 			textIndexedInfo[fieldStatsLog.FieldID] = fieldStatsLog

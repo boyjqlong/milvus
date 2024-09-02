@@ -1178,7 +1178,7 @@ func (s *LocalSegment) LoadIndex(ctx context.Context, indexInfo *querypb.FieldIn
 	return nil
 }
 
-func (s *LocalSegment) LoadTextIndex(ctx context.Context, textLogs *datapb.FieldStatsLog, schemaHelper *typeutil.SchemaHelper) error {
+func (s *LocalSegment) LoadTextIndex(ctx context.Context, textLogs *datapb.TextIndexStats, schemaHelper *typeutil.SchemaHelper) error {
 	log.Ctx(ctx).Info("load text index", zap.Int64("field id", textLogs.GetFieldID()))
 
 	log.Ctx(ctx).Info("[delete me]", zap.Any("text logs", textLogs))

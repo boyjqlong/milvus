@@ -738,13 +738,6 @@ func (s *Server) startTaskScheduler() {
 	s.startStatsTasksCheckLoop(s.serverLoopCtx)
 }
 
-func (s *Server) startTaskScheduler() {
-	s.taskScheduler.Start()
-
-	s.startIndexService(s.serverLoopCtx)
-	s.startStatsTasksCheckLoop(s.serverLoopCtx)
-}
-
 func (s *Server) updateSegmentStatistics(stats []*commonpb.SegmentStats) {
 	for _, stat := range stats {
 		segment := s.meta.GetSegment(stat.GetSegmentID())

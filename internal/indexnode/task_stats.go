@@ -32,10 +32,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 
-	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/internal/datanode/compaction"
-	iter "github.com/milvus-io/milvus/internal/datanode/iterators"
-	"github.com/milvus-io/milvus/internal/flushcommon/io"
 	iter "github.com/milvus-io/milvus/internal/datanode/iterators"
 	"github.com/milvus-io/milvus/internal/metastore/kv/binlog"
 	"github.com/milvus-io/milvus/internal/proto/datapb"
@@ -631,7 +628,7 @@ func (st *statsTask) createTextIndex(ctx context.Context,
 		if err != nil {
 			return nil, err
 		}
-		fieldStatsLog[field.GetFieldID()] = &datapb.FieldStatsLog{
+		fieldStatsLogs[field.GetFieldID()] = &datapb.TextIndexStats{
 			FieldID: field.GetFieldID(),
 			Version: version,
 			BuildID: buildID,
@@ -641,7 +638,6 @@ func (st *statsTask) createTextIndex(ctx context.Context,
 	}
 
 	totalElapse := st.tr.RecordSpan()
-	st.node.storeFieldStatsLogs(st.req.GetClusterID(), st.req.GetTaskID(), fieldStatsLogs)
 
 	log.Info("create text index done",
 		zap.Int64("target segmentID", st.req.GetTargetSegmentID()),
