@@ -1,9 +1,6 @@
 #pragma once
 
-<<<<<<< HEAD
 #include <assert.h>
-=======
->>>>>>> text-match-stats
 #include <memory>
 #include <string>
 
@@ -17,10 +14,7 @@ struct TokenStream {
 
     TokenStream(void* ptr, std::shared_ptr<std::string> text)
         : ptr_(ptr), text_(text) {
-<<<<<<< HEAD
         assert(ptr != nullptr);
-=======
->>>>>>> text-match-stats
     }
 
     ~TokenStream() {

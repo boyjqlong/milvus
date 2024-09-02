@@ -3,7 +3,6 @@ mod data_type;
 mod demo_c;
 mod docid_collector;
 mod hashmap_c;
-mod hashset_collector;
 mod index_reader;
 mod index_reader_c;
 mod index_reader_text;

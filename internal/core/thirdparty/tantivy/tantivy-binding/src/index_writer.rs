@@ -74,20 +74,6 @@ impl IndexWriterWrapper {
         }
     }
 
-<<<<<<< HEAD
-    pub fn add_i8(&mut self, data: i8, offset: i64) {
-        self.add_i64(data.into(), offset)
-    }
-
-    pub fn add_i16(&mut self, data: i16, offset: i64) {
-        self.add_i64(data.into(), offset)
-    }
-
-    pub fn add_i32(&mut self, data: i32, offset: i64) {
-        self.add_i64(data.into(), offset)
-    }
-
-=======
     pub fn create_reader(&self) -> IndexReaderWrapper {
         IndexReaderWrapper::from_index(self.index.clone())
     }
@@ -104,7 +90,6 @@ impl IndexWriterWrapper {
         self.add_i64(data.into(), offset)
     }
 
->>>>>>> text-match-stats
     pub fn add_i64(&mut self, data: i64, offset: i64) {
         self.index_writer
             .add_document(doc!(
