@@ -323,6 +323,7 @@ func (broker *CoordinatorBroker) GetIndexInfo(ctx context.Context, collectionID 
 		resp, err = broker.dataCoord.GetIndexInfos(ctx, &indexpb.GetIndexInfoRequest{
 			CollectionID: collectionID,
 			SegmentIDs:   []int64{segmentID},
+			Internal:     true,
 		})
 
 		if errors.Is(err, merr.ErrServiceUnimplemented) {
@@ -379,6 +380,7 @@ func (broker *CoordinatorBroker) describeIndex(ctx context.Context, collectionID
 	retry.Do(ctx, func() error {
 		resp, err = broker.dataCoord.DescribeIndex(ctx, &indexpb.DescribeIndexRequest{
 			CollectionID: collectionID,
+			Internal:     true,
 		})
 		if errors.Is(err, merr.ErrServiceUnimplemented) {
 			return err
@@ -402,6 +404,7 @@ func (broker *CoordinatorBroker) ListIndexes(ctx context.Context, collectionID U
 
 	resp, err := broker.dataCoord.ListIndexes(ctx, &indexpb.ListIndexesRequest{
 		CollectionID: collectionID,
+		Internal:     true,
 	})
 
 	err = merr.CheckRPCCall(resp, err)

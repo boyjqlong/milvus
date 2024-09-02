@@ -23,6 +23,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <vector>
+#include <boost/pointer_cast.hpp>
 
 #include "Utils.h"
 #include "Types.h"
@@ -1986,6 +1987,50 @@ SegmentSealedImpl::RemoveFieldFile(const FieldId field_id) {
             return;
         }
     }
+}
+
+void
+SegmentSealedImpl::CreateTextIndex(FieldId field_id) {
+    std::unique_lock lck(mutex_);
+    auto iter = fields_.find(field_id);
+    AssertInfo(iter != fields_.end(),
+               "failed to create text index, field not found: {}",
+               field_id.get());
+    auto column =
+        std::dynamic_pointer_cast<VariableColumn<std::string>>(iter->second);
+    AssertInfo(column != nullptr,
+               "failed to create text index, field is not of text type: {}",
+               field_id.get());
+
+    auto& cfg = storage::MmapManager::GetInstance().GetMmapConfig();
+    std::unique_ptr<index::TextMatchIndex> index;
+    if (!cfg.GetEnableMmap()) {
+        // build text index in ram.
+        index = std::make_unique<index::TextMatchIndex>(
+            std::numeric_limits<int64_t>::max());
+    } else {
+        // build text index using mmap.
+        index = std::make_unique<index::TextMatchIndex>(cfg.GetMmapPath());
+    }
+
+    {
+        // build
+        auto n = column->NumRows();
+        for (size_t i = 0; i < n; i++) {
+            index->AddText(std::string(column->RawAt(i)), i);
+        }
+        // release the index writer and create index reader.
+        index->Finish();
+    }
+    index->Reload();
+    text_indexes_[field_id] = std::move(index);
+}
+
+void
+SegmentSealedImpl::LoadTextIndex(FieldId field_id,
+                                 std::unique_ptr<index::TextMatchIndex> index) {
+    std::unique_lock lck(mutex_);
+    text_indexes_[field_id] = std::move(index);
 }
 
 }  // namespace milvus::segcore

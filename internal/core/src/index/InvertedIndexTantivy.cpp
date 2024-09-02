@@ -14,6 +14,7 @@
 #include "common/RegexQuery.h"
 #include "storage/LocalChunkManagerSingleton.h"
 #include "index/InvertedIndexTantivy.h"
+#include "index/InvertedIndexUtil.h"
 #include "log/Log.h"
 #include "index/Utils.h"
 #include "storage/Util.h"
@@ -216,32 +217,6 @@ InvertedIndexTantivy<T>::Load(milvus::tracer::TraceContext ctx,
     wrapper_ = std::make_shared<TantivyIndexWrapper>(prefix.c_str());
 }
 
-inline void
-apply_hits(TargetBitmap& bitset, const RustArrayWrapper& w, bool v) {
-    for (size_t j = 0; j < w.array_.len; j++) {
-        bitset[w.array_.array[j]] = v;
-    }
-}
-
-inline void
-apply_hits_with_filter(TargetBitmap& bitset,
-                       const RustArrayWrapper& w,
-                       const std::function<bool(size_t /* offset */)>& filter) {
-    for (size_t j = 0; j < w.array_.len; j++) {
-        auto the_offset = w.array_.array[j];
-        bitset[the_offset] = filter(the_offset);
-    }
-}
-
-inline void
-apply_hits_with_callback(
-    const RustArrayWrapper& w,
-    const std::function<void(size_t /* offset */)>& callback) {
-    for (size_t j = 0; j < w.array_.len; j++) {
-        callback(w.array_.array[j]);
-    }
-}
-
 template <typename T>
 const TargetBitmap
 InvertedIndexTantivy<T>::In(size_t n, const T* values) {
@@ -430,6 +405,7 @@ InvertedIndexTantivy<T>::BuildWithRawData(size_t n,
     if (config.find("is_array") != config.end()) {
         // only used in ut.
         auto arr = static_cast<const boost::container::vector<T>*>(values);
+        int64_t offset = 0;
         for (size_t i = 0; i < n; i++) {
             wrapper_->template add_multi_data(arr[i].data(), arr[i].size(), i);
         }

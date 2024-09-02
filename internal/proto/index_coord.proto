@@ -144,6 +144,7 @@ message GetIndexInfoRequest {
     int64 collectionID = 1;
     repeated int64 segmentIDs = 2;
     string index_name = 3;
+    bool internal = 4;
 }
 
 message IndexFilePathInfo {
@@ -183,6 +184,8 @@ message DescribeIndexRequest {
     int64 collectionID = 1;
     string index_name = 2;
     uint64 timestamp = 3;
+    // Internal indexes will be also returned if `internal` is true, for example text indexes.
+    bool internal = 4;
 }
 
 message DescribeIndexResponse {
@@ -250,6 +253,8 @@ message GetIndexStatisticsResponse {
 
 message ListIndexesRequest {
     int64 collectionID = 1;
+    // Internal indexes will be also returned if `internal` is true, for example text indexes.
+    bool internal = 2;
 }
 
 message ListIndexesResponse {

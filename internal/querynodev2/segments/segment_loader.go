@@ -611,6 +611,109 @@ func separateIndexAndBinlog(loadInfo *querypb.SegmentLoadInfo) (map[int64]*Index
 	return indexedFieldInfos, fieldBinlogs
 }
 
+func separateLoadInfo(loadInfo *querypb.SegmentLoadInfo, schema *typeutil.SchemaHelper) (
+	map[int64]*IndexedFieldInfo, // indexed info
+	[]*datapb.FieldBinlog, // fields info
+	map[int64]*querypb.FieldIndexInfo, // text indexed info
+	map[int64]struct{}, // unindexed text fields
+) {
+	fieldID2IndexInfo := make(map[int64]*querypb.FieldIndexInfo, len(loadInfo.GetIndexInfos()))
+	textIndexes := make(map[int64]*querypb.FieldIndexInfo, len(loadInfo.GetIndexInfos()))
+	for _, indexInfo := range loadInfo.IndexInfos {
+		if len(indexInfo.GetIndexFilePaths()) > 0 {
+			fieldID := indexInfo.FieldID
+			if funcutil.IsTextIndex(indexInfo.GetIndexParams()) {
+				textIndexes[fieldID] = indexInfo
+			} else {
+				fieldID2IndexInfo[fieldID] = indexInfo
+			}
+		}
+	}
+
+	indexedFieldInfos := make(map[int64]*IndexedFieldInfo)
+	fieldBinlogs := make([]*datapb.FieldBinlog, 0, len(loadInfo.BinlogPaths))
+	unindexedTextFields := make(map[int64]struct{})
+
+	for _, fieldBinlog := range loadInfo.BinlogPaths {
+		fieldID := fieldBinlog.FieldID
+		// check num rows of data meta and index meta are consistent
+		if indexInfo, ok := fieldID2IndexInfo[fieldID]; ok {
+			fieldInfo := &IndexedFieldInfo{
+				FieldBinlog: fieldBinlog,
+				IndexInfo:   indexInfo,
+			}
+			indexedFieldInfos[fieldID] = fieldInfo
+		} else {
+			fieldBinlogs = append(fieldBinlogs, fieldBinlog)
+		}
+
+		fieldSchema, err := schema.GetFieldFromID(fieldID)
+		if err != nil {
+			panic(err)
+		}
+		h := typeutil.CreateFieldSchemaHelper(fieldSchema)
+		_, textIndexExist := textIndexes[fieldID]
+		if h.EnableMatch() && !textIndexExist {
+			unindexedTextFields[fieldID] = struct{}{}
+		}
+	}
+
+	return indexedFieldInfos, fieldBinlogs, textIndexes, unindexedTextFields
+}
+
+func separateLoadInfoV2(loadInfo *querypb.SegmentLoadInfo, schema *schemapb.CollectionSchema) (
+	map[int64]*IndexedFieldInfo, // indexed info
+	[]*datapb.FieldBinlog, // fields info
+	map[int64]*datapb.FieldStatsLog, // text indexed info
+	map[int64]struct{}, // unindexed text fields
+) {
+	fieldID2IndexInfo := make(map[int64]*querypb.FieldIndexInfo)
+	for _, indexInfo := range loadInfo.IndexInfos {
+		if len(indexInfo.GetIndexFilePaths()) > 0 {
+			fieldID := indexInfo.FieldID
+			fieldID2IndexInfo[fieldID] = indexInfo
+		}
+	}
+
+	indexedFieldInfos := make(map[int64]*IndexedFieldInfo)
+	fieldBinlogs := make([]*datapb.FieldBinlog, 0, len(loadInfo.BinlogPaths))
+
+	for _, fieldBinlog := range loadInfo.BinlogPaths {
+		fieldID := fieldBinlog.FieldID
+		// check num rows of data meta and index meta are consistent
+		if indexInfo, ok := fieldID2IndexInfo[fieldID]; ok {
+			fieldInfo := &IndexedFieldInfo{
+				FieldBinlog: fieldBinlog,
+				IndexInfo:   indexInfo,
+			}
+			indexedFieldInfos[fieldID] = fieldInfo
+		} else {
+			fieldBinlogs = append(fieldBinlogs, fieldBinlog)
+		}
+	}
+
+	textIndexedInfo := make(map[int64]*datapb.FieldStatsLog, len(loadInfo.GetFieldStatsLog()))
+	for _, fieldStatsLog := range loadInfo.GetFieldStatsLog() {
+		textLog, ok := textIndexedInfo[fieldStatsLog.FieldID]
+		if !ok {
+			textIndexedInfo[fieldStatsLog.FieldID] = fieldStatsLog
+		} else if fieldStatsLog.GetVersion() > textLog.GetVersion() {
+			textIndexedInfo[fieldStatsLog.FieldID] = fieldStatsLog
+		}
+	}
+
+	unindexedTextFields := make(map[int64]struct{})
+	for _, field := range schema.GetFields() {
+		h := typeutil.CreateFieldSchemaHelper(field)
+		_, textIndexExist := textIndexedInfo[field.GetFieldID()]
+		if h.EnableMatch() && !textIndexExist {
+			unindexedTextFields[field.GetFieldID()] = struct{}{}
+		}
+	}
+
+	return indexedFieldInfos, fieldBinlogs, textIndexedInfo, unindexedTextFields
+}
+
 func (loader *segmentLoader) loadSealedSegment(ctx context.Context, loadInfo *querypb.SegmentLoadInfo, segment *LocalSegment) (err error) {
 	// TODO: we should create a transaction-like api to load segment for segment interface,
 	// but not do many things in segment loader.
@@ -632,8 +735,10 @@ func (loader *segmentLoader) loadSealedSegment(ctx context.Context, loadInfo *qu
 
 	collection := segment.GetCollection()
 
-	indexedFieldInfos, fieldBinlogs := separateIndexAndBinlog(loadInfo)
+	log.Info("[delete me]", zap.Any("load info", loadInfo))
+
 	schemaHelper, _ := typeutil.CreateSchemaHelper(collection.Schema())
+	indexedFieldInfos, fieldBinlogs, textIndexes, unindexedTextFields := separateLoadInfoV2(loadInfo, collection.Schema())
 	if err := segment.AddFieldDataInfo(ctx, loadInfo.GetNumOfRows(), loadInfo.GetBinlogPaths()); err != nil {
 		return err
 	}
@@ -673,6 +778,21 @@ func (loader *segmentLoader) loadSealedSegment(ctx context.Context, loadInfo *qu
 	}
 	loadRawDataSpan := tr.RecordSpan()
 
+	// load text indexes.
+	for _, info := range textIndexes {
+		if err := segment.LoadTextIndex(ctx, info, schemaHelper); err != nil {
+			return err
+		}
+	}
+	loadTextIndexesSpan := tr.RecordSpan()
+
+	// create index for unindexed text fields.
+	for fieldID := range unindexedTextFields {
+		if err := segment.CreateTextIndex(ctx, fieldID); err != nil {
+			return err
+		}
+	}
+
 	// 4. rectify entries number for binlog in very rare cases
 	// https://github.com/milvus-io/milvus/23654
 	// legacy entry num = 0
@@ -685,6 +805,7 @@ func (loader *segmentLoader) loadSealedSegment(ctx context.Context, loadInfo *qu
 		zap.Duration("complementScalarDataSpan", complementScalarDataSpan),
 		zap.Duration("loadRawDataSpan", loadRawDataSpan),
 		zap.Duration("patchEntryNumberSpan", patchEntryNumberSpan),
+		zap.Duration("loadTextIndexesSpan", loadTextIndexesSpan),
 	)
 	return nil
 }

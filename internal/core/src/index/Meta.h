@@ -45,6 +45,7 @@ constexpr const char* MARISA_TRIE = "Trie";
 constexpr const char* INVERTED_INDEX_TYPE = "INVERTED";
 constexpr const char* BITMAP_INDEX_TYPE = "BITMAP";
 constexpr const char* HYBRID_INDEX_TYPE = "HYBRID";
+constexpr const char* FTS_INDEX_TYPE = "FTS";
 
 // index meta
 constexpr const char* COLLECTION_ID = "collection_id";

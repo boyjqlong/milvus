@@ -45,6 +45,8 @@ type watchInfo struct {
 	schema         *schemapb.CollectionSchema
 }
 
+var _ Broker = (*ServerBroker)(nil)
+
 // Broker communicates with other components.
 type Broker interface {
 	ReleaseCollection(ctx context.Context, collectionID UniqueID) error
@@ -57,6 +59,7 @@ type Broker interface {
 	GetSegmentStates(context.Context, *datapb.GetSegmentStatesRequest) (*datapb.GetSegmentStatesResponse, error)
 	GcConfirm(ctx context.Context, collectionID, partitionID UniqueID) bool
 
+	CreateIndex(ctx context.Context, req *indexpb.CreateIndexRequest) error
 	DropCollectionIndex(ctx context.Context, collID UniqueID, partIDs []UniqueID) error
 	// notify observer to clean their meta cache
 	BroadcastAlteredCollection(ctx context.Context, req *milvuspb.AlterCollectionRequest) error
@@ -185,6 +188,15 @@ func (b *ServerBroker) UnwatchChannels(ctx context.Context, info *watchInfo) err
 
 func (b *ServerBroker) GetSegmentStates(ctx context.Context, req *datapb.GetSegmentStatesRequest) (*datapb.GetSegmentStatesResponse, error) {
 	return b.s.dataCoord.GetSegmentStates(ctx, req)
+}
+
+func (b *ServerBroker) CreateIndex(ctx context.Context, req *indexpb.CreateIndexRequest) error {
+	log.Ctx(ctx).Info("creating index", zap.Any("req", req))
+
+	rsp, err := b.s.dataCoord.CreateIndex(ctx, req)
+
+	log.Ctx(ctx).Info("done to create index", zap.Any("req", req))
+	return merr.CheckRPCCall(rsp, err)
 }
 
 func (b *ServerBroker) DropCollectionIndex(ctx context.Context, collID UniqueID, partIDs []UniqueID) error {
