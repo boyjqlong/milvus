@@ -29,7 +29,6 @@ import "C"
 import (
 	"context"
 	"fmt"
-	"github.com/milvus-io/milvus/internal/proto/indexcgopb"
 	"runtime"
 	"strings"
 	"unsafe"
@@ -44,6 +43,7 @@ import (
 	"github.com/milvus-io/milvus-proto/go-api/v2/msgpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/internal/proto/cgopb"
+	"github.com/milvus-io/milvus/internal/proto/indexcgopb"
 	"github.com/milvus-io/milvus/internal/proto/datapb"
 	"github.com/milvus-io/milvus/internal/proto/querypb"
 	"github.com/milvus-io/milvus/internal/proto/segcorepb"
@@ -1181,8 +1181,6 @@ func (s *LocalSegment) LoadIndex(ctx context.Context, indexInfo *querypb.FieldIn
 func (s *LocalSegment) LoadTextIndex(ctx context.Context, textLogs *datapb.TextIndexStats, schemaHelper *typeutil.SchemaHelper) error {
 	log.Ctx(ctx).Info("load text index", zap.Int64("field id", textLogs.GetFieldID()))
 
-	log.Ctx(ctx).Info("[delete me]", zap.Any("text logs", textLogs))
-
 	f, err := schemaHelper.GetFieldFromID(textLogs.GetFieldID())
 	if err != nil {
 		return err
@@ -1238,15 +1236,13 @@ func (s *LocalSegment) UpdateIndexInfo(ctx context.Context, indexInfo *querypb.F
 		return err
 	}
 
-	if !funcutil.IsTextIndex(indexInfo.GetIndexParams()) {
-		s.fieldIndexes.Insert(indexInfo.GetFieldID(), &IndexedFieldInfo{
-			FieldBinlog: &datapb.FieldBinlog{
-				FieldID: indexInfo.GetFieldID(),
-			},
-			IndexInfo: indexInfo,
-			IsLoaded:  true,
-		})
-	}
+    s.fieldIndexes.Insert(indexInfo.GetFieldID(), &IndexedFieldInfo{
+        FieldBinlog: &datapb.FieldBinlog{
+            FieldID: indexInfo.GetFieldID(),
+        },
+        IndexInfo: indexInfo,
+        IsLoaded:  true,
+    })
 	log.Info("updateSegmentIndex done")
 	return nil
 }

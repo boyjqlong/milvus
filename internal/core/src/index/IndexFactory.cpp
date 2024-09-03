@@ -28,7 +28,6 @@
 #include "index/BoolIndex.h"
 #include "index/InvertedIndexTantivy.h"
 #include "index/HybridScalarIndex.h"
-#include "TextMatchIndex.h"
 
 namespace milvus::index {
 
@@ -72,9 +71,6 @@ IndexFactory::CreatePrimitiveScalarIndex<std::string>(
     if (index_type == HYBRID_INDEX_TYPE) {
         return std::make_unique<HybridScalarIndex<std::string>>(
             file_manager_context);
-    }
-    if (index_type == FTS_INDEX_TYPE) {
-        return std::make_unique<TextMatchIndex>(file_manager_context);
     }
     return CreateStringIndexMarisa(file_manager_context);
 #else

@@ -18,7 +18,6 @@ package session
 
 import (
 	"context"
-	"github.com/milvus-io/milvus/internal/proto/workerpb"
 	"testing"
 
 	"github.com/cockroachdb/errors"

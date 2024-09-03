@@ -415,24 +415,6 @@ UpdateSealedSegmentIndex(CSegmentInterface c_segment,
 }
 
 CStatus
-UpdateSealedSegmentTextIndex(CSegmentInterface c_segment,
-                             CLoadIndexInfo c_load_index_info) {
-    try {
-        auto segment_interface =
-            reinterpret_cast<milvus::segcore::SegmentInterface*>(c_segment);
-        auto segment =
-            dynamic_cast<milvus::segcore::SegmentSealed*>(segment_interface);
-        AssertInfo(segment != nullptr, "segment conversion failed");
-        auto load_index_info =
-            static_cast<milvus::segcore::LoadIndexInfo*>(c_load_index_info);
-        // segment->LoadTextIndex(*load_index_info);
-        return milvus::SuccessCStatus();
-    } catch (std::exception& e) {
-        return milvus::FailureCStatus(&e);
-    }
-}
-
-CStatus
 LoadTextIndex(CSegmentInterface c_segment,
               const uint8_t* serialized_load_text_index_info,
               const uint64_t len) {

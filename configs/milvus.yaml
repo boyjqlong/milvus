@@ -85,7 +85,7 @@ localStorage:
   # Local path to where vector data are stored during a search or a query to avoid repetitve access to MinIO or S3 service.
   # Caution: Changing this parameter after using Milvus for a period of time will affect your access to old data.
   # It is recommended to change this parameter before starting Milvus for the first time.
-  path: /tmp/var/lib/milvus/data/
+  path: /var/lib/milvus/data/
 
 # Related configuration of MinIO/S3/GCS or any other service supports S3 API, which is responsible for data persistence for Milvus.
 # We refer to the storage service as MinIO/S3 in the following description for simplicity.
@@ -489,8 +489,6 @@ indexNode:
     clientMaxRecvSize: 536870912 # The maximum size of each RPC request that the clients on indexNode can receive, unit: byte
 
 dataCoord:
-  statsTask:
-    enable: True
   channel:
     watchTimeoutInterval: 300 # Timeout on watching channels (in seconds). Datanode tickler update watch progress will reset timeout timer.
     legacyVersionWithoutRPCWatch: 2.4.1 # Datanodes <= this version are considered as legacy nodes, which doesn't have rpc based watch(). This is only used during rolling upgrade where legacy nodes won't get new channels

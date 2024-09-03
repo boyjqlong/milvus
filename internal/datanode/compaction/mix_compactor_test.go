@@ -54,7 +54,7 @@ type MixCompactionTaskSuite struct {
 	mockBinlogIO *io.MockBinlogIO
 
 	meta      *etcdpb.CollectionMeta
-	segWriter *storage.SegmentWriter
+	segWriter *SegmentWriter
 
 	task *mixCompactionTask
 	plan *datapb.CompactionPlan
@@ -554,7 +554,7 @@ func (s *MixCompactionTaskSuite) initMultiRowsSegBuffer(magic, numRows, step int
 }
 
 func (s *MixCompactionTaskSuite) initSegBuffer(magic int64) {
-	segWriter, err := storage.NewSegmentWriter(s.meta.GetSchema(), 100, magic, PartitionID, CollectionID)
+	segWriter, err := NewSegmentWriter(s.meta.GetSchema(), 100, magic, PartitionID, CollectionID)
 	s.Require().NoError(err)
 
 	v := storage.Value{

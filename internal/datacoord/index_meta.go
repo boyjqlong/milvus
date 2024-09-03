@@ -20,7 +20,6 @@ package datacoord
 import (
 	"context"
 	"fmt"
-	"github.com/milvus-io/milvus/pkg/util/funcutil"
 	"strconv"
 	"sync"
 
@@ -43,82 +42,14 @@ import (
 	"github.com/milvus-io/milvus/pkg/util/typeutil"
 )
 
-// collID -> indexID -> index
-type collectionIndexes map[UniqueID]map[UniqueID]*model.Index
-
-type IndexFilter func(index *model.Index) bool
-
-func WithIndexFilters(filters ...IndexFilter) IndexFilter {
-	return func(index *model.Index) bool {
-		for _, filter := range filters {
-			if !filter(index) {
-				return false
-			}
-		}
-		return true
-	}
-}
-
-func SkipDeleted() IndexFilter {
-	return func(index *model.Index) bool {
-		return !index.IsDeleted
-	}
-}
-
-func FilterByIndexName(indexName string) IndexFilter {
-	return func(index *model.Index) bool {
-		return indexName == "" || indexName == index.IndexName
-	}
-}
-
-func IsTextIndex(index *model.Index) bool {
-	return funcutil.IsTextIndex(index.TypeParams) ||
-		funcutil.IsTextIndex(index.IndexParams) ||
-		funcutil.IsTextIndex(index.UserIndexParams)
-}
-
-func SkipTextIndex() IndexFilter {
-	return func(index *model.Index) bool {
-		return !IsTextIndex(index)
-	}
-}
-
-func (m collectionIndexes) getIndexesForCollection(collID UniqueID, indexName string) []*model.Index {
-	return m.selectCollectionIndexes(collID, WithIndexFilters(SkipDeleted(), FilterByIndexName(indexName)))
-}
-
-func (m collectionIndexes) selectIndexes(filter IndexFilter) []*model.Index {
-	indexInfos := make([]*model.Index, 0)
-	for _, indexes := range m {
-		for _, index := range indexes {
-			if filter(index) {
-				indexInfos = append(indexInfos, model.CloneIndex(index))
-			}
-		}
-	}
-	return indexInfos
-}
-
-func (m collectionIndexes) selectCollectionIndexes(collID UniqueID, filter IndexFilter) []*model.Index {
-	if _, ok := m[collID]; !ok {
-		return nil
-	}
-	indexInfos := make([]*model.Index, 0)
-	for _, index := range m[collID] {
-		if filter(index) {
-			indexInfos = append(indexInfos, model.CloneIndex(index))
-		}
-	}
-	return indexInfos
-}
-
 type indexMeta struct {
 	sync.RWMutex
 	ctx     context.Context
 	catalog metastore.DataCoordCatalog
 
 	// collectionIndexes records which indexes are on the collection
-	indexes collectionIndexes
+	// collID -> indexID -> index
+	indexes map[UniqueID]map[UniqueID]*model.Index
 	// buildID2Meta records the meta information of the segment
 	// buildID -> segmentIndex
 	buildID2SegmentIndex map[UniqueID]*model.SegmentIndex
@@ -132,7 +63,7 @@ func newIndexMeta(ctx context.Context, catalog metastore.DataCoordCatalog) (*ind
 	mt := &indexMeta{
 		ctx:                  ctx,
 		catalog:              catalog,
-		indexes:              make(collectionIndexes),
+		indexes:              make(map[UniqueID]map[UniqueID]*model.Index),
 		buildID2SegmentIndex: make(map[UniqueID]*model.SegmentIndex),
 		segmentIndexes:       make(map[UniqueID]map[UniqueID]*model.SegmentIndex),
 	}
@@ -332,19 +263,11 @@ func (m *indexMeta) CanCreateIndex(req *indexpb.CreateIndexRequest) (UniqueID, e
 	if !ok {
 		return 0, nil
 	}
-
-	// Text index (internal) can always be created.
-	if funcutil.IsTextIndex(req.GetTypeParams()) ||
-		funcutil.IsTextIndex(req.GetIndexParams()) ||
-		funcutil.IsTextIndex(req.GetUserIndexParams()) {
-		return 0, nil
-	}
-
 	for _, index := range indexes {
 		if index.IsDeleted {
 			continue
 		}
-		if req.IndexName == index.IndexName && !IsTextIndex(index) {
+		if req.IndexName == index.IndexName {
 			if req.FieldID == index.FieldID && checkParams(index, req) {
 				return index.IndexID, nil
 			}
@@ -356,7 +279,7 @@ func (m *indexMeta) CanCreateIndex(req *indexpb.CreateIndexRequest) (UniqueID, e
 					req.GetIndexName(), req.GetFieldID(), req.GetIndexParams(), req.GetUserIndexParams(), req.GetTypeParams())))
 			return 0, fmt.Errorf("CreateIndex failed: %s", errMsg)
 		}
-		if req.FieldID == index.FieldID && !IsTextIndex(index) {
+		if req.FieldID == index.FieldID {
 			// creating multiple indexes on same field is not supported
 			errMsg := "CreateIndex failed: creating multiple indexes on same field is not supported"
 			log.Warn(errMsg)
@@ -543,45 +466,21 @@ func (m *indexMeta) GetIndexedSegments(collectionID int64, segmentIDs, fieldIDs 
 	return ret
 }
 
-type GetIndexesCfg struct {
-	filterText bool
-}
-
-func (cfg *GetIndexesCfg) apply(opts ...GetIndexesOption) {
-	for _, opt := range opts {
-		if opt != nil {
-			opt(cfg)
-		}
-	}
-}
-
-func defaultGetIndexesCfg() GetIndexesCfg {
-	return GetIndexesCfg{filterText: false}
-}
-
-type GetIndexesOption func(cfg *GetIndexesCfg)
-
-func WithFilterText(filter bool) GetIndexesOption {
-	return func(cfg *GetIndexesCfg) {
-		cfg.filterText = filter
-	}
-}
-
 // GetIndexesForCollection gets all indexes info with the specified collection.
-// by default, this function will also return the text indexes,
-// unless the text indexes were explicitly filtered.
-func (m *indexMeta) GetIndexesForCollection(collID UniqueID, indexName string, opts ...GetIndexesOption) []*model.Index {
+func (m *indexMeta) GetIndexesForCollection(collID UniqueID, indexName string) []*model.Index {
 	m.RLock()
 	defer m.RUnlock()
 
-	cfg := defaultGetIndexesCfg()
-	cfg.apply(opts...)
-
-	if cfg.filterText {
-		return m.indexes.selectCollectionIndexes(collID, WithIndexFilters(SkipDeleted(), FilterByIndexName(indexName), SkipTextIndex()))
+	indexInfos := make([]*model.Index, 0)
+	for _, index := range m.indexes[collID] {
+		if index.IsDeleted {
+			continue
+		}
+		if indexName == "" || indexName == index.IndexName {
+			indexInfos = append(indexInfos, model.CloneIndex(index))
+		}
 	}
-
-	return m.indexes.selectCollectionIndexes(collID, WithIndexFilters(SkipDeleted(), FilterByIndexName(indexName)))
+	return indexInfos
 }
 
 func (m *indexMeta) GetFieldIndexes(collID, fieldID UniqueID, indexName string) []*model.Index {

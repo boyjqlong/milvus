@@ -405,7 +405,6 @@ InvertedIndexTantivy<T>::BuildWithRawData(size_t n,
     if (config.find("is_array") != config.end()) {
         // only used in ut.
         auto arr = static_cast<const boost::container::vector<T>*>(values);
-        int64_t offset = 0;
         for (size_t i = 0; i < n; i++) {
             wrapper_->template add_multi_data(arr[i].data(), arr[i].size(), i);
         }
