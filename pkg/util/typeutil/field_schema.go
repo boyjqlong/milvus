@@ -2,9 +2,10 @@ package typeutil
 
 import (
 	"fmt"
+	"strconv"
+
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/pkg/common"
-	"strconv"
 )
 
 type FieldSchemaHelper struct {

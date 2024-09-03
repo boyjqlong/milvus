@@ -43,8 +43,8 @@ import (
 	"github.com/milvus-io/milvus-proto/go-api/v2/msgpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/internal/proto/cgopb"
-	"github.com/milvus-io/milvus/internal/proto/indexcgopb"
 	"github.com/milvus-io/milvus/internal/proto/datapb"
+	"github.com/milvus-io/milvus/internal/proto/indexcgopb"
 	"github.com/milvus-io/milvus/internal/proto/querypb"
 	"github.com/milvus-io/milvus/internal/proto/segcorepb"
 	"github.com/milvus-io/milvus/internal/querycoordv2/params"
@@ -1236,13 +1236,13 @@ func (s *LocalSegment) UpdateIndexInfo(ctx context.Context, indexInfo *querypb.F
 		return err
 	}
 
-    s.fieldIndexes.Insert(indexInfo.GetFieldID(), &IndexedFieldInfo{
-        FieldBinlog: &datapb.FieldBinlog{
-            FieldID: indexInfo.GetFieldID(),
-        },
-        IndexInfo: indexInfo,
-        IsLoaded:  true,
-    })
+	s.fieldIndexes.Insert(indexInfo.GetFieldID(), &IndexedFieldInfo{
+		FieldBinlog: &datapb.FieldBinlog{
+			FieldID: indexInfo.GetFieldID(),
+		},
+		IndexInfo: indexInfo,
+		IsLoaded:  true,
+	})
 	log.Info("updateSegmentIndex done")
 	return nil
 }

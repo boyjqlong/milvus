@@ -2009,21 +2009,29 @@ SegmentSealedImpl::CreateTextIndex(FieldId field_id) {
         auto iter = fields_.find(field_id);
         if (iter != fields_.end()) {
             auto column =
-                std::dynamic_pointer_cast<VariableColumn<std::string>>(iter->second);
-            AssertInfo(column != nullptr,
-                       "failed to create text index, field is not of text type: {}",
-                       field_id.get());
+                std::dynamic_pointer_cast<VariableColumn<std::string>>(
+                    iter->second);
+            AssertInfo(
+                column != nullptr,
+                "failed to create text index, field is not of text type: {}",
+                field_id.get());
             auto n = column->NumRows();
             for (size_t i = 0; i < n; i++) {
                 index->AddText(std::string(column->RawAt(i)), i);
             }
-        } else { // fetch raw data from index.
+        } else {  // fetch raw data from index.
             auto field_index_iter = scalar_indexings_.find(field_id);
-            AssertInfo(field_index_iter != scalar_indexings_.end(), "failed to create text index, neither raw data nor index are found");
+            AssertInfo(field_index_iter != scalar_indexings_.end(),
+                       "failed to create text index, neither raw data nor "
+                       "index are found");
             auto ptr = field_index_iter->second.get();
-            AssertInfo(ptr->HasRawData(), "text raw data not found, trying to create text index from index, but this index don't contain raw data");
+            AssertInfo(ptr->HasRawData(),
+                       "text raw data not found, trying to create text index "
+                       "from index, but this index don't contain raw data");
             auto impl = dynamic_cast<index::ScalarIndex<std::string>*>(ptr);
-            AssertInfo(impl != nullptr, "failed to create text index, field index cannot be converted to string index");
+            AssertInfo(impl != nullptr,
+                       "failed to create text index, field index cannot be "
+                       "converted to string index");
             auto n = impl->Size();
             for (size_t i = 0; i < n; i++) {
                 index->AddText(impl->Reverse_Lookup(i), i);
