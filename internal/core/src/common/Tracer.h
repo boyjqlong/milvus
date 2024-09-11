@@ -89,7 +89,7 @@ struct AutoSpan {
                       const std::shared_ptr<trace::Span>& span);
 
     std::shared_ptr<trace::Span>
-    AutoSpan::GetSpan();
+    GetSpan();
 
     ~AutoSpan();
 

@@ -226,8 +226,8 @@ GetSpanIDAsHexStr(const TraceContext* ctx) {
 }
 
 AutoSpan::AutoSpan(const std::string& name,
-                   TraceContext* ctx = nullptr,
-                   bool is_root_span = false)
+                   TraceContext* ctx,
+                   bool is_root_span)
     : is_root_span_(is_root_span) {
     span_ = StartSpan(name, ctx);
     if (is_root_span) {
