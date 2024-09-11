@@ -16,6 +16,7 @@
 
 #include "UnaryExpr.h"
 #include "common/Json.h"
+#include "common/Tracer.h"
 
 namespace milvus {
 namespace exec {
@@ -863,6 +864,7 @@ PhyUnaryRangeFilterExpr::CanUseIndex() {
 
 VectorPtr
 PhyUnaryRangeFilterExpr::ExecTextMatch() {
+    tracer::AutoSpan span("ExecTextMatch", tracer::GetRootSpan());
     using Index = index::TextMatchIndex;
     auto query = GetValueFromProto<std::string>(expr_->val_);
     auto func = [](Index* index, const std::string& query) -> TargetBitmap {

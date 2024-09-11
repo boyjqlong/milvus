@@ -22,6 +22,7 @@
 
 #include "common/EasyAssert.h"
 #include "common/Types.h"
+#include "common/Tracer.h"
 #include "common/Vector.h"
 #include "exec/expression/Expr.h"
 #include "index/Meta.h"
@@ -46,6 +47,7 @@ struct UnaryElementFuncForMatch {
                TargetBitmapView res) {
         PatternMatchTranslator translator;
         auto regex_pattern = translator(val);
+        tracer::AutoSpan span("regex query", tracer::GetRootSpan());
         RegexMatcher matcher(regex_pattern);
         for (int i = 0; i < size; ++i) {
             res[i] = matcher(src[i]);

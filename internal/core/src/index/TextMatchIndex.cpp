@@ -182,9 +182,18 @@ TextMatchIndex::RegisterTokenizer(
 
 TargetBitmap
 TextMatchIndex::MatchQuery(const std::string& query) {
+    tracer::AutoSpan span("MatchQuery", tracer::GetRootSpan());
+
     if (shouldTriggerCommit()) {
-        Commit();
-        Reload();
+        {
+            tracer::AutoSpan _("MatchQuery::Commit", span.GetSpan());
+            Commit();
+        }
+
+        {
+            tracer::AutoSpan _("MatchQuery::Reload", span.GetSpan());
+            Reload();
+        }
     }
 
     auto cnt = wrapper_->count();
@@ -192,8 +201,15 @@ TextMatchIndex::MatchQuery(const std::string& query) {
     if (bitset.empty()) {
         return bitset;
     }
-    auto hits = wrapper_->match_query(query);
-    apply_hits(bitset, hits, true);
+
+    {
+        tracer::AutoSpan _("MatchQuery::match_query", span.GetSpan());
+        auto hits = wrapper_->match_query(query);
+
+        tracer::AutoSpan _("MatchQuery::apply_hits", span.GetSpan());
+        apply_hits(bitset, hits, true);
+    }
+
     return bitset;
 }
 }  // namespace milvus::index
