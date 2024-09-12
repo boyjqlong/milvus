@@ -203,10 +203,10 @@ TextMatchIndex::MatchQuery(const std::string& query) {
     }
 
     {
-        tracer::AutoSpan _("MatchQuery::match_query", span.GetSpan());
+        tracer::AutoSpan _s1("MatchQuery::match_query", span.GetSpan());
         auto hits = wrapper_->match_query(query);
 
-        tracer::AutoSpan _("MatchQuery::apply_hits", span.GetSpan());
+        tracer::AutoSpan _s2("MatchQuery::apply_hits", span.GetSpan());
         apply_hits(bitset, hits, true);
     }
 

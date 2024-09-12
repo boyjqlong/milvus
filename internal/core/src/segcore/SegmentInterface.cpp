@@ -144,7 +144,8 @@ SegmentInternalInterface::FillTargetEntry(
     int64_t size,
     bool ignore_non_pk,
     bool fill_ids) const {
-    tracer::AutoSpan span("FillTargetEntry", trace_ctx, false);
+    // tracer::AutoSpan span("FillTargetEntry", trace_ctx, false);
+    tracer::AutoSpan span("FillTargetEntry", tracer::GetRootSpan());
 
     auto fields_data = results->mutable_fields_data();
     auto ids = results->mutable_ids();
